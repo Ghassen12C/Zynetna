@@ -78,6 +78,14 @@ export type AvailabilityRequest = {
   staff: StaffInput[];
   exceptions: ScheduleExceptionInput[];
   busy: BusyInterval[];
+  /**
+   * Counter bookings (walk-in / phone) ignore the minimum-notice rule. That
+   * rule exists to stop a stranger on the internet booking a slot the staff
+   * cannot prepare for; it makes no sense against a person already standing
+   * at the counter. Everything else — working hours, buffers, overlaps —
+   * still applies, so this can never create a double booking.
+   */
+  ignoreMinNotice?: boolean;
   /** Injected so tests are deterministic. */
   now: Date;
 };
@@ -200,7 +208,9 @@ export function computeDayAvailability(req: AvailabilityRequest): DayAvailabilit
   }
 
   const granularity = Math.max(5, business.slotGranularityMinutes);
-  const minNotice = service.minNoticeMinutes ?? business.minNoticeMinutes;
+  const minNotice = req.ignoreMinNotice
+    ? 0
+    : (service.minNoticeMinutes ?? business.minNoticeMinutes);
   const earliest = new Date(now.getTime() + minNotice * 60000);
 
   const occupied = Math.max(

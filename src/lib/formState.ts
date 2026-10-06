@@ -18,7 +18,11 @@ export type FormState<T = undefined> =
 
 export const idle: FormState<never> = { status: 'idle' };
 
-/** Narrowing helper so forms can read field errors without repeating the check. */
-export function fieldError(state: FormState<never> | FormState, field: string): string | undefined {
+/**
+ * Narrowing helper so forms can read field errors without repeating the check.
+ * Generic over the success payload: a form that returns data on success reads
+ * its field errors the same way as one that returns nothing.
+ */
+export function fieldError<T>(state: FormState<T>, field: string): string | undefined {
   return state.status === 'error' ? state.fieldErrors?.[field] : undefined;
 }

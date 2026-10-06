@@ -22,6 +22,8 @@ export type AvailabilityQuery = {
   from: DayKey;
   days: number;
   now?: Date;
+  /** Walk-in / phone bookings taken at the counter skip minimum notice. */
+  ignoreMinNotice?: boolean;
 };
 
 async function loadSnapshot(q: AvailabilityQuery) {
@@ -142,6 +144,7 @@ export async function getDayAvailability(
     exceptions: snapshot.exceptions,
     busy: snapshot.busy,
     now: q.now ?? new Date(),
+    ignoreMinNotice: q.ignoreMinNotice ?? false,
   });
 }
 

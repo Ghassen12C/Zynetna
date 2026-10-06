@@ -9,7 +9,7 @@ export const metadata: Metadata = { title: 'Réservations', robots: { index: fal
 export default async function ProReservationsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; staff?: string; page?: string }>;
+  searchParams: Promise<{ status?: string; staff?: string; page?: string; created?: string }>;
 }) {
   const { businessId } = await proContext('business.reservation.read', '/pro/dashboard/reservations');
   const params = await searchParams;
@@ -59,6 +59,7 @@ export default async function ProReservationsPage({
       page={page}
       perPage={perPage}
       filters={params}
+      created={params.created}
     />
   );
 }

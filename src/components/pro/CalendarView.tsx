@@ -119,6 +119,11 @@ export function CalendarView({
         </div>
 
         <div className="z-row" style={{ gap: 'var(--z-space-2)', flexWrap: 'wrap' }}>
+          {/* Taking a booking at the counter starts here, where the staff
+              already are when someone walks in. */}
+          <Link className="z-btn z-btn--primary z-btn--sm" href="/pro/dashboard/reservations/new">
+            + Rendez-vous
+          </Link>
           <div className="z-segmented" role="group" aria-label="Vue">
             <button
               type="button"

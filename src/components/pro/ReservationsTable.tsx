@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useActionState, useState, useTransition } from 'react';
 import { useFormStatus } from 'react-dom';
 import { Button } from '@/components/ui/Button';
+import { Alert } from '@/components/ui/Alert';
 import { Badge, EmptyState } from '@/components/ui/Primitives';
 import { transitionReservationAction } from '@/server/actions/proReservations';
 import { idle } from '@/lib/formState';
@@ -106,6 +107,7 @@ export function ReservationsTable({
   page,
   perPage,
   filters,
+  created,
 }: {
   businessId: string;
   timezone: string;
@@ -116,6 +118,8 @@ export function ReservationsTable({
   page: number;
   perPage: number;
   filters: Record<string, string | undefined>;
+  /** Reference of a just-created appointment, to confirm it landed. */
+  created?: string;
 }) {
   const router = useRouter();
   const params = useSearchParams();
@@ -145,8 +149,19 @@ export function ReservationsTable({
     <div className="z-stack" style={{ gap: 'var(--z-space-5)' }}>
       <div className="z-dash__panel-head">
         <h2 className="z-profile__h3">Réservations ({total})</h2>
-        <Link href="/pro/dashboard/calendar">Vue agenda →</Link>
+        <div className="z-row z-row--gap">
+          <Link className="z-btn z-btn--primary z-btn--sm" href="/pro/dashboard/reservations/new">
+            + Nouveau rendez-vous
+          </Link>
+          <Link href="/pro/dashboard/calendar">Vue agenda →</Link>
+        </div>
       </div>
+
+      {created ? (
+        <Alert tone="success">
+          Rendez-vous <strong>{created}</strong> enregistré. Il bloque désormais le créneau.
+        </Alert>
+      ) : null}
 
       <div className="z-row" style={{ gap: 'var(--z-space-2)', flexWrap: 'wrap' }}>
         <select

@@ -41,6 +41,12 @@ export type CreateReservationInput = {
   guestEmail?: string | null;
   customerNote?: string | null;
   channel?: 'ONLINE' | 'WALK_IN' | 'PHONE';
+  /**
+   * Set only by professional-side code taking a walk-in or phone booking.
+   * Waives the minimum-notice rule — never the overlap, hours or window
+   * checks. Customer-facing paths must never set it.
+   */
+  atCounter?: boolean;
 };
 
 /**
@@ -132,7 +138,13 @@ export async function createReservation(input: CreateReservationInput) {
   };
 
   const now = new Date();
-  const window = isWithinBookingWindow(input.startAt, policy, now);
+  const window = isWithinBookingWindow(
+    input.startAt,
+    // A counter booking still cannot be in the past or beyond the advance
+    // horizon; only the notice requirement is waived.
+    input.atCounter ? { ...policy, minNoticeMinutes: 0 } : policy,
+    now,
+  );
   if (!window.allowed) throw new AppError('POLICY_VIOLATION', window.reason);
 
   const day = dayKeyOf(business.timezone, input.startAt);
@@ -146,6 +158,7 @@ export async function createReservation(input: CreateReservationInput) {
     staffMemberId: staff.id,
     day,
     now,
+    ignoreMinNotice: input.atCounter ?? false,
   });
   const offered = availability.slots.find(
     (s) => s.startAt.getTime() === input.startAt.getTime(),
@@ -185,7 +198,14 @@ export async function createReservation(input: CreateReservationInput) {
         });
         if (clash) throw slotUnavailable();
 
-        const status: ReservationStatus = business.autoConfirm ? 'CONFIRMED' : 'PENDING';
+        /**
+         * A counter booking is confirmed on the spot. Manual confirmation
+         * exists so a business can vet requests from the public; a booking the
+         * business just took itself has nothing to vet, and leaving it PENDING
+         * would ask the owner to approve their own appointment.
+         */
+        const status: ReservationStatus =
+          input.atCounter || business.autoConfirm ? 'CONFIRMED' : 'PENDING';
 
         const created = await tx.reservation.create({
           data: {

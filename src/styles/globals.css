@@ -2549,3 +2549,89 @@ a.z-notif:hover { border-color: var(--z-accent); }
 [dir='rtl'] .z-today__time,
 [dir='rtl'] .z-cal-list__time,
 [dir='rtl'] .z-barlist__value { direction: ltr; unicode-bidi: embed; }
+
+/* ===================================================================
+   Counter booking (walk-in / phone) — professional side
+   =================================================================== */
+
+/* Spacing modifiers, so a stack of cards does not need an inline style. */
+.z-stack--lg { gap: var(--z-space-6); }
+.z-row--gap { gap: var(--z-space-3); }
+.z-mt-sm { margin-block-start: var(--z-space-2); }
+.z-mt-md { margin-block-start: var(--z-space-4); }
+
+.z-page-head { display: flex; flex-direction: column; gap: var(--z-space-2); }
+
+.z-breadcrumb {
+  display: flex; align-items: center; gap: var(--z-space-2);
+  font-size: var(--z-text-sm);
+  color: var(--z-fg-muted);
+}
+.z-breadcrumb a { color: var(--z-fg-muted); text-decoration: none; }
+.z-breadcrumb a:hover { color: var(--z-accent); text-decoration: underline; }
+/* The separator is a glyph, not a direction: let the engine mirror it. */
+.z-breadcrumb span[aria-hidden='true'] { color: var(--z-border-strong); }
+
+/* Type-ahead results for the business's own customers. */
+.z-suggest {
+  margin-block-start: var(--z-space-2);
+  list-style: none;
+  padding: 0;
+  border: 1px solid var(--z-border);
+  border-radius: var(--z-radius-md);
+  overflow: hidden;
+  background: var(--z-bg-raised);
+}
+.z-suggest__item {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--z-space-3);
+  width: 100%;
+  /* 44px minimum: this is used on a tablet at the counter. */
+  min-height: 44px;
+  padding: var(--z-space-3) var(--z-space-4);
+  text-align: start;
+  background: none;
+  border: 0;
+  border-block-end: 1px solid var(--z-border);
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+}
+.z-suggest li:last-child .z-suggest__item { border-block-end: 0; }
+.z-suggest__item:hover { background: var(--z-medina-50); }
+:root[data-theme='dark'] .z-suggest__item:hover { background: var(--z-bg-sunken); }
+
+.z-selected-customer {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--z-space-3);
+  flex-wrap: wrap;
+  padding: var(--z-space-3) var(--z-space-4);
+  background: var(--z-medina-50);
+  border: 1px solid var(--z-accent);
+  border-radius: var(--z-radius-md);
+}
+:root[data-theme='dark'] .z-selected-customer { background: var(--z-bg-sunken); }
+
+/* The action bar follows the staff down a long form. */
+.z-sticky-actions {
+  position: sticky;
+  inset-block-end: 0;
+  z-index: 5;
+  display: flex; align-items: center; justify-content: space-between; gap: var(--z-space-4);
+  flex-wrap: wrap;
+  padding: var(--z-space-4);
+  background: var(--z-bg-raised);
+  border: 1px solid var(--z-border);
+  border-radius: var(--z-radius-lg);
+  box-shadow: var(--z-shadow-md);
+}
+.z-sticky-actions__summary {
+  display: flex; align-items: center; gap: var(--z-space-3);
+  flex-wrap: wrap;
+  font-size: var(--z-text-sm);
+  color: var(--z-fg-muted);
+  min-width: 0;
+}
+@media (max-width: 560px) {
+  .z-sticky-actions { flex-direction: column; align-items: stretch; }
+  .z-sticky-actions .z-row { justify-content: stretch; }
+  .z-sticky-actions .z-btn { flex: 1; }
+}
