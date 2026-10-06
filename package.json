@@ -3,7 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=22" },
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "dev": "next dev -p 3000",
     "build": "prisma generate && next build",
@@ -21,16 +23,18 @@
     "job:subscriptions": "tsx src/jobs/subscriptions.ts",
     "job:reminders": "tsx src/jobs/reminders.ts"
   },
-  "prisma": { "seed": "tsx prisma/seed.ts" },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
   "dependencies": {
+    "@node-rs/argon2": "^2.0.2",
     "@prisma/client": "^6.16.2",
+    "motion": "^12.23.12",
     "next": "^15.5.4",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "sharp": "^0.34.3",
-    "zod": "^4.1.11",
-    "motion": "^12.23.12",
-    "@node-rs/argon2": "^2.0.2"
+    "zod": "^4.1.11"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.13",
@@ -41,6 +45,7 @@
     "@typescript-eslint/parser": "^8.44.0",
     "eslint": "^9.36.0",
     "eslint-config-next": "^15.5.4",
+    "playwright-core": "^1.63.0",
     "postcss": "^8.5.6",
     "prisma": "^6.16.2",
     "tailwindcss": "^4.1.13",

@@ -1,0 +1,201 @@
+/* ══════════════════════════════════════════════════════════════════════════
+   ZYNETNA — design tokens
+   Values come from the brand guide. Nothing else in the codebase holds a hex.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* ── Brand ─────────────────────────────────────────────────────────────
+     Medina Blue  the mark, headings, buttons
+     Chaux        page ground, knockouts
+     Jasmin       rules, highlights, badges — graphics, never small text
+     Encre        body text, one-colour print
+     Slate        captions and muted text (the guide's #44566B)            */
+  --z-medina: #0e3b66;
+  --z-chaux: #f5f1e8;
+  --z-jasmin: #e0a94e;
+  --z-encre: #0a1c2e;
+  --z-slate: #44566b;
+
+  /* Tints and shades derived from the five, so no component invents a colour */
+  --z-medina-900: #07213a;
+  --z-medina-800: #0a2d4f;
+  --z-medina-700: #0e3b66;
+  --z-medina-600: #16507f;
+  --z-medina-500: #246a9f;
+  --z-medina-300: #7fa8c8;
+  --z-medina-100: #dbe7f0;
+  --z-medina-50: #eef4f9;
+
+  --z-jasmin-700: #b57f2c;
+  --z-jasmin-600: #c9913a;
+  --z-jasmin-500: #e0a94e;
+  --z-jasmin-300: #eecb92;
+  --z-jasmin-100: #f8ecd5;
+
+  --z-chaux-200: #e8e2d4;
+  --z-chaux-300: #d9d1be;
+
+  /* ── Semantic surface + text ──────────────────────────────────────────── */
+  --z-bg: var(--z-chaux);
+  --z-bg-raised: #fffdf8;
+  --z-bg-sunken: #efeadd;
+  --z-bg-inverse: var(--z-medina);
+
+  --z-fg: var(--z-encre);
+  --z-fg-muted: var(--z-slate);
+  --z-fg-subtle: #6c7c8d;
+  --z-fg-inverse: var(--z-chaux);
+  --z-fg-on-accent: #ffffff;
+
+  --z-border: #ded7c8;
+  --z-border-strong: #c6bda9;
+  --z-border-focus: var(--z-medina-500);
+
+  --z-accent: var(--z-medina);
+  --z-accent-hover: var(--z-medina-600);
+  --z-accent-active: var(--z-medina-800);
+  --z-highlight: var(--z-jasmin);
+
+  /* ── Status ───────────────────────────────────────────────────────────── */
+  --z-success: #1f7a52;
+  --z-success-bg: #e3f3ea;
+  --z-warning: #9a6b14;
+  --z-warning-bg: #fbf0da;
+  --z-danger: #a32a32;
+  --z-danger-bg: #fbe9ea;
+  --z-info: var(--z-medina-600);
+  --z-info-bg: var(--z-medina-50);
+
+  /* ── Type ──────────────────────────────────────────────────────────────
+     Epilogue for Latin and French, Tajawal for Arabic. Body is 17 px / 500,
+     as the guide specifies.                                               */
+  --z-font-display: var(--font-epilogue), 'Epilogue', system-ui, sans-serif;
+  --z-font-text: var(--font-epilogue), 'Epilogue', system-ui, sans-serif;
+  --z-font-arabic: var(--font-tajawal), 'Tajawal', system-ui, sans-serif;
+
+  --z-text-xs: 0.75rem;
+  --z-text-sm: 0.875rem;
+  --z-text-base: 1.0625rem; /* 17 px */
+  --z-text-lg: 1.1875rem;
+  --z-text-xl: 1.375rem;
+  --z-text-2xl: 1.75rem;
+  --z-text-3xl: 2.25rem;
+  --z-text-4xl: 3rem;
+  --z-text-5xl: 3.75rem;
+
+  --z-weight-regular: 400;
+  --z-weight-medium: 500;
+  --z-weight-semibold: 600;
+  --z-weight-bold: 700;
+
+  --z-leading-tight: 1.15;
+  --z-leading-snug: 1.3;
+  --z-leading-normal: 1.55;
+  --z-leading-relaxed: 1.7;
+
+  /* Wide tracking is the guide's signature on the wordmark and eyebrows */
+  --z-tracking-wide: 0.14em;
+  --z-tracking-wider: 0.22em;
+
+  /* ── Space — 4 px base ─────────────────────────────────────────────────── */
+  --z-space-1: 0.25rem;
+  --z-space-2: 0.5rem;
+  --z-space-3: 0.75rem;
+  --z-space-4: 1rem;
+  --z-space-5: 1.25rem;
+  --z-space-6: 1.5rem;
+  --z-space-8: 2rem;
+  --z-space-10: 2.5rem;
+  --z-space-12: 3rem;
+  --z-space-16: 4rem;
+  --z-space-20: 5rem;
+  --z-space-24: 6rem;
+
+  /* ── Radius ────────────────────────────────────────────────────────────── */
+  --z-radius-sm: 6px;
+  --z-radius-md: 10px;
+  --z-radius-lg: 16px;
+  --z-radius-xl: 24px;
+  --z-radius-full: 999px;
+
+  /* ── Elevation — three levels, one language ────────────────────────────── */
+  --z-shadow-sm: 0 1px 2px rgba(10, 28, 46, 0.06), 0 1px 3px rgba(10, 28, 46, 0.04);
+  --z-shadow-md: 0 4px 12px rgba(10, 28, 46, 0.08), 0 2px 4px rgba(10, 28, 46, 0.04);
+  --z-shadow-lg: 0 16px 40px rgba(10, 28, 46, 0.12), 0 4px 12px rgba(10, 28, 46, 0.06);
+
+  /* ── Motion ────────────────────────────────────────────────────────────── */
+  --z-duration-fast: 120ms;
+  --z-duration-base: 200ms;
+  --z-duration-slow: 320ms;
+  --z-ease: cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* ── Layout ────────────────────────────────────────────────────────────── */
+  --z-container: 1200px;
+  --z-container-wide: 1440px;
+  --z-header-height: 68px;
+  --z-bottom-nav-height: 62px;
+}
+
+/* ── Dark mode ────────────────────────────────────────────────────────────
+   Semantic tokens are redefined; brand hexes are not. Components never need
+   a dark-mode branch because they only ever read the semantic layer.        */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --z-bg: #08192b;
+    --z-bg-raised: #0d2338;
+    --z-bg-sunken: #061320;
+    --z-bg-inverse: var(--z-chaux);
+
+    --z-fg: #e9eef4;
+    --z-fg-muted: #9fb2c4;
+    --z-fg-subtle: #7b8ea2;
+    --z-fg-inverse: var(--z-encre);
+
+    --z-border: #1b344a;
+    --z-border-strong: #2a4a66;
+
+    --z-accent: #5b9ad1;
+    --z-accent-hover: #74abdc;
+    --z-accent-active: #4a89c0;
+
+    --z-success: #4cb98a;
+    --z-success-bg: #0f2e22;
+    --z-warning: #d6a548;
+    --z-warning-bg: #2e2412;
+    --z-danger: #e0737a;
+    --z-danger-bg: #311518;
+    --z-info: #5b9ad1;
+    --z-info-bg: #0f2639;
+
+    --z-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+    --z-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.36);
+    --z-shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.44);
+  }
+}
+
+:root[data-theme='dark'] {
+  --z-bg: #08192b;
+  --z-bg-raised: #0d2338;
+  --z-bg-sunken: #061320;
+  --z-bg-inverse: var(--z-chaux);
+  --z-fg: #e9eef4;
+  --z-fg-muted: #9fb2c4;
+  --z-fg-subtle: #7b8ea2;
+  --z-fg-inverse: var(--z-encre);
+  --z-border: #1b344a;
+  --z-border-strong: #2a4a66;
+  --z-accent: #5b9ad1;
+  --z-accent-hover: #74abdc;
+  --z-accent-active: #4a89c0;
+  --z-success: #4cb98a;
+  --z-success-bg: #0f2e22;
+  --z-warning: #d6a548;
+  --z-warning-bg: #2e2412;
+  --z-danger: #e0737a;
+  --z-danger-bg: #311518;
+  --z-info: #5b9ad1;
+  --z-info-bg: #0f2639;
+  --z-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --z-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.36);
+  --z-shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.44);
+}
