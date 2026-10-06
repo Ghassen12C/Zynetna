@@ -1,3 +1,4 @@
+import type { PluralForms } from '../config';
 import type { Messages } from './fr';
 
 export const en: Messages = {
@@ -41,10 +42,39 @@ export const en: Messages = {
     proCtaBody: 'Put your business online, manage your appointments and grow your clientele.',
     proCtaButton: 'Start for free',
     trialBadge: '2 months free',
+    trialBadgeLong: '{months} months free for professionals',
+    heroSubtitleLong:
+      'Hairdressers, barbers, beauty salons, spas and wellness centres — all across Tunisia. Book your chair, book your glow.',
+    greeting: 'Ahla w sahla! 👋',
+    greetingBody: 'Tell me what you are looking for and I will take you there.',
+    exploreEyebrow: 'Explore',
+    selectionEyebrow: 'Zynetna picks',
+    featuredLead: 'Verified places, well rated by their customers.',
+    simpleEyebrow: 'Simple',
+    trendingEyebrow: 'Trending',
+    businessCount: {
+      one: '{count} place',
+      other: '{count} places',
+    } as PluralForms,
+    proTitle: 'Put your business online.',
+    proBody:
+      'Zynetna is more than a calendar — it is your storefront. Your photos, your services, your team, your hours, your customers, and bookings that land while you work.',
+    benefitPage: 'A complete public page, like a mini website',
+    benefitBooking: 'Online booking around the clock',
+    benefitCatalog: 'A service catalogue with photos and prices',
+    benefitTeam: 'Team and schedule management',
+    benefitCustomers: 'Customer records and appointment history',
+    benefitStats: 'Statistics and revenue',
+    trialMonths: '{months} months free',
+    thenPrice: 'then {price} / month · cancel anytime',
+    learnMore: 'Learn more',
   },
   search: {
     title: 'Results',
-    resultsCount: '{count} businesses',
+    resultsCount: {
+      one: '{count} place',
+      other: '{count} places',
+    } as PluralForms,
     filters: 'Filters',
     clearFilters: 'Clear all',
     apply: 'Apply',

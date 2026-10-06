@@ -1,3 +1,5 @@
+import type { PluralForms } from '../config';
+
 /** French — the reference locale. Every other file mirrors these keys. */
 export const fr = {
   brand: {
@@ -41,10 +43,39 @@ export const fr = {
       'Mettez votre établissement en ligne, gérez vos rendez-vous et développez votre clientèle.',
     proCtaButton: 'Commencer gratuitement',
     trialBadge: '2 mois offerts',
+    trialBadgeLong: '{months} mois offerts pour les professionnels',
+    heroSubtitleLong:
+      'Coiffeurs, barbiers, instituts de beauté, spas et centres de bien-être — partout en Tunisie. Réserve ta chaise, réserve ton éclat.',
+    greeting: 'Ahla w sahla ! 👋',
+    greetingBody: 'Dis-moi ce que tu cherches, je t’emmène.',
+    exploreEyebrow: 'Explorer',
+    selectionEyebrow: 'Sélection Zynetna',
+    featuredLead: 'Des adresses vérifiées, bien notées par leurs clients.',
+    simpleEyebrow: 'Simple',
+    trendingEyebrow: 'Tendance',
+    businessCount: {
+      one: '{count} établissement',
+      other: '{count} établissements',
+    } as PluralForms,
+    proTitle: 'Mets ton établissement en ligne.',
+    proBody:
+      'Zynetna n’est pas qu’un agenda : c’est ta vitrine digitale. Tes photos, tes prestations, ton équipe, tes horaires, tes clients — et des réservations qui tombent pendant que tu travailles.',
+    benefitPage: 'Une page publique complète, comme un mini-site',
+    benefitBooking: 'Réservation en ligne 24 h/24',
+    benefitCatalog: 'Catalogue de prestations avec photos et prix',
+    benefitTeam: 'Gestion de l’équipe et des plannings',
+    benefitCustomers: 'Fiche client et historique des rendez-vous',
+    benefitStats: 'Statistiques et chiffre d’affaires',
+    trialMonths: '{months} mois offerts',
+    thenPrice: 'puis {price} / mois · sans engagement',
+    learnMore: 'En savoir plus',
   },
   search: {
     title: 'Résultats',
-    resultsCount: '{count} établissement(s)',
+    resultsCount: {
+      one: '{count} établissement',
+      other: '{count} établissements',
+    } as PluralForms,
     filters: 'Filtres',
     clearFilters: 'Tout effacer',
     apply: 'Appliquer',

@@ -19,6 +19,18 @@ export const LOCALE_META: Record<
   en: { label: 'English', nativeLabel: 'English', dir: 'ltr', intl: 'en' },
 };
 
+/**
+ * A countable message, one entry per CLDR plural category.
+ *
+ * French and English need two forms; Arabic needs up to six, and picking the
+ * wrong one is not a cosmetic slip — "2 مؤسسة" reads as broken Arabic. `other`
+ * is the only required form so every locale has a safe fallback, and each one
+ * declares exactly the categories its grammar uses.
+ */
+export type PluralForms = {
+  other: string;
+} & Partial<Record<'zero' | 'one' | 'two' | 'few' | 'many', string>>;
+
 export function isLocale(value: string): value is Locale {
   return (LOCALES as readonly string[]).includes(value);
 }

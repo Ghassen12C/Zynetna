@@ -4,6 +4,9 @@ import { Badge, Eyebrow } from '@/components/ui/Primitives';
 import { BusinessCard } from '@/components/business/BusinessCard';
 import { WelcomeAvatar } from '@/components/marketing/Avatar';
 import { SearchBar } from '@/components/marketing/SearchBar';
+import { translate } from '@/i18n/server';
+import { formatCount, formatPrice } from '@/i18n/format';
+import { publicPlan } from '@/server/services/subscriptions';
 import {
   featuredBusinesses,
   listCities,
@@ -13,37 +16,35 @@ import {
 
 export const revalidate = 300;
 
-const STEPS = [
-  {
-    title: 'Cherche',
-    body: 'Trouve un professionnel près de chez toi, filtré par service, prix et disponibilité réelle.',
-  },
-  {
-    title: 'Réserve',
-    body: 'Choisis ton créneau et confirme en quelques secondes. Pas d’appel, pas d’attente.',
-  },
-  {
-    title: 'Profite',
-    body: 'Reçois un rappel avant ton rendez-vous, puis partage ton avis.',
-  },
-];
-
-const PRO_BENEFITS = [
-  'Une page publique complète, comme un mini-site',
-  'Réservation en ligne 24 h/24',
-  'Catalogue de prestations avec photos et prix',
-  'Gestion de l’équipe et des plannings',
-  'Fiche client et historique des rendez-vous',
-  'Statistiques et chiffre d’affaires',
-];
-
 export default async function HomePage() {
-  const [categories, featured, popular, cities] = await Promise.all([
+  const { m, t, locale, path } = await translate();
+  const [categories, featured, popular, cities, plan] = await Promise.all([
     topCategories(8),
     featuredBusinesses(8),
     popularBusinesses(4),
     listCities(),
+    publicPlan(),
   ]);
+
+  const steps = [
+    { title: m.home.step1Title, body: m.home.step1Body },
+    { title: m.home.step2Title, body: m.home.step2Body },
+    { title: m.home.step3Title, body: m.home.step3Body },
+  ];
+
+  const benefits = [
+    m.home.benefitPage,
+    m.home.benefitBooking,
+    m.home.benefitCatalog,
+    m.home.benefitTeam,
+    m.home.benefitCustomers,
+    m.home.benefitStats,
+  ];
+
+  // Trial length and price come from the active plan, so changing the offer is
+  // a row in the database rather than an edit to this page.
+  const trialMonths = plan ? Math.round(plan.trialDays / 30) : null;
+  const price = plan ? formatPrice(Number(plan.priceAmount), locale, plan.currency) : null;
 
   return (
     <>
@@ -51,12 +52,11 @@ export default async function HomePage() {
       <section className="z-hero">
         <div className="z-container z-hero__grid">
           <div className="z-hero__copy">
-            <Badge tone="gold">2 mois offerts pour les professionnels</Badge>
-            <h1 className="z-hero__title">Trouve. Réserve. Profite.</h1>
-            <p className="z-hero__subtitle">
-              Coiffeurs, barbiers, instituts de beauté, spas et centres de bien-être —
-              partout en Tunisie. Réserve ta chaise, réserve ton éclat.
-            </p>
+            {trialMonths ? (
+              <Badge tone="gold">{t(m.home.trialBadgeLong, { months: trialMonths })}</Badge>
+            ) : null}
+            <h1 className="z-hero__title">{m.home.heroTitle}</h1>
+            <p className="z-hero__subtitle">{m.home.heroSubtitleLong}</p>
 
             <div className="z-hero__search">
               <SearchBar cities={cities} />
@@ -66,7 +66,7 @@ export default async function HomePage() {
               {categories.slice(0, 5).map((category) => (
                 <Link
                   key={category.slug}
-                  href={`/search?category=${category.slug}`}
+                  href={path(`/search?category=${category.slug}`)}
                   className="z-chip"
                 >
                   {category.icon ? <span aria-hidden="true">{category.icon}</span> : null}
@@ -78,8 +78,8 @@ export default async function HomePage() {
 
           <div className="z-hero__art">
             <p className="z-hero__greeting">
-              Ahla w sahla ! 👋
-              <span>Dis-moi ce que tu cherches, je t’emmène.</span>
+              {m.home.greeting}
+              <span>{m.home.greetingBody}</span>
             </p>
             <WelcomeAvatar />
           </div>
@@ -92,11 +92,11 @@ export default async function HomePage() {
           <div className="z-container">
             <div className="z-section__head">
               <div>
-                <Eyebrow>Explorer</Eyebrow>
-                <h2 className="z-section__title">Catégories populaires</h2>
+                <Eyebrow>{m.home.exploreEyebrow}</Eyebrow>
+                <h2 className="z-section__title">{m.home.popularCategories}</h2>
               </div>
-              <Link href="/categories" className="z-header__link">
-                Tout voir →
+              <Link href={path('/categories')} className="z-header__link">
+                {m.common.seeAll} →
               </Link>
             </div>
 
@@ -104,7 +104,7 @@ export default async function HomePage() {
               {categories.map((category) => (
                 <Link
                   key={category.slug}
-                  href={`/search?category=${category.slug}`}
+                  href={path(`/search?category=${category.slug}`)}
                   className="z-ctile"
                 >
                   <span className="z-ctile__icon" aria-hidden="true">
@@ -112,7 +112,7 @@ export default async function HomePage() {
                   </span>
                   <span className="z-ctile__name">{category.name}</span>
                   <span className="z-ctile__count">
-                    {category.count} établissement{category.count > 1 ? 's' : ''}
+                    {formatCount(m.home.businessCount, category.count, locale)}
                   </span>
                 </Link>
               ))}
@@ -127,14 +127,12 @@ export default async function HomePage() {
           <div className="z-container">
             <div className="z-section__head">
               <div>
-                <Eyebrow>Sélection Zynetna</Eyebrow>
-                <h2 className="z-section__title">Établissements à la une</h2>
-                <p className="z-section__lead">
-                  Des adresses vérifiées, bien notées par leurs clients.
-                </p>
+                <Eyebrow>{m.home.selectionEyebrow}</Eyebrow>
+                <h2 className="z-section__title">{m.home.featured}</h2>
+                <p className="z-section__lead">{m.home.featuredLead}</p>
               </div>
-              <Link href="/search?verified=1" className="z-header__link">
-                Tout voir →
+              <Link href={path('/search?verified=1')} className="z-header__link">
+                {m.common.seeAll} →
               </Link>
             </div>
 
@@ -152,13 +150,13 @@ export default async function HomePage() {
         <div className="z-container">
           <div className="z-section__head">
             <div>
-              <Eyebrow>Simple</Eyebrow>
-              <h2 className="z-section__title">Comment ça marche</h2>
+              <Eyebrow>{m.home.simpleEyebrow}</Eyebrow>
+              <h2 className="z-section__title">{m.home.howItWorks}</h2>
             </div>
           </div>
 
           <div className="z-grid z-grid--3">
-            {STEPS.map((step, index) => (
+            {steps.map((step, index) => (
               <div key={step.title} className="z-step">
                 <span className="z-step__num" aria-hidden="true">
                   {index + 1}
@@ -177,8 +175,8 @@ export default async function HomePage() {
           <div className="z-container">
             <div className="z-section__head">
               <div>
-                <Eyebrow>Tendance</Eyebrow>
-                <h2 className="z-section__title">Les plus réservés</h2>
+                <Eyebrow>{m.home.trendingEyebrow}</Eyebrow>
+                <h2 className="z-section__title">{m.home.popular}</h2>
               </div>
             </div>
             <div className="z-grid z-grid--3">
@@ -203,30 +201,36 @@ export default async function HomePage() {
 
             <div className="z-procta__inner">
               <div>
-                <Eyebrow>Pour les professionnels</Eyebrow>
-                <h2>Mets ton établissement en ligne.</h2>
-                <p>
-                  Zynetna n’est pas qu’un agenda : c’est ta vitrine digitale. Tes photos,
-                  tes prestations, ton équipe, tes horaires, tes clients — et des
-                  réservations qui tombent pendant que tu travailles.
-                </p>
+                <Eyebrow>{m.nav.forPros}</Eyebrow>
+                <h2>{m.home.proTitle}</h2>
+                <p>{m.home.proBody}</p>
                 <ul className="z-procta__list">
-                  {PRO_BENEFITS.map((benefit) => (
+                  {benefits.map((benefit) => (
                     <li key={benefit}>{benefit}</li>
                   ))}
                 </ul>
               </div>
 
               <div className="z-procta__price">
-                <span className="z-procta__free">2 mois offerts</span>
-                <span className="z-procta__then">
-                  puis 30 TND / mois · sans engagement
-                </span>
-                <ButtonLink href="/register/pro" variant="accent" size="lg" block>
-                  Créer mon établissement
+                {trialMonths ? (
+                  <span className="z-procta__free">
+                    {t(m.home.trialMonths, { months: trialMonths })}
+                  </span>
+                ) : null}
+                {price ? (
+                  <span className="z-procta__then">{t(m.home.thenPrice, { price })}</span>
+                ) : null}
+                <ButtonLink href={path('/register/pro')} variant="accent" size="lg" block>
+                  {m.footer.createBusiness}
                 </ButtonLink>
-                <ButtonLink href="/pro" variant="ghost" size="sm" block className="z-procta__learn">
-                  En savoir plus
+                <ButtonLink
+                  href={path('/pro')}
+                  variant="ghost"
+                  size="sm"
+                  block
+                  className="z-procta__learn"
+                >
+                  {m.home.learnMore}
                 </ButtonLink>
               </div>
             </div>

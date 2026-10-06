@@ -38,6 +38,22 @@ export async function defaultPlan() {
   return plan;
 }
 
+/**
+ * The plan to advertise on public marketing pages, or null when none is
+ * configured. Distinct from `defaultPlan()` deliberately: that one throws,
+ * which is right when starting a trial and wrong on the home page — a missing
+ * plan row should drop a pricing badge, not take down the marketplace.
+ */
+export async function publicPlan() {
+  return (
+    (await db.subscriptionPlan.findFirst({ where: { isDefault: true, isActive: true } })) ??
+    (await db.subscriptionPlan.findFirst({
+      where: { isActive: true },
+      orderBy: { position: 'asc' },
+    }))
+  );
+}
+
 /** Start the free trial when a business is created. */
 export async function startTrial(businessId: string, planId?: string) {
   const plan = planId

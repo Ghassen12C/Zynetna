@@ -1,7 +1,7 @@
 import 'server-only';
 import { cookies, headers } from 'next/headers';
 import { DEFAULT_LOCALE, type Locale, isLocale } from './config';
-import { type Messages, messagesFor } from './index';
+import { interpolate, type Messages, messagesFor } from './index';
 
 /**
  * Resolve the active locale for a server render.
@@ -25,6 +25,8 @@ export type Translation = {
   locale: Locale;
   m: Messages;
   dir: 'ltr' | 'rtl';
+  /** Fill `{placeholders}` in a message. */
+  t: (template: string, params?: Record<string, string | number>) => string;
   /** Prefix a path with the locale, leaving the default locale unprefixed. */
   path: (href: string) => string;
 };
@@ -38,6 +40,7 @@ export async function translate(): Promise<Translation> {
     locale,
     m: messagesFor(locale),
     dir: LOCALE_META[locale].dir,
+    t: interpolate,
     path: (href: string) =>
       locale === DEFAULT_LOCALE ? href : `/${locale}${href === '/' ? '' : href}`,
   };

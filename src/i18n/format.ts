@@ -1,4 +1,4 @@
-import { LOCALE_META, type Locale } from './config';
+import { LOCALE_META, type Locale, type PluralForms } from './config';
 
 /** Tunisian dinar, which is a three-decimal currency. */
 export function formatPrice(
@@ -83,4 +83,20 @@ export function formatPhone(phone: string): string {
   const local = digits.startsWith('216') ? digits.slice(3) : digits;
   if (local.length !== 8) return phone;
   return `+216 ${local.slice(0, 2)} ${local.slice(2, 5)} ${local.slice(5)}`;
+}
+
+/**
+ * Pick the grammatically correct form for a count, then fill `{count}`.
+ *
+ * Intl does the category selection, so Arabic gets its dual and "few" forms
+ * without us encoding anyone's grammar by hand.
+ */
+export function formatCount(
+  forms: PluralForms,
+  count: number,
+  locale: Locale = 'fr',
+): string {
+  const category = new Intl.PluralRules(LOCALE_META[locale].intl).select(count);
+  const template = forms[category] ?? forms.other;
+  return template.replace(/\{count\}/g, formatNumber(count, locale));
 }
