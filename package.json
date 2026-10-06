@@ -18,13 +18,14 @@
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "db:push": "prisma db push",
-    "db:seed": "tsx prisma/seed.ts",
+    "db:seed": "node --conditions=react-server --import tsx prisma/seed.ts",
     "db:reset": "prisma migrate reset --force",
-    "job:subscriptions": "tsx src/jobs/subscriptions.ts",
-    "job:reminders": "tsx src/jobs/reminders.ts"
+    "job:subscriptions": "node --conditions=react-server --import tsx src/jobs/subscriptions.ts",
+    "job:reminders": "node --conditions=react-server --import tsx src/jobs/reminders.ts",
+    "db:seed:media": "node --conditions=react-server --import tsx prisma/seed-media.ts"
   },
   "prisma": {
-    "seed": "tsx prisma/seed.ts"
+    "seed": "node --conditions=react-server --import tsx prisma/seed.ts"
   },
   "dependencies": {
     "@node-rs/argon2": "^2.0.2",

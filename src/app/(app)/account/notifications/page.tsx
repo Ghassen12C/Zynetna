@@ -5,7 +5,7 @@ import { EmptyState } from '@/components/ui/Primitives';
 import { MarkAllRead } from '@/components/account/MarkAllRead';
 import { getActor } from '@/server/auth/session';
 import { notifications } from '@/server/services/account';
-import { formatRelative } from '@/i18n/format';
+import { RelativeTime } from '@/components/ui/RelativeTime';
 
 export const metadata: Metadata = { title: 'Notifications', robots: { index: false } };
 
@@ -37,9 +37,7 @@ export default async function NotificationsPage() {
               <span className="z-notif__body">
                 <strong>{notification.title}</strong>
                 <span>{notification.body}</span>
-                <time dateTime={notification.createdAt.toISOString()}>
-                  {formatRelative(notification.createdAt)}
-                </time>
+                <RelativeTime value={notification.createdAt.toISOString()} />
               </span>
             </>
           );

@@ -1,5 +1,5 @@
 import { Prisma, type ReservationStatus } from '@prisma/client';
-import { db, isSlotConflict } from '@/lib/db';
+import { db, isRetryableConflict, isSlotConflict } from '@/lib/db';
 import { AppError, conflict, forbidden, invalid, notFound, slotUnavailable } from '@/lib/errors';
 import { logger } from '@/lib/logger';
 import type { Actor } from '@/domain/identity/actor';
@@ -154,6 +154,18 @@ export async function createReservation(input: CreateReservationInput) {
 
   const reference = generateReference();
 
+  /**
+   * SERIALIZABLE transactions abort on conflict, and Postgres cannot tell us
+   * whether the conflict was "this exact slot is taken" or two unrelated
+   * writes that merely serialised badly. Retrying a small, bounded number of
+   * times costs microseconds and means a genuine race does not deny a
+   * legitimate booking; when the slot really is taken, the re-check inside the
+   * transaction finds it and throws the clean SLOT_UNAVAILABLE instead.
+   */
+  const MAX_ATTEMPTS = 3;
+  let lastError: unknown;
+
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
   try {
     const reservation = await db.$transaction(
       async (tx) => {
@@ -228,16 +240,38 @@ export async function createReservation(input: CreateReservationInput) {
 
     return reservation;
   } catch (error) {
+    // A deliberate rejection (slot taken, policy, not found) is final.
     if (error instanceof AppError) throw error;
+
+    lastError = error;
+
+    if (isRetryableConflict(error) && attempt < MAX_ATTEMPTS) {
+      // Jittered backoff so retrying contenders do not re-collide in lockstep.
+      await new Promise((resolve) =>
+        setTimeout(resolve, attempt * 20 + Math.floor(Math.random() * 30)),
+      );
+      continue;
+    }
+
     if (isSlotConflict(error)) {
       logger.info('booking conflict rejected', {
         staffMemberId: staff.id,
         startAt: input.startAt.toISOString(),
+        attempts: attempt,
       });
       throw slotUnavailable();
     }
     throw error;
   }
+  }
+
+  // Every attempt hit a conflict: the slot is genuinely contended.
+  logger.info('booking conflict rejected after retries', {
+    staffMemberId: staff.id,
+    startAt: input.startAt.toISOString(),
+    error: (lastError as Error)?.message,
+  });
+  throw slotUnavailable();
 }
 
 /** Apply a status transition, writing the append-only event log. */

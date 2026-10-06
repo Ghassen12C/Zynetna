@@ -331,13 +331,18 @@ async function main() {
 
   const customers = [];
   for (const [index, [first, last]] of CUSTOMERS.entries()) {
+    // Spread signups across the past six months so growth charts are not a
+    // single spike on seed day.
+    const joinedAt = new Date(Date.now() - int(3, 180) * 86_400_000);
     customers.push(
       await db.user.create({
         data: {
           email: `${first!.toLowerCase()}.${last!.toLowerCase()}@example.tn`,
           passwordHash, firstName: first!, lastName: last!,
           phone: `+2169${String(1000000 + index * 37).slice(0, 7)}`,
-          locale: index % 4 === 0 ? 'ar' : 'fr', emailVerified: new Date(),
+          locale: index % 4 === 0 ? 'ar' : 'fr', emailVerified: joinedAt,
+          createdAt: joinedAt,
+          lastLoginAt: new Date(joinedAt.getTime() + int(0, 60) * 86_400_000),
           roles: { create: { role: 'CUSTOMER' } },
         },
       }),
@@ -576,6 +581,9 @@ async function main() {
               confirmedAt: status !== 'PENDING' ? startAt : null,
               completedAt: status === 'COMPLETED' ? endAt : null,
               cancelledAt: status.startsWith('CANCELLED') ? new Date(startAt.getTime() - 86_400_000) : null,
+              // Customers book days in advance, not at the moment of the
+              // appointment — the booking-trend charts depend on this.
+              createdAt: new Date(startAt.getTime() - int(1, 14) * 86_400_000),
               items: {
                 create: {
                   serviceId: service.id, serviceName: service.name,
