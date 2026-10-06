@@ -64,12 +64,16 @@ export async function requireBusinessBySlug(
   slug: string,
   permission: Permission,
 ): Promise<{ actor: Actor; businessId: string }> {
-  const actor = await requireActor();
+  // Authenticate before the lookup, so an anonymous probe cannot learn
+  // whether a slug exists.
+  await requireActor();
+
   const business = await db.business.findUnique({
     where: { slug },
     select: { id: true },
   });
   if (!business) throw notFound();
+
   return requireBusinessAccess(business.id, permission);
 }
 

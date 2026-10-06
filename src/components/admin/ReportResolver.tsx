@@ -1,21 +1,15 @@
 'use client';
 
 import { useActionState } from 'react';
-import { useFormStatus } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { Alert } from '@/components/ui/Alert';
-import { Button } from '@/components/ui/Button';
 import { resolveReportAction } from '@/server/actions/admin';
 import { idle } from '@/lib/formState';
 
-function Submit({ label, variant }: { label: string; variant: 'primary' | 'secondary' | 'ghost' }) {
-  const { pending } = useFormStatus();
-  return (
-    <Button type="submit" size="sm" variant={variant} loading={pending}>
-      {label}
-    </Button>
-  );
-}
+/**
+ * Three outcomes submit the same form; each button carries its own
+ * `name`/`value`, which is why there is no shared submit component here.
+ */
 
 export function ReportResolver({ reportId }: { reportId: string }) {
   const router = useRouter();

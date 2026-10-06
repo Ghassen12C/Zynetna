@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { db } from '@/lib/db';
-import { AppError, forbidden, notFound } from '@/lib/errors';
+import { AppError, notFound } from '@/lib/errors';
 import { requireActor, requireBusinessAccess } from '@/server/auth/guard';
 import { consume } from '@/server/rateLimit';
 import { recordAudit } from '@/server/audit';

@@ -459,8 +459,7 @@ export async function savePlanAction(
 
   try {
     const actor = await requireSuperAdmin();
-    const raw = new FormData();
-    for (const [k, v] of formData.entries()) raw.append(k, v);
+    // An unchecked checkbox is simply absent from FormData.
     const isActive = formData.has('isActive');
 
     const payload = {

@@ -2274,3 +2274,16 @@ a.z-notif:hover { border-color: var(--z-accent); }
 .z-setting__label { display: flex; flex-direction: column; gap: 3px; }
 .z-setting__control { display: flex; align-items: center; gap: var(--z-space-2); }
 .z-setting__control .z-input { min-height: 40px; }
+
+/* ══ Error and empty pages ════════════════════════════════════════════════ */
+
+.z-errorpage {
+  min-height: 70dvh;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: var(--z-space-4);
+  padding: var(--z-space-16) var(--z-space-4);
+  text-align: center;
+}
+.z-errorpage h1 { font-size: var(--z-text-3xl); }
+.z-errorpage p { color: var(--z-fg-muted); max-width: 46ch; }
+.z-errorpage a { color: var(--z-accent); font-weight: var(--z-weight-semibold); }

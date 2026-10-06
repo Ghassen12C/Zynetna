@@ -3,6 +3,9 @@ import type { NextConfig } from 'next';
 const config: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  // Emits .next/standalone: a self-contained server with only the modules the
+  // app actually imports, which keeps the production image small.
+  output: 'standalone',
   images: {
     formats: ['image/avif', 'image/webp'],
     remotePatterns: [{ protocol: 'https', hostname: '**.blob.core.windows.net' }],

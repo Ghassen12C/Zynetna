@@ -1,0 +1,11 @@
+node_modules
+.next
+.git
+.github
+storage
+storage-test
+coverage
+docs
+*.md
+.env
+.env.local

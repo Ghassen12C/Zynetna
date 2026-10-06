@@ -3,7 +3,6 @@
 import { useActionState } from 'react';
 import { useFormStatus } from 'react-dom';
 import { useRouter } from 'next/navigation';
-import { Alert } from '@/components/ui/Alert';
 import { Button } from '@/components/ui/Button';
 import { updateSettingAction } from '@/server/actions/admin';
 import { idle } from '@/lib/formState';

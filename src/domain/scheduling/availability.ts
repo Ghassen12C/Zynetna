@@ -226,12 +226,6 @@ export function computeDayAvailability(req: AvailabilityRequest): DayAvailabilit
       for (let start = window.start; start + occupied <= window.end; start += granularity) {
         const serviceStart = start + service.prepMinutes;
         const startAt = instantAt(business.timezone, day, serviceStart);
-        const endAt = instantAt(
-          business.timezone,
-          day,
-          serviceStart + service.durationMinutes,
-        );
-
         if (startAt.getTime() < earliest.getTime()) continue;
 
         // Block against the full occupied range, padding included.

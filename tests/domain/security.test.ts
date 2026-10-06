@@ -100,7 +100,6 @@ describe('input validation', () => {
   it('refuses a javascript: URL', () => {
     expect(urlSchema.safeParse('https://example.tn').success).toBe(true);
     expect(urlSchema.safeParse('').success).toBe(true);
-    // eslint-disable-next-line no-script-url
     expect(urlSchema.safeParse('javascript:alert(1)').success).toBe(false);
     expect(urlSchema.safeParse('data:text/html,<script>').success).toBe(false);
   });

@@ -39,6 +39,8 @@
     "zod": "^4.1.11"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "@next/eslint-plugin-next": "^15.5.27",
     "@tailwindcss/postcss": "^4.1.13",
     "@types/node": "^22.18.1",
     "@types/react": "^19.1.13",
@@ -53,6 +55,7 @@
     "tailwindcss": "^4.1.13",
     "tsx": "^4.20.5",
     "typescript": "^5.9.2",
+    "typescript-eslint": "^8.71.1",
     "vitest": "^3.2.4"
   }
 }
