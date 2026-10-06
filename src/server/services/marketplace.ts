@@ -219,6 +219,7 @@ export async function topCategories(limit = 8) {
       slug: true,
       name: true,
       nameAr: true,
+      nameEn: true,
       icon: true,
       _count: { select: { businesses: true } },
     },
@@ -227,6 +228,7 @@ export async function topCategories(limit = 8) {
     slug: c.slug,
     name: c.name,
     nameAr: c.nameAr,
+    nameEn: c.nameEn,
     icon: c.icon,
     count: c._count.businesses,
   }));

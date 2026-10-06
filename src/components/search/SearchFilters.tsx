@@ -3,6 +3,8 @@
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useState, useTransition } from 'react';
 import { Button } from '@/components/ui/Button';
+import type { Locale, Messages } from '@/i18n';
+import { formatCount, formatPrice, interpolate } from '@/i18n';
 
 /**
  * Filters.
@@ -20,11 +22,19 @@ export function SearchFilters({
   categories,
   current,
   total,
+  m,
+  locale,
+  searchPath,
 }: {
   cities: City[];
   categories: Category[];
   current: Record<string, string | undefined>;
   total: number;
+  /** Only the slices this component renders, not the whole dictionary. */
+  m: { search: Messages['search']; common: Messages['common'] };
+  locale: Locale;
+  /** Locale-aware /search path, so a filter does not leave the language. */
+  searchPath: string;
 }) {
   const router = useRouter();
   const params = useSearchParams();
@@ -37,9 +47,9 @@ export function SearchFilters({
       if (value === null || value === '') next.delete(key);
       else next.set(key, value);
       next.delete('page');
-      startTransition(() => router.push(`/search?${next.toString()}`));
+      startTransition(() => router.push(`${searchPath}?${next.toString()}`));
     },
-    [params, router],
+    [params, router, searchPath],
   );
 
   const roots = categories.filter((c) => c.parentId === null);
@@ -50,14 +60,14 @@ export function SearchFilters({
   const body = (
     <div className="z-filters__body">
       <div className="z-filters__group">
-        <h3>Catégorie</h3>
+        <h3>{m.search.category}</h3>
         <div className="z-filters__chips">
           <button
             type="button"
             className={`z-chip ${!current.category ? 'z-chip--active' : ''}`}
             onClick={() => setParam('category', null)}
           >
-            Toutes
+            {m.search.all}
           </button>
           {roots.map((category) => (
             <button
@@ -73,13 +83,13 @@ export function SearchFilters({
       </div>
 
       <div className="z-filters__group">
-        <h3>Ville</h3>
+        <h3>{m.search.city}</h3>
         <select
           className="z-select"
           value={current.city ?? ''}
           onChange={(e) => setParam('city', e.target.value || null)}
         >
-          <option value="">Toute la Tunisie</option>
+          <option value="">{m.search.allTunisia}</option>
           {cities.map((city) => (
             <option key={city.slug} value={city.slug}>
               {city.name}
@@ -89,7 +99,7 @@ export function SearchFilters({
       </div>
 
       <div className="z-filters__group">
-        <h3>Note minimum</h3>
+        <h3>{m.search.minRating}</h3>
         <div className="z-filters__chips">
           {[null, 3, 4, 4.5].map((value) => (
             <button
@@ -102,14 +112,16 @@ export function SearchFilters({
               }`}
               onClick={() => setParam('rating', value === null ? null : String(value))}
             >
-              {value === null ? 'Toutes' : `${value}★ et +`}
+              {value === null
+                ? m.search.all
+                : interpolate(m.search.ratingAndUp, { rating: value })}
             </button>
           ))}
         </div>
       </div>
 
       <div className="z-filters__group">
-        <h3>Budget maximum</h3>
+        <h3>{m.search.maxBudget}</h3>
         <div className="z-filters__chips">
           {[null, 25, 50, 100].map((value) => (
             <button
@@ -122,19 +134,21 @@ export function SearchFilters({
               }`}
               onClick={() => setParam('maxPrice', value === null ? null : String(value))}
             >
-              {value === null ? 'Tous' : `≤ ${value} DT`}
+              {value === null
+                ? m.search.allMasc
+                : interpolate(m.search.upTo, { price: formatPrice(value, locale) })}
             </button>
           ))}
         </div>
       </div>
 
       <div className="z-filters__group">
-        <h3>Pour</h3>
+        <h3>{m.search.servedGender}</h3>
         <div className="z-filters__chips">
           {[
-            { value: null, label: 'Tout le monde' },
-            { value: 'WOMEN', label: 'Femmes' },
-            { value: 'MEN', label: 'Hommes' },
+            { value: null, label: m.search.everyone },
+            { value: 'WOMEN', label: m.search.women },
+            { value: 'MEN', label: m.search.men },
           ].map((option) => (
             <button
               key={String(option.value)}
@@ -151,14 +165,14 @@ export function SearchFilters({
       </div>
 
       <div className="z-filters__group">
-        <h3>Autres</h3>
+        <h3>{m.search.other}</h3>
         <label className="z-check">
           <input
             type="checkbox"
             checked={current.verified === '1'}
             onChange={(e) => setParam('verified', e.target.checked ? '1' : null)}
           />
-          <span>Établissements vérifiés uniquement</span>
+          <span>{m.search.verifiedOnly}</span>
         </label>
         <label className="z-check">
           <input
@@ -166,21 +180,21 @@ export function SearchFilters({
             checked={current.openNow === '1'}
             onChange={(e) => setParam('openNow', e.target.checked ? '1' : null)}
           />
-          <span>Ouvert maintenant</span>
+          <span>{m.search.openNow}</span>
         </label>
       </div>
 
       <div className="z-filters__group">
-        <h3>Trier par</h3>
+        <h3>{m.search.sortBy}</h3>
         <select
           className="z-select"
           value={current.sort ?? 'relevance'}
           onChange={(e) => setParam('sort', e.target.value === 'relevance' ? null : e.target.value)}
         >
-          <option value="relevance">Pertinence</option>
-          <option value="rating">Mieux notés</option>
-          <option value="price">Prix croissant</option>
-          {current.lat ? <option value="distance">Distance</option> : null}
+          <option value="relevance">{m.search.sortRelevance}</option>
+          <option value="rating">{m.search.sortRating}</option>
+          <option value="price">{m.search.sortPriceAsc}</option>
+          {current.lat ? <option value="distance">{m.search.sortDistance}</option> : null}
         </select>
       </div>
 
@@ -188,9 +202,9 @@ export function SearchFilters({
         <Button
           variant="ghost"
           block
-          onClick={() => startTransition(() => router.push('/search'))}
+          onClick={() => startTransition(() => router.push(searchPath))}
         >
-          Tout effacer ({activeCount})
+          {interpolate(m.search.clearFiltersCount, { count: activeCount })}
         </Button>
       ) : null}
     </div>
@@ -203,27 +217,29 @@ export function SearchFilters({
         className="z-filters__toggle z-btn z-btn--secondary z-btn--md"
         onClick={() => setOpen(true)}
       >
-        Filtres{activeCount > 0 ? ` (${activeCount})` : ''}
+        {activeCount > 0
+          ? interpolate(m.search.filtersCount, { count: activeCount })
+          : m.search.filters}
       </button>
 
-      <aside className={`z-filters ${pending ? 'is-pending' : ''}`} aria-label="Filtres">
+      <aside className={`z-filters ${pending ? 'is-pending' : ''}`} aria-label={m.search.filters}>
         {body}
       </aside>
 
       {open ? (
-        <div className="z-sheet" role="dialog" aria-modal="true" aria-label="Filtres">
+        <div className="z-sheet" role="dialog" aria-modal="true" aria-label={m.search.filters}>
           <div className="z-sheet__backdrop" onClick={() => setOpen(false)} />
           <div className="z-sheet__panel">
             <header className="z-sheet__head">
-              <h2>Filtres</h2>
-              <button type="button" onClick={() => setOpen(false)} aria-label="Fermer">
+              <h2>{m.search.filters}</h2>
+              <button type="button" onClick={() => setOpen(false)} aria-label={m.common.close}>
                 ×
               </button>
             </header>
             <div className="z-sheet__content">{body}</div>
             <footer className="z-sheet__foot">
               <Button block onClick={() => setOpen(false)}>
-                Voir {total} résultat{total > 1 ? 's' : ''}
+                {formatCount(m.search.seeResults, total, locale)}
               </Button>
             </footer>
           </div>

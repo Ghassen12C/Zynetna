@@ -6,12 +6,13 @@ import { ButtonLink } from '@/components/ui/Button';
 import { SearchFilters } from '@/components/search/SearchFilters';
 import { listCities, searchBusinesses, topCategories } from '@/server/services/marketplace';
 import { db } from '@/lib/db';
+import { translate } from '@/i18n/server';
+import { formatCount, localizedName } from '@/i18n/format';
 
-export const metadata: Metadata = {
-  title: 'Rechercher',
-  description:
-    'Trouvez un coiffeur, un barbier, un institut de beauté ou un spa près de chez vous en Tunisie.',
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const { m } = await translate();
+  return { title: m.search.metaTitle, description: m.search.metaDescription };
+}
 
 type Search = {
   q?: string;
@@ -35,6 +36,7 @@ export default async function SearchPage({
 }) {
   const params = await searchParams;
   const page = Math.max(1, Number(params.page ?? 1) || 1);
+  const { m, t, locale, path } = await translate();
 
   const [result, cities, categories, allCategories] = await Promise.all([
     searchBusinesses({
@@ -57,7 +59,7 @@ export default async function SearchPage({
     db.category.findMany({
       where: { isActive: true },
       orderBy: [{ parentId: 'asc' }, { position: 'asc' }],
-      select: { slug: true, name: true, parentId: true },
+      select: { slug: true, name: true, nameAr: true, nameEn: true, parentId: true },
     }),
   ]);
 
@@ -67,8 +69,8 @@ export default async function SearchPage({
   const heading = params.q
     ? `« ${params.q} »`
     : activeCategory
-      ? activeCategory.name
-      : 'Tous les établissements';
+      ? localizedName(activeCategory, locale)
+      : m.search.allBusinesses;
 
   function pageHref(target: number): string {
     const next = new URLSearchParams();
@@ -76,7 +78,7 @@ export default async function SearchPage({
       if (value && key !== 'page') next.set(key, value);
     }
     next.set('page', String(target));
-    return `/search?${next.toString()}`;
+    return path(`/search?${next.toString()}`);
   }
 
   return (
@@ -86,28 +88,39 @@ export default async function SearchPage({
           <div>
             <h1 className="z-search__title">{heading}</h1>
             <p className="z-search__count">
-              {result.total} établissement{result.total > 1 ? 's' : ''}
-              {activeCity ? ` à ${activeCity.name}` : ''}
+              {formatCount(m.search.resultsCount, result.total, locale)}
+              {activeCity
+                ? ` ${t(m.search.inCity, { city: localizedName(activeCity, locale) })}`
+                : ''}
             </p>
           </div>
         </header>
 
         <div className="z-search__layout">
           <SearchFilters
-            cities={cities}
-            categories={allCategories}
+            // Names are localised here, on the server, so the client component
+            // never needs to know which columns hold translations.
+            cities={cities.map((c) => ({ slug: c.slug, name: localizedName(c, locale) }))}
+            categories={allCategories.map((c) => ({
+              slug: c.slug,
+              name: localizedName(c, locale),
+              parentId: c.parentId,
+            }))}
             current={params}
             total={result.total}
+            m={{ search: m.search, common: m.common }}
+            locale={locale}
+            searchPath={path('/search')}
           />
 
           <div className="z-search__results">
             {result.businesses.length === 0 ? (
               <EmptyState
-                title="Aucun établissement ne correspond"
-                body="Essayez d’élargir votre recherche, de retirer un filtre, ou de choisir une autre ville."
+                title={m.search.noResults}
+                body={m.search.noResultsLong}
                 action={
-                  <ButtonLink href="/search" variant="secondary">
-                    Réinitialiser la recherche
+                  <ButtonLink href={path('/search')} variant="secondary">
+                    {m.search.reset}
                   </ButtonLink>
                 }
               />
@@ -120,18 +133,18 @@ export default async function SearchPage({
                 </div>
 
                 {result.pageCount > 1 ? (
-                  <nav className="z-pagination" aria-label="Pagination">
+                  <nav className="z-pagination" aria-label={m.search.pagination}>
                     {page > 1 ? (
                       <Link href={pageHref(page - 1)} className="z-btn z-btn--secondary z-btn--sm">
-                        ← Précédent
+                        ← {m.common.previous}
                       </Link>
                     ) : null}
                     <span className="z-pagination__state">
-                      Page {page} sur {result.pageCount}
+                      {t(m.search.pageState, { page, total: result.pageCount })}
                     </span>
                     {page < result.pageCount ? (
                       <Link href={pageHref(page + 1)} className="z-btn z-btn--secondary z-btn--sm">
-                        Suivant →
+                        {m.common.next} →
                       </Link>
                     ) : null}
                   </nav>

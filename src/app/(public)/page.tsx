@@ -5,7 +5,7 @@ import { BusinessCard } from '@/components/business/BusinessCard';
 import { WelcomeAvatar } from '@/components/marketing/Avatar';
 import { SearchBar } from '@/components/marketing/SearchBar';
 import { translate } from '@/i18n/server';
-import { formatCount, formatPrice } from '@/i18n/format';
+import { formatCount, formatPrice, localizedName } from '@/i18n/format';
 import { publicPlan } from '@/server/services/subscriptions';
 import {
   featuredBusinesses,
@@ -70,7 +70,7 @@ export default async function HomePage() {
                   className="z-chip"
                 >
                   {category.icon ? <span aria-hidden="true">{category.icon}</span> : null}
-                  {category.name}
+                  {localizedName(category, locale)}
                 </Link>
               ))}
             </div>
@@ -110,7 +110,7 @@ export default async function HomePage() {
                   <span className="z-ctile__icon" aria-hidden="true">
                     {category.icon ?? '✂'}
                   </span>
-                  <span className="z-ctile__name">{category.name}</span>
+                  <span className="z-ctile__name">{localizedName(category, locale)}</span>
                   <span className="z-ctile__count">
                     {formatCount(m.home.businessCount, category.count, locale)}
                   </span>

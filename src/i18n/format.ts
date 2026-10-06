@@ -100,3 +100,19 @@ export function formatCount(
   const template = forms[category] ?? forms.other;
   return template.replace(/\{count\}/g, formatNumber(count, locale));
 }
+
+/**
+ * Pick the localised name of a database row.
+ *
+ * Cities, governorates and categories carry their own translations, so an
+ * Arabic visitor should read "تونس" rather than "Tunis". Falls back to the
+ * French name, which is the column that is always populated.
+ */
+export function localizedName(
+  row: { name: string; nameAr?: string | null; nameEn?: string | null },
+  locale: Locale = 'fr',
+): string {
+  if (locale === 'ar') return row.nameAr?.trim() || row.name;
+  if (locale === 'en') return row.nameEn?.trim() || row.name;
+  return row.name;
+}
