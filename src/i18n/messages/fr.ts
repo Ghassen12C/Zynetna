@@ -176,6 +176,7 @@ export const fr = {
     trialEndsIn: 'Essai gratuit : {days} jours restants',
   },
   common: {
+    skipToContent: 'Aller au contenu',
     loading: 'Chargement…',
     save: 'Enregistrer',
     saved: 'Enregistré',
@@ -213,6 +214,11 @@ export const fr = {
     professionals: 'Professionnels',
     company: 'Zynetna',
     legal: 'Légal',
+    joinZynetna: 'Rejoindre Zynetna',
+    createBusiness: 'Créer mon établissement',
+    about: 'À propos',
+    terms: 'Conditions',
+    privacy: 'Confidentialité',
     rights: 'Tous droits réservés.',
   },
 };

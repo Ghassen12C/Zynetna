@@ -175,6 +175,7 @@ export const ar: Messages = {
     trialEndsIn: 'التجربة المجانية: {days} يوماً متبقياً',
   },
   common: {
+    skipToContent: 'تخطّي إلى المحتوى',
     loading: 'جارٍ التحميل…',
     save: 'حفظ',
     saved: 'تم الحفظ',
@@ -212,6 +213,11 @@ export const ar: Messages = {
     professionals: 'المحترفون',
     company: 'زينتنا',
     legal: 'قانوني',
+    joinZynetna: 'انضم إلى زينتنا',
+    createBusiness: 'أنشئ مؤسستي',
+    about: 'من نحن',
+    terms: 'الشروط',
+    privacy: 'الخصوصية',
     rights: 'جميع الحقوق محفوظة.',
   },
 };

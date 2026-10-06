@@ -2478,3 +2478,74 @@ a.z-notif:hover { border-color: var(--z-accent); }
 .z-legal a { color: var(--z-accent); font-weight: var(--z-weight-semibold); }
 .z-legal a:hover { text-decoration: underline; }
 .z-legal strong { color: var(--z-fg); }
+
+/* ══ Locale switcher ══════════════════════════════════════════════════════ */
+
+.z-locale { position: relative; }
+.z-locale__trigger {
+  display: inline-flex; align-items: center; gap: var(--z-space-2);
+  min-height: 40px;
+  padding: var(--z-space-2) var(--z-space-3);
+  border: 1px solid transparent;
+  border-radius: var(--z-radius-md);
+  background: transparent;
+  color: var(--z-fg-muted);
+  font-size: var(--z-text-sm);
+  font-weight: var(--z-weight-semibold);
+  cursor: pointer;
+  transition: background-color var(--z-duration-fast) var(--z-ease), color var(--z-duration-fast) var(--z-ease);
+}
+.z-locale__trigger:hover { background: var(--z-bg-sunken); color: var(--z-fg); }
+.z-locale__menu {
+  position: absolute;
+  top: calc(100% + var(--z-space-1));
+  inset-inline-end: 0;
+  z-index: 60;
+  min-width: 150px;
+  list-style: none; padding: var(--z-space-2); margin: 0;
+  background: var(--z-bg-raised);
+  border: 1px solid var(--z-border);
+  border-radius: var(--z-radius-md);
+  box-shadow: var(--z-shadow-lg);
+}
+.z-locale__menu button {
+  display: flex; align-items: center;
+  width: 100%;
+  min-height: 40px;
+  padding: var(--z-space-2) var(--z-space-3);
+  border: 0; background: transparent;
+  border-radius: var(--z-radius-sm);
+  color: var(--z-fg);
+  font-size: var(--z-text-sm);
+  text-align: start;
+  cursor: pointer;
+}
+.z-locale__menu button:hover { background: var(--z-bg-sunken); }
+.z-locale__menu button.is-current { color: var(--z-accent); font-weight: var(--z-weight-semibold); }
+
+/* ══ RTL corrections ══════════════════════════════════════════════════════
+   Almost everything already uses logical properties (inset-inline, padding-
+   inline, margin-inline), so it mirrors for free. These are the few places
+   that genuinely need flipping. */
+
+[dir='rtl'] .z-searchbar__icon,
+[dir='rtl'] .z-steps__dot { transform: scaleX(1); }
+
+/* Arrows and chevrons point the other way when the text does. */
+[dir='rtl'] .z-booking__back,
+[dir='rtl'] .z-dash__panel-head a,
+[dir='rtl'] .z-section__head a { unicode-bidi: plaintext; }
+
+/* Charts are drawn left-to-right data; keep them that way inside an RTL page
+   so time still reads oldest-to-newest. */
+[dir='rtl'] .z-chart,
+[dir='rtl'] .z-cal,
+[dir='rtl'] .z-cal-list { direction: ltr; }
+[dir='rtl'] .z-cal-list a,
+[dir='rtl'] .z-cal__event { direction: rtl; }
+
+/* Tabular numbers must not reorder in Arabic context. */
+[dir='rtl'] .z-ticket__ref,
+[dir='rtl'] .z-today__time,
+[dir='rtl'] .z-cal-list__time,
+[dir='rtl'] .z-barlist__value { direction: ltr; unicode-bidi: embed; }

@@ -175,6 +175,7 @@ export const en: Messages = {
     trialEndsIn: 'Free trial: {days} days left',
   },
   common: {
+    skipToContent: 'Skip to content',
     loading: 'Loading…',
     save: 'Save',
     saved: 'Saved',
@@ -212,6 +213,11 @@ export const en: Messages = {
     professionals: 'Professionals',
     company: 'Zynetna',
     legal: 'Legal',
+    joinZynetna: 'Join Zynetna',
+    createBusiness: 'Create my business',
+    about: 'About',
+    terms: 'Terms',
+    privacy: 'Privacy',
     rights: 'All rights reserved.',
   },
 };

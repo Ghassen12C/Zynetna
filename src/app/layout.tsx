@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from 'next';
 import { Epilogue, Tajawal } from 'next/font/google';
 import '@/styles/globals.css';
 import { env } from '@/lib/env';
+import { LOCALE_META, LOCALES } from '@/i18n/config';
+import { translate } from '@/i18n/server';
 
 /**
  * Fonts from the brand guide, self-hosted by next/font at build time: no
@@ -39,6 +41,14 @@ export const metadata: Metadata = {
     description: 'Réserve ta chaise. Réserve ton éclat.',
   },
   twitter: { card: 'summary_large_image' },
+  alternates: {
+    languages: Object.fromEntries(
+      LOCALES.map((code) => [
+        LOCALE_META[code].intl,
+        code === 'fr' ? '/' : `/${code}`,
+      ]),
+    ),
+  },
   robots: { index: true, follow: true },
   icons: {
     icon: [{ url: '/icon.svg', type: 'image/svg+xml' }],
@@ -55,12 +65,16 @@ export const viewport: Viewport = {
   ],
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  // lang and dir come from the resolved locale, so Arabic genuinely renders
+  // right-to-left and the Arabic typeface switches via :lang(ar).
+  const { locale, m, dir } = await translate();
+
   return (
-    <html lang="fr" dir="ltr" className={`${epilogue.variable} ${tajawal.variable}`}>
+    <html lang={locale} dir={dir} className={`${epilogue.variable} ${tajawal.variable}`}>
       <body>
         <a className="z-skip-link" href="#main">
-          Aller au contenu
+          {m.common.skipToContent}
         </a>
         {children}
       </body>
