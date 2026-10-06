@@ -7,7 +7,11 @@ import { Alert } from '@/components/ui/Alert';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Primitives';
 import { Skeleton } from '@/components/ui/Primitives';
-import { createReservationAction, fetchAvailabilityAction } from '@/server/actions/booking';
+import {
+  createReservationAction,
+  fetchAvailabilityAction,
+  rescheduleReservationAction,
+} from '@/server/actions/booking';
 import { addDays } from '@/domain/scheduling/time';
 import { formatDuration, formatPrice } from '@/i18n/format';
 
@@ -48,6 +52,14 @@ type Business = {
 
 type Slot = { time: string; startAt: string; staffMemberIds: string[] };
 
+type Rescheduling = {
+  reservationId: string;
+  reference: string;
+  currentStartAt: string;
+  serviceId: string;
+  staffMemberId: string;
+} | null;
+
 const STEPS = ['Prestation', 'Professionnel', 'Date et heure', 'Confirmation'] as const;
 
 const CLOSED_MESSAGES: Record<string, string> = {
@@ -65,6 +77,7 @@ export function BookingFlow({
   today,
   preselectedServiceId,
   preselectedStaffId,
+  rescheduling = null,
 }: {
   business: Business;
   services: Service[];
@@ -72,6 +85,7 @@ export function BookingFlow({
   today: string;
   preselectedServiceId: string | null;
   preselectedStaffId: string | null;
+  rescheduling?: Rescheduling;
 }) {
   const router = useRouter();
   const [submitting, startSubmit] = useTransition();
@@ -158,14 +172,27 @@ export function BookingFlow({
     if (!chosenStaff) return;
 
     const formData = new FormData();
-    formData.set('businessId', business.id);
-    formData.set('serviceId', service.id);
-    formData.set('staffMemberId', chosenStaff);
-    formData.set('startAt', slot.startAt);
-    if (note) formData.set('customerNote', note);
+
+    if (rescheduling) {
+      // Moving an appointment goes through the reschedule action, which books
+      // the replacement first and only then retires the original — so a slot
+      // lost to someone else leaves the customer's existing appointment intact.
+      formData.set('reservationId', rescheduling.reservationId);
+      formData.set('startAt', slot.startAt);
+      formData.set('staffMemberId', chosenStaff);
+    } else {
+      formData.set('businessId', business.id);
+      formData.set('serviceId', service.id);
+      formData.set('staffMemberId', chosenStaff);
+      formData.set('startAt', slot.startAt);
+      if (note) formData.set('customerNote', note);
+    }
 
     startSubmit(async () => {
-      const result = await createReservationAction({ status: 'idle' }, formData);
+      const result = rescheduling
+        ? await rescheduleReservationAction({ status: 'idle' }, formData)
+        : await createReservationAction({ status: 'idle' }, formData);
+
       if (result.status === 'success' && result.data) {
         router.push(`/reservations/${result.data.reference}?new=1`);
         return;
@@ -215,10 +242,36 @@ export function BookingFlow({
           <div className="z-booking__main">
             {error ? <Alert tone="error">{error}</Alert> : null}
 
+            {rescheduling ? (
+              <Alert tone="info">
+                Vous déplacez le rendez-vous <strong>{rescheduling.reference}</strong>, prévu
+                le{' '}
+                {new Intl.DateTimeFormat('fr-TN', {
+                  weekday: 'long',
+                  day: 'numeric',
+                  month: 'long',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                  hour12: false,
+                  timeZone: business.timezone,
+                }).format(new Date(rescheduling.currentStartAt))}
+                . Choisissez un nouveau créneau — l’ancien ne sera libéré qu’une fois le
+                nouveau confirmé.
+              </Alert>
+            ) : null}
+
             {/* ── 1. Service ─────────────────────────────────────────── */}
             <section className="z-booking__section">
-              <h2 className="z-booking__h2">1. Choisissez une prestation</h2>
-              {Object.entries(serviceGroups).map(([group, items]) => (
+              <h2 className="z-booking__h2">
+                {rescheduling ? 'Prestation' : '1. Choisissez une prestation'}
+              </h2>
+              {Object.entries(serviceGroups)
+                .map(([group, items]): [string, Service[]] => [
+                  group,
+                  rescheduling ? items.filter((i) => i.id === rescheduling.serviceId) : items,
+                ])
+                .filter(([, items]) => items.length > 0)
+                .map(([group, items]) => (
                 <div key={group} className="z-svc-group">
                   <p className="z-eyebrow">{group}</p>
                   <div className="z-choices">
@@ -228,6 +281,9 @@ export function BookingFlow({
                         type="button"
                         className={`z-choice ${serviceId === item.id ? 'is-selected' : ''}`}
                         aria-pressed={serviceId === item.id}
+                        // Changing the prestation would be a different booking,
+                        // not a move, so it is fixed while rescheduling.
+                        disabled={Boolean(rescheduling)}
                         onClick={() => {
                           setServiceId(item.id);
                           setSlot(null);
@@ -246,7 +302,7 @@ export function BookingFlow({
                     ))}
                   </div>
                 </div>
-              ))}
+                ))}
             </section>
 
             {/* ── 2. Professional ────────────────────────────────────── */}
@@ -453,7 +509,7 @@ export function BookingFlow({
                 loading={submitting}
                 onClick={submit}
               >
-                Confirmer la réservation
+                {rescheduling ? 'Déplacer le rendez-vous' : 'Confirmer la réservation'}
               </Button>
 
               <p className="z-policy z-policy--muted">

@@ -1,5 +1,9 @@
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
-import { createReservation, transitionReservation } from '@/server/services/booking';
+import {
+  createReservation,
+  rescheduleAsCustomer,
+  transitionReservation,
+} from '@/server/services/booking';
 import { getDayAvailability } from '@/server/services/availability';
 import { AppError } from '@/lib/errors';
 import { dayKeyOf } from '@/domain/scheduling/time';
@@ -240,5 +244,125 @@ describe('booking engine — availability reflects reality', () => {
         startAt: futureSlot(5, 10), customerId: customer.id,
       }),
     ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+  });
+});
+
+describe('booking engine — rescheduling', () => {
+  beforeEach(async () => {
+    await resetDatabase();
+  });
+
+  it('moves the appointment, retiring the original and linking the replacement', async () => {
+    const { business, service, staff } = await makeBusiness({
+      slug: 'salon-move',
+      ownerEmail: 'move@test.tn',
+    });
+    const customer = await makeCustomer('move-cust@test.tn');
+    const actor = {
+      userId: customer.id,
+      email: customer.email,
+      firstName: 'Client',
+      lastName: 'Test',
+      locale: 'fr',
+      globalRoles: ['CUSTOMER' as const],
+      businessRoles: {},
+    };
+
+    const original = await createReservation({
+      businessId: business.id, serviceId: service.id, staffMemberId: staff.id,
+      startAt: futureSlot(6, 15), customerId: customer.id,
+    });
+
+    const replacement = await rescheduleAsCustomer({
+      reservationId: original.id,
+      actor,
+      startAt: futureSlot(8, 11),
+    });
+
+    const after = await testDb.reservation.findUniqueOrThrow({
+      where: { id: original.id },
+      select: { status: true, rescheduledToId: true },
+    });
+
+    expect(after.status).toBe('RESCHEDULED');
+    expect(after.rescheduledToId).toBe(replacement.id);
+    expect(replacement.status).toBe('CONFIRMED');
+    expect(replacement.startAt.getTime()).toBe(futureSlot(8, 11).getTime());
+
+    // The transition is recorded, naming the replacement.
+    const events = await testDb.reservationEvent.findMany({
+      where: { reservationId: original.id },
+      orderBy: { createdAt: 'asc' },
+    });
+    expect(events.at(-1)?.toStatus).toBe('RESCHEDULED');
+    expect(events.at(-1)?.reason).toContain(replacement.reference);
+
+    // Reminders follow the appointment, not the row.
+    const reminders = await testDb.scheduledNotification.findMany({
+      where: { reservationId: { in: [original.id, replacement.id] } },
+      select: { reservationId: true, status: true },
+    });
+    expect(reminders.filter((r) => r.reservationId === original.id).every((r) => r.status === 'CANCELLED')).toBe(true);
+    expect(reminders.some((r) => r.reservationId === replacement.id && r.status === 'PENDING')).toBe(true);
+  });
+
+  it('frees the original slot, so someone else can take it', async () => {
+    const { business, service, staff } = await makeBusiness({
+      slug: 'salon-move2',
+      ownerEmail: 'move2@test.tn',
+    });
+    const customer = await makeCustomer('move2-cust@test.tn');
+    const other = await makeCustomer('move2-other@test.tn');
+    const actor = {
+      userId: customer.id, email: customer.email, firstName: 'C', lastName: 'T',
+      locale: 'fr', globalRoles: ['CUSTOMER' as const], businessRoles: {},
+    };
+    const slot = futureSlot(6, 15);
+
+    const original = await createReservation({
+      businessId: business.id, serviceId: service.id, staffMemberId: staff.id,
+      startAt: slot, customerId: customer.id,
+    });
+
+    await rescheduleAsCustomer({ reservationId: original.id, actor, startAt: futureSlot(9, 10) });
+
+    // The vacated slot is genuinely available again.
+    const taken = await createReservation({
+      businessId: business.id, serviceId: service.id, staffMemberId: staff.id,
+      startAt: slot, customerId: other.id,
+    });
+    expect(taken.status).toBe('CONFIRMED');
+  });
+
+  it('leaves the original intact when the new slot is already taken', async () => {
+    const { business, service, staff } = await makeBusiness({
+      slug: 'salon-move3',
+      ownerEmail: 'move3@test.tn',
+    });
+    const customer = await makeCustomer('move3-cust@test.tn');
+    const blocker = await makeCustomer('move3-block@test.tn');
+    const actor = {
+      userId: customer.id, email: customer.email, firstName: 'C', lastName: 'T',
+      locale: 'fr', globalRoles: ['CUSTOMER' as const], businessRoles: {},
+    };
+
+    const original = await createReservation({
+      businessId: business.id, serviceId: service.id, staffMemberId: staff.id,
+      startAt: futureSlot(6, 15), customerId: customer.id,
+    });
+    const contested = futureSlot(7, 16);
+    await createReservation({
+      businessId: business.id, serviceId: service.id, staffMemberId: staff.id,
+      startAt: contested, customerId: blocker.id,
+    });
+
+    await expect(
+      rescheduleAsCustomer({ reservationId: original.id, actor, startAt: contested }),
+    ).rejects.toMatchObject({ code: 'SLOT_UNAVAILABLE' });
+
+    // A failed move must never cost the customer their appointment.
+    const after = await testDb.reservation.findUniqueOrThrow({ where: { id: original.id } });
+    expect(after.status).toBe('CONFIRMED');
+    expect(after.rescheduledToId).toBeNull();
   });
 });
