@@ -6,11 +6,12 @@ import { getActor } from '@/server/auth/session';
 import { BookingFlow } from '@/components/booking/BookingFlow';
 import { canCustomerReschedule } from '@/domain/booking/policy';
 import { dayKeyOf } from '@/domain/scheduling/time';
+import { translate } from '@/i18n/server';
 
-export const metadata: Metadata = {
-  title: 'Réserver',
-  robots: { index: false, follow: true },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const { m } = await translate();
+  return { title: m.business.book, robots: { index: false, follow: true } };
+}
 
 export default async function BookPage({
   params,
@@ -21,6 +22,7 @@ export default async function BookPage({
 }) {
   const { slug } = await params;
   const { service, staff, reschedule } = await searchParams;
+  const { m, locale } = await translate();
 
   const business = await getBusinessProfile(slug);
   if (!business) notFound();
@@ -117,6 +119,8 @@ export default async function BookPage({
       preselectedServiceId={rescheduling?.serviceId ?? service ?? null}
       preselectedStaffId={rescheduling?.staffMemberId ?? staff ?? null}
       rescheduling={rescheduling}
+      m={{ booking: m.booking, business: m.business, common: m.common }}
+      locale={locale}
     />
   );
 }

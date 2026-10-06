@@ -14,6 +14,7 @@ import {
 } from '@/server/actions/booking';
 import { addDays } from '@/domain/scheduling/time';
 import { formatDuration, formatPrice } from '@/i18n/format';
+import { DEFAULT_LOCALE, interpolate, LOCALE_META, type Locale, type Messages } from '@/i18n';
 
 type Service = {
   id: string;
@@ -60,16 +61,6 @@ type Rescheduling = {
   staffMemberId: string;
 } | null;
 
-const STEPS = ['Prestation', 'Professionnel', 'Date et heure', 'Confirmation'] as const;
-
-const CLOSED_MESSAGES: Record<string, string> = {
-  PAST: 'Cette date est passée.',
-  TOO_FAR: 'Cet établissement n’ouvre pas encore les réservations si loin.',
-  TOO_SOON: 'Plus de créneau disponible aujourd’hui.',
-  CLOSED: 'Fermé ce jour-là.',
-  NO_STAFF: 'Aucun professionnel ne propose cette prestation ce jour-là.',
-};
-
 export function BookingFlow({
   business,
   services,
@@ -78,6 +69,8 @@ export function BookingFlow({
   preselectedServiceId,
   preselectedStaffId,
   rescheduling = null,
+  m,
+  locale,
 }: {
   business: Business;
   services: Service[];
@@ -86,9 +79,30 @@ export function BookingFlow({
   preselectedServiceId: string | null;
   preselectedStaffId: string | null;
   rescheduling?: Rescheduling;
+  /** Only the slices this flow renders, not the whole dictionary. */
+  m: { booking: Messages['booking']; business: Messages['business']; common: Messages['common'] };
+  locale: Locale;
 }) {
   const router = useRouter();
   const [submitting, startSubmit] = useTransition();
+  const intl = LOCALE_META[locale].intl;
+  // Confirming must not drop the visitor out of their language.
+  const localePrefix = locale === DEFAULT_LOCALE ? '' : `/${locale}`;
+
+  const steps = [
+    m.booking.stepService,
+    m.booking.stepStaff,
+    m.booking.stepTime,
+    m.booking.stepConfirm,
+  ];
+
+  const closedMessages: Record<string, string> = {
+    PAST: m.booking.closedPast,
+    TOO_FAR: m.booking.closedTooFar,
+    TOO_SOON: m.booking.closedTooSoon,
+    CLOSED: m.booking.closedClosed,
+    NO_STAFF: m.booking.closedNoStaff,
+  };
 
   const [serviceId, setServiceId] = useState<string | null>(
     services.some((s) => s.id === preselectedServiceId) ? preselectedServiceId : null,
@@ -158,12 +172,12 @@ export function BookingFlow({
         const date = new Date(`${key}T12:00:00Z`);
         return {
           key,
-          weekday: new Intl.DateTimeFormat('fr-TN', { weekday: 'short' }).format(date),
-          dayNum: new Intl.DateTimeFormat('fr-TN', { day: 'numeric' }).format(date),
-          month: new Intl.DateTimeFormat('fr-TN', { month: 'short' }).format(date),
+          weekday: new Intl.DateTimeFormat(intl, { weekday: 'short' }).format(date),
+          dayNum: new Intl.DateTimeFormat(intl, { day: 'numeric' }).format(date),
+          month: new Intl.DateTimeFormat(intl, { month: 'short' }).format(date),
         };
       }),
-    [today, business.maxAdvanceDays],
+    [today, business.maxAdvanceDays, intl],
   );
 
   function submit() {
@@ -194,7 +208,7 @@ export function BookingFlow({
         : await createReservationAction({ status: 'idle' }, formData);
 
       if (result.status === 'success' && result.data) {
-        router.push(`/reservations/${result.data.reference}?new=1`);
+        router.push(`${localePrefix}/reservations/${result.data.reference}?new=1`);
         return;
       }
       if (result.status === 'error') {
@@ -210,22 +224,22 @@ export function BookingFlow({
   const serviceGroups = useMemo(
     () =>
       services.reduce<Record<string, Service[]>>((acc, s) => {
-        const key = s.categoryName ?? 'Prestations';
+        const key = s.categoryName ?? m.business.services;
         (acc[key] ??= []).push(s);
         return acc;
       }, {}),
-    [services],
+    [services, m.business.services],
   );
 
   return (
     <div className="z-booking">
       <div className="z-container">
         <header className="z-booking__head">
-          <Link href={`/business/${business.slug}`} className="z-booking__back">
+          <Link href={`${localePrefix}/business/${business.slug}`} className="z-booking__back">
             ← {business.name}
           </Link>
-          <ol className="z-steps" aria-label="Étapes de réservation">
-            {STEPS.map((label, i) => (
+          <ol className="z-steps" aria-label={m.booking.stepsLabel}>
+            {steps.map((label, i) => (
               <li
                 key={label}
                 className={`z-steps__item ${i === step ? 'is-current' : ''} ${i < step ? 'is-done' : ''}`}
@@ -244,26 +258,25 @@ export function BookingFlow({
 
             {rescheduling ? (
               <Alert tone="info">
-                Vous déplacez le rendez-vous <strong>{rescheduling.reference}</strong>, prévu
-                le{' '}
-                {new Intl.DateTimeFormat('fr-TN', {
-                  weekday: 'long',
-                  day: 'numeric',
-                  month: 'long',
-                  hour: '2-digit',
-                  minute: '2-digit',
-                  hour12: false,
-                  timeZone: business.timezone,
-                }).format(new Date(rescheduling.currentStartAt))}
-                . Choisissez un nouveau créneau — l’ancien ne sera libéré qu’une fois le
-                nouveau confirmé.
+                {interpolate(m.booking.reschedulingNotice, {
+                  reference: rescheduling.reference,
+                  when: new Intl.DateTimeFormat(intl, {
+                    weekday: 'long',
+                    day: 'numeric',
+                    month: 'long',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: false,
+                    timeZone: business.timezone,
+                  }).format(new Date(rescheduling.currentStartAt)),
+                })}
               </Alert>
             ) : null}
 
             {/* ── 1. Service ─────────────────────────────────────────── */}
             <section className="z-booking__section">
               <h2 className="z-booking__h2">
-                {rescheduling ? 'Prestation' : '1. Choisissez une prestation'}
+                {rescheduling ? m.booking.stepService : m.booking.step1Heading}
               </h2>
               {Object.entries(serviceGroups)
                 .map(([group, items]): [string, Service[]] => [
@@ -292,11 +305,11 @@ export function BookingFlow({
                         <span className="z-choice__body">
                           <span className="z-choice__title">{item.name}</span>
                           <span className="z-choice__meta">
-                            {formatDuration(item.durationMinutes)}
+                            {formatDuration(item.durationMinutes, locale)}
                           </span>
                         </span>
                         <span className="z-choice__price">
-                          {formatPrice(item.price, 'fr', business.currency)}
+                          {formatPrice(item.price, locale, business.currency)}
                         </span>
                       </button>
                     ))}
@@ -308,11 +321,9 @@ export function BookingFlow({
             {/* ── 2. Professional ────────────────────────────────────── */}
             {service ? (
               <section className="z-booking__section">
-                <h2 className="z-booking__h2">2. Choisissez un professionnel</h2>
+                <h2 className="z-booking__h2">{m.booking.step2Heading}</h2>
                 {eligibleStaff.length === 0 ? (
-                  <Alert tone="warning">
-                    Aucun professionnel ne propose cette prestation pour le moment.
-                  </Alert>
+                  <Alert tone="warning">{m.booking.noStaffForService}</Alert>
                 ) : (
                   <div className="z-choices z-choices--people">
                     <button
@@ -327,8 +338,8 @@ export function BookingFlow({
                       <span className="z-person__avatar" aria-hidden="true">
                         ★
                       </span>
-                      <span className="z-person__name">Peu importe</span>
-                      <span className="z-person__title">Le premier disponible</span>
+                      <span className="z-person__name">{m.booking.anyStaff}</span>
+                      <span className="z-person__title">{m.booking.firstAvailable}</span>
                     </button>
 
                     {eligibleStaff.map((member) => (
@@ -368,7 +379,7 @@ export function BookingFlow({
             {/* ── 3. Date and time ───────────────────────────────────── */}
             {service && eligibleStaff.length > 0 ? (
               <section className="z-booking__section">
-                <h2 className="z-booking__h2">3. Choisissez un créneau</h2>
+                <h2 className="z-booking__h2">{m.booking.step3Heading}</h2>
 
                 <div className="z-scroll-x z-daystrip">
                   {days.map((d) => (
@@ -414,11 +425,11 @@ export function BookingFlow({
                     <div className="z-slots__empty">
                       <p>
                         <strong>
-                          {CLOSED_MESSAGES[closedReason ?? 'CLOSED'] ??
-                            'Aucun créneau disponible ce jour.'}
+                          {closedMessages[closedReason ?? 'CLOSED'] ??
+                            m.booking.closedFallback}
                         </strong>
                       </p>
-                      <p>Essayez une autre date ou un autre professionnel.</p>
+                      <p>{m.booking.noSlotsBody}</p>
                     </div>
                   )}
                 </div>
@@ -428,14 +439,14 @@ export function BookingFlow({
             {/* ── 4. Note ────────────────────────────────────────────── */}
             {slot ? (
               <section className="z-booking__section">
-                <h2 className="z-booking__h2">4. Un message pour l’établissement ?</h2>
+                <h2 className="z-booking__h2">{m.booking.step4Heading}</h2>
                 <textarea
                   className="z-textarea"
                   value={note}
                   maxLength={500}
                   onChange={(e) => setNote(e.target.value)}
-                  placeholder="Optionnel — une précision, une allergie, une demande particulière…"
-                  aria-label="Message pour l’établissement"
+                  placeholder={m.booking.notePlaceholderLong}
+                  aria-label={m.booking.noteAriaLabel}
                 />
               </section>
             ) : null}
@@ -444,32 +455,38 @@ export function BookingFlow({
           {/* ── Summary ──────────────────────────────────────────────── */}
           <aside className="z-booking__aside">
             <div className="z-panel z-booking__summary">
-              <h2 className="z-profile__h3">Récapitulatif</h2>
+              <h2 className="z-profile__h3">{m.booking.summary}</h2>
 
               <dl className="z-summary">
                 <div>
-                  <dt>Établissement</dt>
+                  <dt>{m.booking.businessLabel}</dt>
                   <dd>{business.name}</dd>
                 </div>
                 <div>
-                  <dt>Prestation</dt>
-                  <dd>{service ? service.name : <span className="z-muted">À choisir</span>}</dd>
+                  <dt>{m.booking.stepService}</dt>
+                  <dd>
+                    {service ? (
+                      service.name
+                    ) : (
+                      <span className="z-muted">{m.booking.toChoose}</span>
+                    )}
+                  </dd>
                 </div>
                 <div>
-                  <dt>Professionnel</dt>
+                  <dt>{m.booking.stepStaff}</dt>
                   <dd>
                     {staffId
                       ? (eligibleStaff.find((m) => m.id === staffId)?.displayName ?? '—')
                       : service
-                        ? 'Peu importe'
-                        : <span className="z-muted">À choisir</span>}
+                        ? m.booking.anyStaff
+                        : <span className="z-muted">{m.booking.toChoose}</span>}
                   </dd>
                 </div>
                 <div>
-                  <dt>Date et heure</dt>
+                  <dt>{m.booking.stepTime}</dt>
                   <dd>
                     {slot ? (
-                      new Intl.DateTimeFormat('fr-TN', {
+                      new Intl.DateTimeFormat(intl, {
                         weekday: 'long',
                         day: 'numeric',
                         month: 'long',
@@ -479,27 +496,27 @@ export function BookingFlow({
                         timeZone: business.timezone,
                       }).format(new Date(slot.startAt))
                     ) : (
-                      <span className="z-muted">À choisir</span>
+                      <span className="z-muted">{m.booking.toChoose}</span>
                     )}
                   </dd>
                 </div>
                 {service ? (
                   <div>
-                    <dt>Durée</dt>
-                    <dd>{formatDuration(service.durationMinutes)}</dd>
+                    <dt>{m.booking.duration}</dt>
+                    <dd>{formatDuration(service.durationMinutes, locale)}</dd>
                   </div>
                 ) : null}
               </dl>
 
               <div className="z-summary__total">
-                <span>Total</span>
+                <span>{m.booking.total}</span>
                 <strong>
-                  {service ? formatPrice(service.price, 'fr', business.currency) : '—'}
+                  {service ? formatPrice(service.price, locale, business.currency) : '—'}
                 </strong>
               </div>
 
               {!business.autoConfirm ? (
-                <Badge tone="warning">Confirmation par l’établissement</Badge>
+                <Badge tone="warning">{m.booking.needsConfirmation}</Badge>
               ) : null}
 
               <Button
@@ -509,12 +526,13 @@ export function BookingFlow({
                 loading={submitting}
                 onClick={submit}
               >
-                {rescheduling ? 'Déplacer le rendez-vous' : 'Confirmer la réservation'}
+                {rescheduling ? m.booking.moveAppointment : m.booking.confirm}
               </Button>
 
               <p className="z-policy z-policy--muted">
-                Annulation gratuite jusqu’à {business.cancellationWindowHours} h avant le
-                rendez-vous.
+                {interpolate(m.booking.freeCancellation, {
+                  hours: business.cancellationWindowHours,
+                })}
                 {business.cancellationPolicy ? ` ${business.cancellationPolicy}` : ''}
               </p>
             </div>

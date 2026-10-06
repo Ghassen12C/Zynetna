@@ -1,4 +1,7 @@
 import { LOCALE_META, type Locale, type PluralForms } from './config';
+import type { PolicyDenial } from '@/domain/booking/policy';
+import type { Messages } from './messages/fr';
+import { interpolate } from './interpolate';
 
 /** Tunisian dinar, which is a three-decimal currency. */
 export function formatPrice(
@@ -131,4 +134,18 @@ export function weekdayNames(locale: Locale = 'fr', style: 'long' | 'short' = 'l
   return Array.from({ length: 7 }, (_, i) =>
     formatter.format(new Date(Date.UTC(2024, 0, 7 + i))),
   );
+}
+
+/**
+ * Render a policy refusal in the visitor's language.
+ *
+ * The domain layer returns a code and its parameters; the sentence is built
+ * here, which is the only place that knows the locale.
+ */
+export function policyMessage(denial: PolicyDenial, messages: Messages['policy']): string {
+  const template = messages[denial.code];
+  const params: Record<string, string | number> = {};
+  if ('hours' in denial) params.hours = denial.hours;
+  if ('days' in denial) params.days = denial.days;
+  return interpolate(template, params);
 }

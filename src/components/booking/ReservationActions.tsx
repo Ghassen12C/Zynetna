@@ -7,12 +7,13 @@ import { Alert } from '@/components/ui/Alert';
 import { Button, ButtonLink } from '@/components/ui/Button';
 import { cancelReservationAction } from '@/server/actions/booking';
 import { idle } from '@/lib/formState';
+import type { Messages } from '@/i18n';
 
-function CancelSubmit() {
+function CancelSubmit({ label }: { label: string }) {
   const { pending } = useFormStatus();
   return (
     <Button type="submit" variant="danger" loading={pending}>
-      Oui, annuler
+      {label}
     </Button>
   );
 }
@@ -25,18 +26,21 @@ function CancelSubmit() {
  */
 export function ReservationActions({
   reservationId,
-  businessSlug,
   canCancel,
   cancelReason,
   canReschedule,
   rescheduleReason,
+  m,
+  bookPath,
 }: {
   reservationId: string;
-  businessSlug: string;
   canCancel: boolean;
   cancelReason: string | null;
   canReschedule: boolean;
   rescheduleReason: string | null;
+  m: Messages['booking'];
+  /** Locale-aware booking path for this business. */
+  bookPath: string;
 }) {
   const router = useRouter();
   const [confirming, setConfirming] = useState(false);
@@ -56,7 +60,7 @@ export function ReservationActions({
 
   return (
     <div className="z-confirm__manage">
-      <h2 className="z-profile__h3">Gérer ce rendez-vous</h2>
+      <h2 className="z-profile__h3">{m.manageAppointment}</h2>
 
       {state.status === 'error' ? <Alert tone="error">{state.message}</Alert> : null}
       {state.status === 'success' ? <Alert tone="success">{state.message}</Alert> : null}
@@ -64,10 +68,10 @@ export function ReservationActions({
       <div className="z-confirm__manage-actions">
         {canReschedule ? (
           <ButtonLink
-            href={`/business/${businessSlug}/book?reschedule=${reservationId}`}
+            href={`${bookPath}?reschedule=${reservationId}`}
             variant="secondary"
           >
-            Modifier la date
+            {m.changeDate}
           </ButtonLink>
         ) : (
           <p className="z-policy">{rescheduleReason}</p>
@@ -77,17 +81,17 @@ export function ReservationActions({
           confirming ? (
             <form action={formAction} className="z-confirm__cancel">
               <input type="hidden" name="reservationId" value={reservationId} />
-              <p>Annuler ce rendez-vous ?</p>
+              <p>{m.cancelConfirm}</p>
               <div className="z-row" style={{ gap: 'var(--z-space-2)' }}>
-                <CancelSubmit />
+                <CancelSubmit label={m.yesCancel} />
                 <Button type="button" variant="ghost" onClick={() => setConfirming(false)}>
-                  Garder
+                  {m.keepIt}
                 </Button>
               </div>
             </form>
           ) : (
             <Button variant="ghost" onClick={() => setConfirming(true)}>
-              Annuler le rendez-vous
+              {m.cancel}
             </Button>
           )
         ) : (

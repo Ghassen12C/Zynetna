@@ -1,6 +1,14 @@
 import { Prisma, type ReservationStatus } from '@prisma/client';
 import { db, isRetryableConflict, isSlotConflict } from '@/lib/db';
-import { AppError, conflict, forbidden, invalid, notFound, slotUnavailable } from '@/lib/errors';
+import {
+  AppError,
+  conflict,
+  forbidden,
+  invalid,
+  notFound,
+  policyViolation,
+  slotUnavailable,
+} from '@/lib/errors';
 import { logger } from '@/lib/logger';
 import type { Actor } from '@/domain/identity/actor';
 import { isSuperAdmin } from '@/domain/identity/actor';
@@ -145,7 +153,7 @@ export async function createReservation(input: CreateReservationInput) {
     input.atCounter ? { ...policy, minNoticeMinutes: 0 } : policy,
     now,
   );
-  if (!window.allowed) throw new AppError('POLICY_VIOLATION', window.reason);
+  if (!window.allowed) throw policyViolation(window.reason);
 
   const day = dayKeyOf(business.timezone, input.startAt);
   const endAt = new Date(input.startAt.getTime() + service.durationMinutes * 60000);
@@ -380,7 +388,7 @@ export async function cancelAsCustomer(reservationId: string, actor: Actor, reas
   if (reservation.customerId !== actor.userId && !isSuperAdmin(actor)) throw forbidden();
 
   const check = canCustomerCancel(reservation, reservation.business, new Date());
-  if (!check.allowed) throw new AppError('POLICY_VIOLATION', check.reason);
+  if (!check.allowed) throw policyViolation(check.reason);
 
   return transitionReservation({
     reservationId,
@@ -428,7 +436,7 @@ export async function rescheduleAsCustomer(opts: {
   if (original.customerId !== opts.actor.userId && !isSuperAdmin(opts.actor)) throw forbidden();
 
   const check = canCustomerReschedule(original, original.business, new Date());
-  if (!check.allowed) throw new AppError('POLICY_VIOLATION', check.reason);
+  if (!check.allowed) throw policyViolation(check.reason);
 
   const serviceId = original.items[0]?.serviceId;
   if (!serviceId) throw conflict('This appointment has no service to reschedule.');

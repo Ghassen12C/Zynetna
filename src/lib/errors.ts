@@ -1,3 +1,5 @@
+import type { PolicyDenial } from '@/domain/booking/policy';
+
 /**
  * One error vocabulary for the whole application. Every API route and server
  * action converts failures into these, so the client always receives the same
@@ -51,6 +53,27 @@ export class AppError extends Error {
     this.details = details;
     this.expose = code !== 'INTERNAL';
   }
+}
+
+/**
+ * A policy refusal, carrying the structured denial rather than a sentence.
+ *
+ * The `message` is for logs and for any client too old to read `details`; the
+ * user-facing text is rendered from `details` in their own language by
+ * `toFormState`.
+ */
+export function policyViolation(denial: PolicyDenial): AppError {
+  return new AppError('POLICY_VIOLATION', `policy:${denial.code}`, denial);
+}
+
+/** Is this error's `details` a policy denial we can translate? */
+export function policyDenialOf(error: unknown): PolicyDenial | null {
+  if (!(error instanceof AppError) || error.code !== 'POLICY_VIOLATION') return null;
+  const details = error.details;
+  if (details && typeof details === 'object' && 'code' in details) {
+    return details as PolicyDenial;
+  }
+  return null;
 }
 
 export const unauthenticated = (m = 'You must be signed in.') =>

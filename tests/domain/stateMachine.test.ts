@@ -79,7 +79,11 @@ describe('booking policy', () => {
       now,
     );
     expect(check.allowed).toBe(false);
-    if (!check.allowed) expect(check.reason).toContain('12');
+    // The denial carries the code and the window, not a sentence — the
+    // wording is chosen later, in the reader's language.
+    if (!check.allowed) {
+      expect(check.reason).toEqual({ code: 'CANCEL_WINDOW_PASSED', hours: 12 });
+    }
   });
 
   it('refuses when the business handles cancellations itself', () => {

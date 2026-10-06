@@ -1,8 +1,11 @@
 import 'server-only';
 import { ZodError, type ZodType } from 'zod';
-import { AppError } from '@/lib/errors';
+import { AppError, policyDenialOf } from '@/lib/errors';
 import { logger } from '@/lib/logger';
 import type { FormState } from '@/lib/formState';
+import { policyMessage } from '@/i18n/format';
+import { getLocale } from '@/i18n/server';
+import { messagesFor } from '@/i18n';
 
 export type { FormState } from '@/lib/formState';
 export { idle, fieldError } from '@/lib/formState';
@@ -50,14 +53,24 @@ export function parseForm<S extends ZodType>(
  * Convert a thrown error into a form state. Known AppErrors are safe to show;
  * anything else becomes a generic message and is logged in full.
  */
-export function toFormState(error: unknown, context?: string): FormState<never> {
+export async function toFormState(
+  error: unknown,
+  context?: string,
+): Promise<FormState<never>> {
+  const m = messagesFor(await getLocale());
+
+  // A policy refusal carries its code, so the sentence is built here in the
+  // visitor's language rather than in the domain layer.
+  const denial = policyDenialOf(error);
+  if (denial) return { status: 'error', message: policyMessage(denial, m.policy) };
+
   if (error instanceof AppError && error.expose) {
     return { status: 'error', message: error.message };
   }
   if (error instanceof ZodError) {
     return {
       status: 'error',
-      message: 'Merci de corriger les champs indiqués.',
+      message: m.errors.validation,
       fieldErrors: fieldErrorsOf(error),
     };
   }
@@ -66,5 +79,5 @@ export function toFormState(error: unknown, context?: string): FormState<never> 
     error: (error as Error)?.message,
     stack: (error as Error)?.stack?.split('\n').slice(0, 4).join(' | '),
   });
-  return { status: 'error', message: 'Une erreur est survenue. Réessayez dans un instant.' };
+  return { status: 'error', message: m.errors.unexpected };
 }

@@ -9,24 +9,21 @@ import { ReservationActions } from '@/components/booking/ReservationActions';
 import { SuccessBurst } from '@/components/booking/SuccessBurst';
 import { AddToCalendar } from '@/components/booking/AddToCalendar';
 import { canCustomerCancel, canCustomerReschedule } from '@/domain/booking/policy';
-import { formatDateTime, formatDuration, formatPhone, formatPrice } from '@/i18n/format';
+import {
+  formatDateTime,
+  formatDuration,
+  formatPhone,
+  formatPrice,
+  localizedName,
+  policyMessage,
+} from '@/i18n/format';
 import { getActor } from '@/server/auth/session';
+import { translate } from '@/i18n/server';
 
-export const metadata: Metadata = {
-  title: 'Votre réservation',
-  robots: { index: false, follow: false },
-};
-
-const STATUS_LABEL: Record<string, string> = {
-  PENDING: 'En attente de confirmation',
-  CONFIRMED: 'Confirmé',
-  COMPLETED: 'Terminé',
-  CANCELLED_BY_CUSTOMER: 'Annulé par vous',
-  CANCELLED_BY_BUSINESS: 'Annulé par l’établissement',
-  RESCHEDULED: 'Reporté',
-  NO_SHOW: 'Absence',
-  EXPIRED: 'Expiré',
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const { m } = await translate();
+  return { title: m.booking.yourReservation, robots: { index: false, follow: false } };
+}
 
 const STATUS_TONE: Record<string, 'success' | 'warning' | 'danger' | 'neutral' | 'accent'> = {
   PENDING: 'warning',
@@ -48,6 +45,15 @@ export default async function ReservationPage({
 }) {
   const { reference } = await params;
   const { new: isNew } = await searchParams;
+  const { m, t, locale, path } = await translate();
+
+  // Two statuses read differently from the customer's side than from the
+  // business's: "awaiting confirmation" and "cancelled by you".
+  const statusLabel: Record<string, string> = {
+    ...m.status,
+    PENDING: m.booking.statusPendingLong,
+    CANCELLED_BY_CUSTOMER: m.booking.statusCancelledByYou,
+  };
 
   const reservation = await getReservationByReference(reference).catch(() => null);
   if (!reservation) notFound();
@@ -75,61 +81,61 @@ export default async function ReservationPage({
         <div className="z-confirm__head">
           {isNew ? (
             <>
-              <h1>Réservation confirmée</h1>
-              <p>
-                Votre rendez-vous est enregistré. Vous recevrez un rappel avant l’heure.
-              </p>
+              <h1>{m.booking.confirmed}</h1>
+              <p>{m.booking.confirmedBody}</p>
             </>
           ) : (
             <>
-              <h1>Votre réservation</h1>
-              <p>Référence {reservation.reference}</p>
+              <h1>{m.booking.yourReservation}</h1>
+              <p>{t(m.booking.referenceIs, { reference: reservation.reference })}</p>
             </>
           )}
           <Badge tone={STATUS_TONE[reservation.status] ?? 'neutral'}>
-            {STATUS_LABEL[reservation.status] ?? reservation.status}
+            {statusLabel[reservation.status] ?? reservation.status}
           </Badge>
         </div>
 
         <div className="z-panel z-confirm__ticket">
           <div className="z-ticket__row">
-            <span>Établissement</span>
+            <span>{m.booking.businessLabel}</span>
             <strong>
-              <Link href={`/business/${reservation.business.slug}`}>
+              <Link href={path(`/business/${reservation.business.slug}`)}>
                 {reservation.business.name}
               </Link>
             </strong>
           </div>
           <div className="z-ticket__row">
-            <span>Prestation</span>
+            <span>{m.booking.stepService}</span>
             <strong>{service?.serviceName ?? '—'}</strong>
           </div>
           <div className="z-ticket__row">
-            <span>Professionnel</span>
+            <span>{m.booking.stepStaff}</span>
             <strong>{reservation.staffMember.displayName}</strong>
           </div>
           <div className="z-ticket__row">
-            <span>Date et heure</span>
+            <span>{m.booking.stepTime}</span>
             <strong>
-              {formatDateTime(reservation.startAt, 'fr', reservation.business.timezone)}
+              {formatDateTime(reservation.startAt, locale, reservation.business.timezone)}
             </strong>
           </div>
           <div className="z-ticket__row">
-            <span>Durée</span>
-            <strong>{service ? formatDuration(service.durationMinutes) : '—'}</strong>
+            <span>{m.booking.duration}</span>
+            <strong>{service ? formatDuration(service.durationMinutes, locale) : '—'}</strong>
           </div>
           {reservation.business.location ? (
             <div className="z-ticket__row">
-              <span>Adresse</span>
+              <span>{m.booking.address}</span>
               <strong>
                 {reservation.business.location.addressLine1},{' '}
-                {reservation.business.location.city?.name}
+                {reservation.business.location.city
+                  ? localizedName(reservation.business.location.city, locale)
+                  : null}
               </strong>
             </div>
           ) : null}
           {reservation.business.phone ? (
             <div className="z-ticket__row">
-              <span>Téléphone</span>
+              <span>{m.booking.phone}</span>
               <strong>
                 <a href={`tel:${reservation.business.phone}`}>
                   {formatPhone(reservation.business.phone)}
@@ -141,27 +147,24 @@ export default async function ReservationPage({
           <div className="z-ticket__perforation" aria-hidden="true" />
 
           <div className="z-ticket__row z-ticket__row--total">
-            <span>Référence</span>
+            <span>{m.booking.reference}</span>
             <strong className="z-ticket__ref">{reservation.reference}</strong>
           </div>
           <div className="z-ticket__row z-ticket__row--total">
-            <span>Total</span>
+            <span>{m.booking.total}</span>
             <strong>
-              {formatPrice(Number(reservation.totalAmount), 'fr', reservation.currency)}
+              {formatPrice(Number(reservation.totalAmount), locale, reservation.currency)}
             </strong>
           </div>
         </div>
 
         {reservation.status === 'PENDING' ? (
-          <Alert tone="warning">
-            L’établissement doit encore confirmer ce rendez-vous. Vous recevrez une
-            notification dès que c’est fait.
-          </Alert>
+          <Alert tone="warning">{m.booking.pendingNotice}</Alert>
         ) : null}
 
         <div className="z-confirm__actions">
           <AddToCalendar
-            title={`${service?.serviceName ?? 'Rendez-vous'} — ${reservation.business.name}`}
+            title={`${service?.serviceName ?? m.booking.appointment} — ${reservation.business.name}`}
             startAt={reservation.startAt.toISOString()}
             endAt={reservation.endAt.toISOString()}
             location={
@@ -169,24 +172,29 @@ export default async function ReservationPage({
                 ? `${reservation.business.location.addressLine1}, ${reservation.business.location.city?.name ?? ''}`
                 : reservation.business.name
             }
-            description={`Référence ${reservation.reference}`}
+            description={t(m.booking.referenceIs, { reference: reservation.reference })}
           />
-          <ButtonLink href={`/business/${reservation.business.slug}`} variant="secondary">
-            Voir l’établissement
+          <ButtonLink href={path(`/business/${reservation.business.slug}`)} variant="secondary">
+            {m.booking.seeBusiness}
           </ButtonLink>
-          <ButtonLink href="/account" variant="ghost">
-            Mes rendez-vous
+          <ButtonLink href={path('/account')} variant="ghost">
+            {m.booking.myAppointments}
           </ButtonLink>
         </div>
 
         {isCustomer ? (
           <ReservationActions
             reservationId={reservation.id}
-            businessSlug={reservation.business.slug}
             canCancel={cancelCheck.allowed}
-            cancelReason={cancelCheck.allowed ? null : cancelCheck.reason}
+            cancelReason={
+              cancelCheck.allowed ? null : policyMessage(cancelCheck.reason, m.policy)
+            }
             canReschedule={rescheduleCheck.allowed}
-            rescheduleReason={rescheduleCheck.allowed ? null : rescheduleCheck.reason}
+            rescheduleReason={
+              rescheduleCheck.allowed ? null : policyMessage(rescheduleCheck.reason, m.policy)
+            }
+            m={m.booking}
+            bookPath={path(`/business/${reservation.business.slug}/book`)}
           />
         ) : null}
       </div>

@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { db } from '@/lib/db';
-import { AppError, notFound } from '@/lib/errors';
+import { notFound, policyViolation } from '@/lib/errors';
 import { requireActor, requireBusinessAccess } from '@/server/auth/guard';
 import { consume } from '@/server/rateLimit';
 import { recordAudit } from '@/server/audit';
@@ -49,7 +49,7 @@ export async function submitReviewAction(
     if (!reservation) throw notFound('Rendez-vous introuvable.');
 
     const check = canReview(reservation, actor.userId);
-    if (!check.allowed) throw new AppError('POLICY_VIOLATION', check.reason);
+    if (!check.allowed) throw policyViolation(check.reason);
 
     const setting = await db.platformSetting.findUnique({
       where: { key: 'reviews.autoPublish' },
