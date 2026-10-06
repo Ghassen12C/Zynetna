@@ -74,6 +74,18 @@ async function main() {
   console.log(`Generating media for ${businesses.length} businesses…`);
   await db.businessMedia.deleteMany();
   await db.serviceMedia.deleteMany();
+  // Detaching leaves the assets orphaned; drop them so a reseed does not
+  // accumulate unreferenced objects.
+  const orphaned = await db.mediaAsset.deleteMany({
+    where: {
+      businessMedia: { none: {} },
+      serviceMedia: { none: {} },
+      reviewMedia: { none: {} },
+      staffAvatars: { none: {} },
+      userAvatars: { none: {} },
+    },
+  });
+  if (orphaned.count > 0) console.log(`Removed ${orphaned.count} orphaned assets.`);
 
   for (const [index, business] of businesses.entries()) {
     const label = business.name.toUpperCase().slice(0, 20);
