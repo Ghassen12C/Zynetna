@@ -3,9 +3,17 @@
 import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { db } from '@/lib/db';
-import { invalid } from '@/lib/errors';
+import { AppError, invalid } from '@/lib/errors';
+import { logger } from '@/lib/logger';
 import { recordAudit } from '@/server/audit';
-import { burnTime, hashPassword, verifyPassword } from '@/server/auth/hash';
+import {
+  burnTime,
+  generateToken,
+  hashPassword,
+  hashToken,
+  verifyPassword,
+} from '@/server/auth/hash';
+import { sendPasswordResetEmail } from '@/server/services/notifications';
 import { createSession, destroySession, revokeAllSessions } from '@/server/auth/session';
 import { requireActor } from '@/server/auth/guard';
 import { consume } from '@/server/rateLimit';
@@ -13,6 +21,8 @@ import {
   changePasswordSchema,
   loginSchema,
   registerSchema,
+  requestResetSchema,
+  resetPasswordSchema,
   updateProfileSchema,
 } from '@/lib/validation/auth';
 import { type FormState, parseForm, toFormState } from './formState';
@@ -230,5 +240,120 @@ export async function updateProfileAction(
     return { status: 'success', message: 'Profil enregistré.' };
   } catch (error) {
     return toFormState(error, 'updateProfileAction');
+  }
+}
+
+/**
+ * Password reset — request step.
+ *
+ * Always reports success, whether or not the address exists. Telling an
+ * attacker which emails are registered is a worse leak than the mild
+ * confusion of someone mistyping their own address.
+ */
+export async function requestPasswordResetAction(
+  _prev: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const parsed = parseForm(requestResetSchema, formData);
+  if (!parsed.ok) return parsed.state;
+
+  const generic = {
+    status: 'success' as const,
+    message:
+      'Si un compte existe avec cette adresse, un lien de réinitialisation vient d’être envoyé.',
+  };
+
+  try {
+    const ip = await clientIp();
+    await consume('passwordReset', ip);
+    await consume('passwordReset', parsed.data.email);
+
+    const user = await db.user.findUnique({
+      where: { email: parsed.data.email },
+      select: { id: true, email: true, firstName: true, status: true },
+    });
+    if (!user || user.status !== 'ACTIVE') return generic;
+
+    // Previous unused links stop working the moment a new one is issued.
+    await db.passwordResetToken.updateMany({
+      where: { userId: user.id, usedAt: null },
+      data: { usedAt: new Date() },
+    });
+
+    const token = generateToken();
+    await db.passwordResetToken.create({
+      data: {
+        tokenHash: hashToken(token),
+        userId: user.id,
+        expiresAt: new Date(Date.now() + 60 * 60_000),
+      },
+    });
+
+    await sendPasswordResetEmail({
+      email: user.email,
+      firstName: user.firstName,
+      token,
+    });
+
+    return generic;
+  } catch (error) {
+    // A rate-limit rejection must still surface; anything else stays generic.
+    if (error instanceof AppError && error.code === 'RATE_LIMITED') {
+      return toFormState(error, 'requestPasswordResetAction');
+    }
+    logger.error('password reset request failed', { error: (error as Error).message });
+    return generic;
+  }
+}
+
+/** Password reset — completion step. */
+export async function resetPasswordAction(
+  _prev: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const parsed = parseForm(resetPasswordSchema, formData);
+  if (!parsed.ok) return parsed.state;
+
+  try {
+    const record = await db.passwordResetToken.findUnique({
+      where: { tokenHash: hashToken(parsed.data.token) },
+      select: { id: true, userId: true, expiresAt: true, usedAt: true },
+    });
+
+    const invalidLink = {
+      status: 'error' as const,
+      message: 'Ce lien est invalide ou a expiré. Demandez-en un nouveau.',
+    };
+    if (!record || record.usedAt || record.expiresAt.getTime() <= Date.now()) {
+      return invalidLink;
+    }
+
+    await db.$transaction([
+      db.user.update({
+        where: { id: record.userId },
+        data: { passwordHash: await hashPassword(parsed.data.password) },
+      }),
+      db.passwordResetToken.update({
+        where: { id: record.id },
+        data: { usedAt: new Date() },
+      }),
+    ]);
+
+    // Whoever held the old password is signed out everywhere.
+    await revokeAllSessions(record.userId);
+
+    await recordAudit({
+      action: 'auth.password_reset',
+      targetType: 'User',
+      targetId: record.userId,
+      ipAddress: await clientIp(),
+    });
+
+    return {
+      status: 'success',
+      message: 'Mot de passe réinitialisé. Vous pouvez vous connecter.',
+    };
+  } catch (error) {
+    return toFormState(error, 'resetPasswordAction');
   }
 }

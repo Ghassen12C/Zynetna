@@ -319,3 +319,37 @@ export async function runDueReminders(now = new Date()) {
   logger.info('reminders dispatched', { due: due.length, sent });
   return { due: due.length, sent };
 }
+
+/**
+ * Password reset link. Sent through the same email provider as everything
+ * else, so a production SMTP driver covers it without a second code path.
+ */
+export async function sendPasswordResetEmail(input: {
+  email: string;
+  firstName: string;
+  token: string;
+}) {
+  const url = `${env.APP_URL}/reset-password?token=${encodeURIComponent(input.token)}`;
+
+  const result = await emailProvider.send({
+    to: input.email,
+    subject: 'Réinitialiser votre mot de passe Zynetna',
+    text: [
+      `Bonjour ${input.firstName},`,
+      '',
+      'Vous avez demandé à réinitialiser votre mot de passe Zynetna.',
+      'Ce lien est valable une heure et ne peut servir qu’une seule fois :',
+      '',
+      url,
+      '',
+      'Si vous n’êtes pas à l’origine de cette demande, ignorez ce message —',
+      'votre mot de passe actuel reste valable.',
+      '',
+      'Zynetna — Réserve ta chaise. Réserve ton éclat.',
+    ].join('\n'),
+  });
+
+  if (!result.delivered) {
+    logger.error('password reset email not delivered', { error: result.error });
+  }
+}

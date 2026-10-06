@@ -1,4 +1,4 @@
-import { env } from '@/lib/env';
+import { env, isProd } from '@/lib/env';
 import { logger } from '@/lib/logger';
 
 /**
@@ -47,7 +47,13 @@ class ConsoleEmailProvider implements EmailProvider {
       provider: this.name,
       to: message.to,
       subject: message.subject,
-      preview: message.text.slice(0, 160),
+      // In development the whole body is written out: a truncated preview
+      // hides the reset link, which makes the flow impossible to test without
+      // a real mailbox. In production only a short preview is kept, so inbox
+      // contents do not accumulate in log storage.
+      ...(isProd
+        ? { preview: message.text.slice(0, 120) }
+        : { body: `\n${message.text}\n` }),
     });
     return { delivered: true, provider: this.name };
   }
