@@ -555,9 +555,12 @@ button, input, select, textarea { font: inherit; color: inherit; }
 }
 .z-footer__brand { display: flex; flex-direction: column; gap: var(--z-space-4); max-width: 34ch; }
 .z-footer__pitch { color: color-mix(in srgb, var(--z-chaux) 72%, transparent); font-size: var(--z-text-sm); }
-.z-footer__col { display: flex; flex-direction: column; gap: var(--z-space-3); }
-.z-footer__col .z-eyebrow { color: var(--z-jasmin); margin-bottom: var(--z-space-1); }
+.z-footer__col { display: flex; flex-direction: column; gap: 0; }
+.z-footer__col .z-eyebrow { color: var(--z-jasmin); margin-bottom: var(--z-space-2); }
 .z-footer__col a {
+  display: flex;
+  align-items: center;
+  min-height: 40px;
   font-size: var(--z-text-sm);
   color: color-mix(in srgb, var(--z-chaux) 80%, transparent);
   transition: color var(--z-duration-fast) var(--z-ease);
@@ -1251,9 +1254,22 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .z-hours__exceptions ul { list-style: none; padding: 0; margin: var(--z-space-2) 0 0; display: flex; flex-direction: column; gap: var(--z-space-1); font-size: var(--z-text-sm); color: var(--z-fg-muted); }
 
 .z-address { font-style: normal; font-size: var(--z-text-sm); color: var(--z-fg-muted); line-height: var(--z-leading-relaxed); margin-bottom: var(--z-space-4); }
-.z-contact { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: var(--z-space-3); }
-.z-contact a { font-size: var(--z-text-sm); color: var(--z-accent); font-weight: var(--z-weight-semibold); }
-.z-contact a:hover { text-decoration: underline; }
+.z-contact { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: var(--z-space-1); }
+.z-contact a {
+  /* "Tap to call" and "tap to WhatsApp" are the two things a customer does
+     most from a phone; 14 px of inline text is not a tap target. */
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  padding-inline: var(--z-space-2);
+  margin-inline: calc(var(--z-space-2) * -1);
+  border-radius: var(--z-radius-sm);
+  font-size: var(--z-text-sm);
+  color: var(--z-accent);
+  font-weight: var(--z-weight-semibold);
+  transition: background-color var(--z-duration-fast) var(--z-ease);
+}
+.z-contact a:hover { background: var(--z-bg-sunken); text-decoration: underline; }
 .z-policy { font-size: var(--z-text-sm); color: var(--z-fg-muted); margin-bottom: var(--z-space-3); }
 .z-policy--muted { color: var(--z-fg-subtle); font-size: var(--z-text-xs); }
 
@@ -1358,10 +1374,16 @@ button, input, select, textarea { font: inherit; color: inherit; }
   display: grid; place-items: center;
   width: 22px; height: 22px;
   border-radius: var(--z-radius-full);
-  background: currentColor;
+  /* Set explicitly, not via currentColor: the rule below also sets `color`,
+     so `background: currentColor` resolved to the same value as the text and
+     made the step number invisible. */
+  background: var(--z-fg-subtle);
   color: var(--z-bg-raised);
   font-size: var(--z-text-xs);
+  font-weight: var(--z-weight-bold);
 }
+.z-steps__item.is-current .z-steps__dot { background: var(--z-medina-700); }
+.z-steps__item.is-done .z-steps__dot { background: var(--z-success); }
 .z-steps__label { display: none; }
 @media (min-width: 620px) { .z-steps__label { display: inline; } }
 
@@ -1748,7 +1770,12 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .z-rcard__logo img { width: 100%; height: 100%; object-fit: cover; }
 .z-rcard__body { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .z-rcard__top { display: flex; flex-wrap: wrap; align-items: center; gap: var(--z-space-3); }
-.z-rcard__business { font-weight: var(--z-weight-semibold); }
+.z-rcard__business {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  font-weight: var(--z-weight-semibold);
+}
 .z-rcard__business:hover { color: var(--z-accent); }
 .z-rcard__service { font-size: var(--z-text-sm); color: var(--z-fg-muted); }
 .z-rcard__when { font-size: var(--z-text-sm); font-weight: var(--z-weight-semibold); }
