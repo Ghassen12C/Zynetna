@@ -140,6 +140,28 @@ export const en: Messages = {
     noReviewsBody: 'Be the first to share your experience.',
     cancellationPolicy: 'Cancellation policy',
     minNotice: 'Book at least {hours} h ahead',
+    previewLabel: 'Preview',
+    previewBody: '— this is exactly what your customers see.',
+    editMyPage: 'Edit my page',
+    notBookable: 'Booking unavailable',
+    notPublished:
+      'This page is not publicly visible yet. Publish your business from the dashboard so it appears in search.',
+    noServices: 'No services published',
+    noServicesBody: 'This business has not added its services yet.',
+    teamTitle: 'The team',
+    noReviewsLong:
+      'Only customers who have completed an appointment can leave a review. Be the first.',
+    verifiedReviews: {
+      one: '{count} verified review',
+      other: '{count} verified reviews',
+    } as PluralForms,
+    responseFrom: 'Reply from {name}',
+    upcomingClosures: 'Upcoming closures',
+    directions: 'Get directions',
+    website: 'Website',
+    noticeAndCancellation:
+      'Book at least {hours} h ahead · free cancellation up to {window} h before.',
+    sections: 'Sections',
   },
   booking: {
     title: 'Booking',

@@ -5,18 +5,23 @@ import { Alert } from '@/components/ui/Alert';
 import { ShareButton } from '@/components/business/ShareButton';
 import { FavoriteButton } from '@/components/business/FavoriteButton';
 import { Gallery } from '@/components/business/Gallery';
+import { type BusinessProfile, isOpenNow } from '@/server/services/businessProfile';
 import {
-  type BusinessProfile,
-  WEEKDAY_LABELS,
-  isOpenNow,
-} from '@/server/services/businessProfile';
-import { formatDate, formatDuration, formatPhone, formatPrice } from '@/i18n/format';
+  formatCount,
+  formatDate,
+  formatDuration,
+  formatPhone,
+  formatPrice,
+  localizedName,
+  weekdayNames,
+} from '@/i18n/format';
+import { translate } from '@/i18n/server';
 
 function hhmm(minutes: number): string {
   return `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
 }
 
-export function BusinessProfileView({
+export async function BusinessProfileView({
   business,
   preview = false,
   isFavorite = false,
@@ -25,11 +30,12 @@ export function BusinessProfileView({
   preview?: boolean;
   isFavorite?: boolean;
 }) {
+  const { m, t, locale, path } = await translate();
   const open = isOpenNow(business.hours, business.timezone);
   const primaryCategory = business.categories.find((c) => c.isPrimary)?.category;
 
   // Group opening hours by weekday so a split day reads as one row.
-  const hoursByDay = WEEKDAY_LABELS.map((label, weekday) => ({
+  const hoursByDay = weekdayNames(locale).map((label, weekday) => ({
     label,
     weekday,
     periods: business.hours.filter((h) => h.weekday === weekday),
@@ -38,7 +44,7 @@ export function BusinessProfileView({
   // Services grouped by their category, in the order the owner arranged them.
   const serviceGroups = business.services.reduce<Record<string, typeof business.services>>(
     (acc, service) => {
-      const key = service.categoryName ?? 'Prestations';
+      const key = service.categoryName ?? m.business.services;
       (acc[key] ??= []).push(service);
       return acc;
     },
@@ -50,10 +56,10 @@ export function BusinessProfileView({
       {preview ? (
         <div className="z-preview-bar">
           <span>
-            <strong>Aperçu</strong> — voici exactement ce que voient vos clients.
+            <strong>{m.business.previewLabel}</strong> {m.business.previewBody}
           </span>
           <ButtonLink href="/pro/dashboard/profile" variant="secondary" size="sm">
-            Modifier ma page
+            {m.business.editMyPage}
           </ButtonLink>
         </div>
       ) : null}
@@ -89,19 +95,22 @@ export function BusinessProfileView({
             <div className="z-profile__title-row">
               <h1>{business.name}</h1>
               {business.verification === 'VERIFIED' ? (
-                <Badge tone="accent">✓ Vérifié</Badge>
+                <Badge tone="accent">✓ {m.business.verified}</Badge>
               ) : null}
-              <Badge tone={open ? 'success' : 'neutral'}>{open ? 'Ouvert' : 'Fermé'}</Badge>
+              <Badge tone={open ? 'success' : 'neutral'}>
+                {open ? m.business.openNow : m.business.closedNow}
+              </Badge>
             </div>
 
             {business.tagline ? <p className="z-profile__tagline">{business.tagline}</p> : null}
 
             <div className="z-profile__meta">
               <Rating value={business.ratingAverage} count={business.reviewCount} />
-              {primaryCategory ? <span>· {primaryCategory.name}</span> : null}
+              {primaryCategory ? <span>· {localizedName(primaryCategory, locale)}</span> : null}
               {business.location?.city ? (
                 <span>
-                  · {business.location.addressLine1}, {business.location.city.name}
+                  · {business.location.addressLine1},{' '}
+                  {localizedName(business.location.city, locale)}
                 </span>
               ) : null}
             </div>
@@ -115,20 +124,17 @@ export function BusinessProfileView({
               tagline={business.tagline ?? undefined}
             />
             {business.bookable ? (
-              <ButtonLink href={`/business/${business.slug}/book`} size="lg">
-                Réserver
+              <ButtonLink href={path(`/business/${business.slug}/book`)} size="lg">
+                {m.business.book}
               </ButtonLink>
             ) : (
-              <Badge tone="warning">Réservation indisponible</Badge>
+              <Badge tone="warning">{m.business.notBookable}</Badge>
             )}
           </div>
         </header>
 
         {!business.publiclyVisible && preview ? (
-          <Alert tone="warning">
-            Cette page n’est pas encore visible publiquement. Publiez votre établissement
-            depuis le tableau de bord pour qu’il apparaisse dans les recherches.
-          </Alert>
+          <Alert tone="warning">{m.business.notPublished}</Alert>
         ) : null}
 
         <div className="z-profile__grid">
@@ -136,7 +142,7 @@ export function BusinessProfileView({
             {/* ── About ───────────────────────────────────────────────── */}
             {business.description ? (
               <section className="z-profile__section" id="about">
-                <h2 className="z-profile__h2">À propos</h2>
+                <h2 className="z-profile__h2">{m.business.about}</h2>
                 <div className="z-prose">
                   <p>{business.description}</p>
                   {business.story ? <p>{business.story}</p> : null}
@@ -146,13 +152,10 @@ export function BusinessProfileView({
 
             {/* ── Services ────────────────────────────────────────────── */}
             <section className="z-profile__section" id="services">
-              <h2 className="z-profile__h2">Prestations</h2>
+              <h2 className="z-profile__h2">{m.business.services}</h2>
 
               {business.services.length === 0 ? (
-                <EmptyState
-                  title="Aucune prestation publiée"
-                  body="Cet établissement n’a pas encore ajouté ses prestations."
-                />
+                <EmptyState title={m.business.noServices} body={m.business.noServicesBody} />
               ) : (
                 Object.entries(serviceGroups).map(([group, services]) => (
                   <div key={group} className="z-svc-group">
@@ -176,21 +179,23 @@ export function BusinessProfileView({
                               <p className="z-svc__desc">{service.description}</p>
                             ) : null}
                             <p className="z-svc__duration">
-                              {formatDuration(service.durationMinutes)}
+                              {formatDuration(service.durationMinutes, locale)}
                             </p>
                           </div>
 
                           <div className="z-svc__aside">
                             <span className="z-svc__price">
-                              {formatPrice(service.price, 'fr', business.currency)}
+                              {formatPrice(service.price, locale, business.currency)}
                             </span>
                             {business.bookable ? (
                               <ButtonLink
-                                href={`/business/${business.slug}/book?service=${service.id}`}
+                                href={path(
+                                  `/business/${business.slug}/book?service=${service.id}`,
+                                )}
                                 variant="secondary"
                                 size="sm"
                               >
-                                Réserver
+                                {m.business.book}
                               </ButtonLink>
                             ) : null}
                           </div>
@@ -205,7 +210,7 @@ export function BusinessProfileView({
             {/* ── Team ────────────────────────────────────────────────── */}
             {business.staff.length > 0 ? (
               <section className="z-profile__section" id="team">
-                <h2 className="z-profile__h2">L’équipe</h2>
+                <h2 className="z-profile__h2">{m.business.teamTitle}</h2>
                 <div className="z-team">
                   {business.staff.map((member) => (
                     <article key={member.id} className="z-team__card">
@@ -237,27 +242,26 @@ export function BusinessProfileView({
             {/* ── Gallery ─────────────────────────────────────────────── */}
             {business.gallery.length > 0 ? (
               <section className="z-profile__section" id="gallery">
-                <h2 className="z-profile__h2">Galerie</h2>
+                <h2 className="z-profile__h2">{m.business.gallery}</h2>
                 <Gallery images={business.gallery} />
               </section>
             ) : null}
 
             {/* ── Reviews ─────────────────────────────────────────────── */}
             <section className="z-profile__section" id="reviews">
-              <h2 className="z-profile__h2">Avis</h2>
+              <h2 className="z-profile__h2">{m.business.reviews}</h2>
 
               {business.reviewCount === 0 ? (
-                <EmptyState
-                  title="Pas encore d’avis"
-                  body="Seuls les clients ayant terminé un rendez-vous peuvent laisser un avis. Soyez le premier."
-                />
+                <EmptyState title={m.business.noReviews} body={m.business.noReviewsLong} />
               ) : (
                 <>
                   <div className="z-reviews__summary">
                     <div className="z-reviews__score">
                       <strong>{business.ratingAverage.toFixed(1)}</strong>
                       <Rating value={business.ratingAverage} showValue={false} />
-                      <span>{business.reviewCount} avis vérifiés</span>
+                      <span>
+                        {formatCount(m.business.verifiedReviews, business.reviewCount, locale)}
+                      </span>
                     </div>
                     <div className="z-reviews__bars">
                       {business.ratingBreakdown.map((row) => (
@@ -287,7 +291,7 @@ export function BusinessProfileView({
                           <strong>{review.authorName}</strong>
                           <Rating value={review.rating} showValue={false} size={13} />
                           <time dateTime={review.createdAt.toISOString()}>
-                            {formatDate(review.createdAt)}
+                            {formatDate(review.createdAt, locale)}
                           </time>
                         </div>
                         {review.serviceName ? (
@@ -296,7 +300,7 @@ export function BusinessProfileView({
                         {review.comment ? <p>{review.comment}</p> : null}
                         {review.response ? (
                           <div className="z-review__response">
-                            <strong>Réponse de {business.name}</strong>
+                            <strong>{t(m.business.responseFrom, { name: business.name })}</strong>
                             <p>{review.response.body}</p>
                           </div>
                         ) : null}
@@ -311,7 +315,7 @@ export function BusinessProfileView({
           {/* ── Sidebar ───────────────────────────────────────────────── */}
           <aside className="z-profile__aside">
             <div className="z-panel z-profile__sticky">
-              <h2 className="z-profile__h3">Horaires</h2>
+              <h2 className="z-profile__h3">{m.business.hours}</h2>
               <ul className="z-hours">
                 {hoursByDay.map((day) => (
                   <li
@@ -321,7 +325,7 @@ export function BusinessProfileView({
                     <span>{day.label}</span>
                     <span>
                       {day.periods.length === 0
-                        ? 'Fermé'
+                        ? m.business.closedNow
                         : day.periods.map((p) => `${hhmm(p.startMin)}–${hhmm(p.endMin)}`).join(' · ')}
                     </span>
                   </li>
@@ -330,11 +334,11 @@ export function BusinessProfileView({
 
               {business.exceptions.length > 0 ? (
                 <div className="z-hours__exceptions">
-                  <Eyebrow>Fermetures à venir</Eyebrow>
+                  <Eyebrow>{m.business.upcomingClosures}</Eyebrow>
                   <ul>
                     {business.exceptions.slice(0, 4).map((exception) => (
                       <li key={exception.id}>
-                        {formatDate(exception.date, 'fr', { day: 'numeric', month: 'long' })}
+                        {formatDate(exception.date, locale, { day: 'numeric', month: 'long' })}
                         {exception.reason ? ` — ${exception.reason}` : ''}
                       </li>
                     ))}
@@ -345,7 +349,7 @@ export function BusinessProfileView({
 
             {business.location ? (
               <div className="z-panel">
-                <h2 className="z-profile__h3">Adresse</h2>
+                <h2 className="z-profile__h3">{m.business.location}</h2>
                 <address className="z-address">
                   {business.location.addressLine1}
                   {business.location.addressLine2 ? (
@@ -355,9 +359,12 @@ export function BusinessProfileView({
                     </>
                   ) : null}
                   <br />
-                  {business.location.postalCode} {business.location.city?.name}
+                  {business.location.postalCode}{' '}
+                  {business.location.city ? localizedName(business.location.city, locale) : null}
                   <br />
-                  {business.location.city?.governorate.name}
+                  {business.location.city
+                    ? localizedName(business.location.city.governorate, locale)
+                    : null}
                 </address>
                 <a
                   className="z-btn z-btn--secondary z-btn--sm z-btn--block"
@@ -365,13 +372,13 @@ export function BusinessProfileView({
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  Voir l’itinéraire
+                  {m.business.directions}
                 </a>
               </div>
             ) : null}
 
             <div className="z-panel">
-              <h2 className="z-profile__h3">Contact</h2>
+              <h2 className="z-profile__h3">{m.business.contact}</h2>
               <ul className="z-contact">
                 {business.phone ? (
                   <li>
@@ -410,7 +417,7 @@ export function BusinessProfileView({
                 {business.website ? (
                   <li>
                     <a href={business.website} target="_blank" rel="noopener noreferrer">
-                      Site web
+                      {m.business.website}
                     </a>
                   </li>
                 ) : null}
@@ -419,7 +426,7 @@ export function BusinessProfileView({
 
             {business.cancellationPolicy || business.noShowPolicy ? (
               <div className="z-panel">
-                <h2 className="z-profile__h3">Conditions</h2>
+                <h2 className="z-profile__h3">{m.business.policies}</h2>
                 {business.cancellationPolicy ? (
                   <p className="z-policy">{business.cancellationPolicy}</p>
                 ) : null}
@@ -427,8 +434,10 @@ export function BusinessProfileView({
                   <p className="z-policy">{business.noShowPolicy}</p>
                 ) : null}
                 <p className="z-policy z-policy--muted">
-                  Réservation au moins {Math.round(business.minNoticeMinutes / 60)} h à l’avance ·
-                  annulation gratuite jusqu’à {business.cancellationWindowHours} h avant.
+                  {t(m.business.noticeAndCancellation, {
+                    hours: Math.round(business.minNoticeMinutes / 60),
+                    window: business.cancellationWindowHours,
+                  })}
                 </p>
               </div>
             ) : null}
@@ -442,24 +451,24 @@ export function BusinessProfileView({
           <div>
             {business.fromPrice != null ? (
               <>
-                <span>à partir de</span>{' '}
-                <strong>{formatPrice(business.fromPrice, 'fr', business.currency)}</strong>
+                <span>{m.business.from}</span>{' '}
+                <strong>{formatPrice(business.fromPrice, locale, business.currency)}</strong>
               </>
             ) : (
               <strong>{business.name}</strong>
             )}
           </div>
-          <ButtonLink href={`/business/${business.slug}/book`} size="md">
-            Réserver
+          <ButtonLink href={path(`/business/${business.slug}/book`)} size="md">
+            {m.business.book}
           </ButtonLink>
         </div>
       ) : null}
 
-      <nav className="z-profile__jump" aria-label="Sections">
-        <Link href="#services">Prestations</Link>
-        <Link href="#team">Équipe</Link>
-        <Link href="#gallery">Galerie</Link>
-        <Link href="#reviews">Avis</Link>
+      <nav className="z-profile__jump" aria-label={m.business.sections}>
+        <Link href="#services">{m.business.services}</Link>
+        <Link href="#team">{m.business.team}</Link>
+        <Link href="#gallery">{m.business.gallery}</Link>
+        <Link href="#reviews">{m.business.reviews}</Link>
       </nav>
     </div>
   );

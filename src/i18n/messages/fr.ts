@@ -141,6 +141,28 @@ export const fr = {
     noReviewsBody: 'Soyez le premier à partager votre expérience.',
     cancellationPolicy: 'Politique d’annulation',
     minNotice: 'Réservation au moins {hours} h à l’avance',
+    previewLabel: 'Aperçu',
+    previewBody: '— voici exactement ce que voient vos clients.',
+    editMyPage: 'Modifier ma page',
+    notBookable: 'Réservation indisponible',
+    notPublished:
+      'Cette page n’est pas encore visible publiquement. Publiez votre établissement depuis le tableau de bord pour qu’il apparaisse dans les recherches.',
+    noServices: 'Aucune prestation publiée',
+    noServicesBody: 'Cet établissement n’a pas encore ajouté ses prestations.',
+    teamTitle: 'L’équipe',
+    noReviewsLong:
+      'Seuls les clients ayant terminé un rendez-vous peuvent laisser un avis. Soyez le premier.',
+    verifiedReviews: {
+      one: '{count} avis vérifié',
+      other: '{count} avis vérifiés',
+    } as PluralForms,
+    responseFrom: 'Réponse de {name}',
+    upcomingClosures: 'Fermetures à venir',
+    directions: 'Voir l’itinéraire',
+    website: 'Site web',
+    noticeAndCancellation:
+      'Réservation au moins {hours} h à l’avance · annulation gratuite jusqu’à {window} h avant.',
+    sections: 'Sections',
   },
   booking: {
     title: 'Réservation',

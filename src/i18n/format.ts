@@ -116,3 +116,19 @@ export function localizedName(
   if (locale === 'en') return row.nameEn?.trim() || row.name;
   return row.name;
 }
+
+/**
+ * Localised weekday names, Sunday first to match `Date.getDay()` and the
+ * `weekday` column. Intl supplies the names, so Arabic and English weekdays
+ * need no translation table of their own.
+ */
+export function weekdayNames(locale: Locale = 'fr', style: 'long' | 'short' = 'long'): string[] {
+  const formatter = new Intl.DateTimeFormat(LOCALE_META[locale].intl, {
+    weekday: style,
+    timeZone: 'UTC',
+  });
+  // 2024-01-07 was a Sunday, so this walks Sunday → Saturday.
+  return Array.from({ length: 7 }, (_, i) =>
+    formatter.format(new Date(Date.UTC(2024, 0, 7 + i))),
+  );
+}
