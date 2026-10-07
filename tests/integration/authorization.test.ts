@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { can, permissionsIn, tenantIds } from '@/domain/identity/actor';
 import { PRO_HOME_FALLBACK, PRO_NAV } from '@/domain/identity/proNav';
 import type { Actor } from '@/domain/identity/actor';
+import type { RoleName } from '@prisma/client';
 import { makeBusiness, makeCustomer, resetDatabase, testDb } from '../setup';
 
 /**

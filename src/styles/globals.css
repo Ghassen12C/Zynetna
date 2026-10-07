@@ -2783,3 +2783,52 @@ a.z-notif:hover { border-color: var(--z-accent); }
   font-size: var(--z-text-sm);
 }
 .z-invite strong { font-weight: var(--z-weight-semibold); }
+
+/* ── Notification preferences ─────────────────────────────────────────────── */
+.z-prefs { width: 100%; border-collapse: collapse; font-size: var(--z-text-sm); }
+.z-prefs th, .z-prefs td { padding: var(--z-space-3); border-block-end: 1px solid var(--z-border); }
+.z-prefs thead th { text-align: center; font-size: var(--z-text-xs); color: var(--z-fg-muted); font-weight: var(--z-weight-semibold); }
+.z-prefs tbody th { text-align: start; font-weight: var(--z-weight-regular); }
+.z-prefs td { text-align: center; width: 7.5rem; }
+.z-prefs tbody tr:last-child th, .z-prefs tbody tr:last-child td { border-block-end: 0; }
+.z-prefs__locked { font-size: var(--z-text-xs); color: var(--z-fg-subtle); }
+
+/* A switch rather than a bare checkbox: the state has to read at a glance on a
+   phone, and the hit area has to clear 44px. */
+.z-switch { display: inline-flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; cursor: pointer; }
+/* Visually hidden but still focusable and hit-testable — a zero-sized input
+   drops out of the tab order in some browsers. */
+.z-switch input {
+  position: absolute;
+  width: 1px; height: 1px;
+  margin: -1px; padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.z-switch span {
+  position: relative;
+  width: 42px; height: 24px;
+  border-radius: var(--z-radius-full);
+  background: var(--z-border-strong);
+  transition: background-color var(--z-duration-fast) var(--z-ease);
+}
+.z-switch span::after {
+  content: '';
+  position: absolute;
+  inset-block-start: 3px;
+  inset-inline-start: 3px;
+  width: 18px; height: 18px;
+  border-radius: var(--z-radius-full);
+  background: #fff;
+  transition: transform var(--z-duration-fast) var(--z-ease);
+}
+.z-switch input:checked + span { background: var(--z-accent); }
+/* Logical translation, so the knob slides the right way in Arabic. */
+.z-switch input:checked + span::after { transform: translateX(18px); }
+:root[dir='rtl'] .z-switch input:checked + span::after { transform: translateX(-18px); }
+.z-switch input:focus-visible + span { outline: 2px solid var(--z-accent); outline-offset: 2px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .z-switch span, .z-switch span::after { transition: none; }
+}

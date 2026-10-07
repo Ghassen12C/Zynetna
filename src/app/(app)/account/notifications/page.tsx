@@ -6,28 +6,74 @@ import { MarkAllRead } from '@/components/account/MarkAllRead';
 import { getActor } from '@/server/auth/session';
 import { notifications } from '@/server/services/account';
 import { RelativeTime } from '@/components/ui/RelativeTime';
+import { getPreferences } from '@/server/services/notificationPrefs';
+import { NotificationPreferences } from '@/components/account/NotificationPreferences';
+import { translate } from '@/i18n/server';
 
-export const metadata: Metadata = { title: 'Notifications', robots: { index: false } };
+export async function generateMetadata(): Promise<Metadata> {
+  const { m } = await translate();
+  return { title: m.account.notifications, robots: { index: false } };
+}
 
 export default async function NotificationsPage() {
   const actor = await getActor();
   if (!actor) redirect('/login?redirectTo=/account/notifications');
 
-  const items = await notifications(actor);
+  const [items, preferences, { m, locale }] = await Promise.all([
+    notifications(actor),
+    getPreferences(actor),
+    translate(),
+  ]);
   const unread = items.filter((n) => !n.readAt).length;
+
+  const prefRows = preferences.map((row) => ({
+    type: row.type,
+    label: m.account[`type${row.type}` as keyof typeof m.account] as string,
+    inApp: row.inApp,
+    email: row.email,
+    inAppLocked: row.inAppLocked,
+  }));
+
+  const settings = (
+    <section className="z-panel z-stack" style={{ gap: 'var(--z-space-3)' }}>
+      <div>
+        <h2 className="z-profile__h3">{m.account.preferences}</h2>
+        <p className="z-policy">{m.account.preferencesBody}</p>
+      </div>
+      <NotificationPreferences
+        rows={prefRows}
+        labels={{
+          inApp: m.account.inApp,
+          byEmail: m.account.byEmail,
+          alwaysOn: m.account.alwaysOn,
+        }}
+      />
+      {/* Stated plainly rather than shown as a dead toggle. */}
+      <p className="z-help">{m.account.smsSoon}</p>
+    </section>
+  );
 
   if (items.length === 0) {
     return (
-      <EmptyState
-        title="Aucune notification"
-        body="Vos confirmations, rappels et mises à jour de rendez-vous apparaîtront ici."
-      />
+      <div className="z-stack" style={{ gap: 'var(--z-space-6)' }}>
+        <EmptyState
+          title={m.account.noNotifications}
+          body={m.account.noNotificationsBody}
+        />
+        {settings}
+      </div>
     );
   }
 
   return (
-    <div className="z-stack" style={{ gap: 'var(--z-space-4)' }}>
-      {unread > 0 ? <MarkAllRead count={unread} /> : null}
+    <div className="z-stack" style={{ gap: 'var(--z-space-6)' }}>
+      {unread > 0 ? (
+        <MarkAllRead
+          count={unread}
+          locale={locale}
+          m={{ unreadCount: m.account.unreadCount, markAllRead: m.account.markAllRead }}
+        />
+      ) : null}
 
       <ul className="z-notifs">
         {items.map((notification) => {
@@ -37,7 +83,7 @@ export default async function NotificationsPage() {
               <span className="z-notif__body">
                 <strong>{notification.title}</strong>
                 <span>{notification.body}</span>
-                <RelativeTime value={notification.createdAt.toISOString()} />
+                <RelativeTime value={notification.createdAt.toISOString()} locale={locale} />
               </span>
             </>
           );
@@ -54,6 +100,8 @@ export default async function NotificationsPage() {
           );
         })}
       </ul>
+
+      {settings}
     </div>
   );
 }

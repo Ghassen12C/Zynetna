@@ -3,6 +3,9 @@ import { db } from '@/lib/db';
 import { env } from '@/lib/env';
 import { logger } from '@/lib/logger';
 import { emailProvider, smsProvider } from '../providers/notifications';
+import { DEFAULT_LOCALE, LOCALE_META, type Locale, isLocale } from '@/i18n/config';
+import { interpolate } from '@/i18n/interpolate';
+import { type Messages, messagesFor } from '@/i18n';
 
 /**
  * Notification service.
@@ -13,7 +16,30 @@ import { emailProvider, smsProvider } from '../providers/notifications';
  * honoured before anything is dispatched.
  */
 
-type Recipient = { userId: string; email?: string | null; phone?: string | null };
+type Recipient = {
+  userId: string;
+  email?: string | null;
+  phone?: string | null;
+  /** The language this person reads. Absent falls back to the default. */
+  locale?: string | null;
+};
+
+/**
+ * A message, written at dispatch time in the recipient's own language.
+ *
+ * The notification text is persisted, so it has to be rendered before it is
+ * stored rather than translated on display — and it is the same text that goes
+ * out by email, where there is no interface to re-render it in.
+ */
+type Render = (
+  m: Messages,
+  t: (template: string, params?: Record<string, string | number>) => string,
+  locale: Locale,
+) => { title: string; body: string };
+
+function localeOf(recipient: Recipient): Locale {
+  return recipient.locale && isLocale(recipient.locale) ? recipient.locale : DEFAULT_LOCALE;
+}
 
 async function channelsFor(userId: string, type: NotificationType) {
   const prefs = await db.notificationPreference.findMany({
@@ -31,20 +57,28 @@ async function channelsFor(userId: string, type: NotificationType) {
 export async function dispatch(opts: {
   recipient: Recipient;
   type: NotificationType;
-  title: string;
-  body: string;
+  /** Either finished text, or a renderer run in the recipient's language. */
+  title?: string;
+  body?: string;
+  render?: Render;
   link?: string;
   metadata?: Record<string, unknown>;
 }) {
   const channels = await channelsFor(opts.recipient.userId, opts.type);
+
+  const locale = localeOf(opts.recipient);
+  const rendered = opts.render
+    ? opts.render(messagesFor(locale), interpolate, locale)
+    : { title: opts.title ?? '', body: opts.body ?? '' };
+  const { title, body } = rendered;
 
   if (channels.inApp) {
     await db.notification.create({
       data: {
         userId: opts.recipient.userId,
         type: opts.type,
-        title: opts.title,
-        body: opts.body,
+        title,
+        body,
         link: opts.link ?? null,
         metadata: (opts.metadata ?? {}) as object,
       },
@@ -54,8 +88,8 @@ export async function dispatch(opts: {
   if (channels.email && opts.recipient.email) {
     const result = await emailProvider.send({
       to: opts.recipient.email,
-      subject: opts.title,
-      text: `${opts.body}${opts.link ? `\n\n${env.APP_URL}${opts.link}` : ''}`,
+      subject: title,
+      text: `${body}${opts.link ? `\n\n${env.APP_URL}${opts.link}` : ''}`,
     });
     if (!result.delivered) {
       logger.warn('email delivery failed', { type: opts.type, error: result.error });
@@ -63,26 +97,31 @@ export async function dispatch(opts: {
   }
 
   if (channels.sms && opts.recipient.phone) {
-    await smsProvider.send({ to: opts.recipient.phone, text: `${opts.title}. ${opts.body}` });
+    await smsProvider.send({ to: opts.recipient.phone, text: `${title}. ${body}` });
   }
 }
 
 async function recipientOf(userId: string): Promise<Recipient | null> {
   const user = await db.user.findUnique({
     where: { id: userId },
-    select: { id: true, email: true, phone: true },
+    select: { id: true, email: true, phone: true, locale: true },
   });
-  return user ? { userId: user.id, email: user.email, phone: user.phone } : null;
+  return user
+    ? { userId: user.id, email: user.email, phone: user.phone, locale: user.locale }
+    : null;
 }
 
-function formatWhen(startAt: Date, timezone: string, locale = 'fr-FR'): string {
-  return new Intl.DateTimeFormat(locale, {
+function formatWhen(startAt: Date, timezone: string, locale: Locale = DEFAULT_LOCALE): string {
+  return new Intl.DateTimeFormat(LOCALE_META[locale].intl, {
     timeZone: timezone,
     weekday: 'long',
     day: 'numeric',
     month: 'long',
     hour: '2-digit',
     minute: '2-digit',
+    // Tunisia reads the 24-hour clock in every one of these languages; the
+    // Arabic and English locales would otherwise render "09:00 ص" / "09:00 AM".
+    hour12: false,
   }).format(startAt);
 }
 
@@ -121,8 +160,8 @@ export const notify = {
     });
     if (!reservation) return;
 
-    const when = formatWhen(reservation.startAt, reservation.business.timezone);
-    const service = reservation.items[0]?.serviceName ?? 'your appointment';
+    const staff = reservation.staffMember.displayName;
+    const named = reservation.items[0]?.serviceName ?? null;
 
     if (reservation.customerId) {
       const recipient = await recipientOf(reservation.customerId);
@@ -130,9 +169,16 @@ export const notify = {
         await dispatch({
           recipient,
           type: 'RESERVATION_CREATED',
-          title: `Appointment booked — ${reservation.business.name}`,
-          body: `${service} with ${reservation.staffMember.displayName} on ${when}. Reference ${reservation.reference}.`,
           link: `/reservations/${reservation.reference}`,
+          render: (m, t, locale) => ({
+            title: t(m.notify.bookedTitle, { business: reservation.business.name }),
+            body: t(m.notify.bookedBody, {
+              service: named ?? m.notify.yourAppointment,
+              staff,
+              when: formatWhen(reservation.startAt, reservation.business.timezone, locale),
+              reference: reservation.reference,
+            }),
+          }),
         });
       }
     }
@@ -142,9 +188,15 @@ export const notify = {
       await dispatch({
         recipient: owner,
         type: 'RESERVATION_CREATED',
-        title: 'New booking',
-        body: `${service} with ${reservation.staffMember.displayName} on ${when}.`,
         link: `/pro/dashboard/reservations`,
+        render: (m, t, locale) => ({
+          title: m.notify.newBookingTitle,
+          body: t(m.notify.newBookingBody, {
+            service: named ?? m.notify.yourAppointment,
+            staff,
+            when: formatWhen(reservation.startAt, reservation.business.timezone, locale),
+          }),
+        }),
       });
     }
   },
@@ -166,33 +218,45 @@ export const notify = {
     });
     if (!reservation) return;
 
-    const when = formatWhen(reservation.startAt, reservation.business.timezone);
-    const titles: Record<NotificationType, string> = {
-      RESERVATION_CONFIRMED: `Appointment confirmed — ${reservation.business.name}`,
-      RESERVATION_COMPLETED: `Thanks for visiting ${reservation.business.name}`,
-      RESERVATION_CANCELLED: `Appointment cancelled — ${reservation.business.name}`,
-      RESERVATION_RESCHEDULED: `Appointment moved — ${reservation.business.name}`,
-    } as Record<NotificationType, string>;
+    if (!reservation.customerId) return;
+    const recipient = await recipientOf(reservation.customerId);
+    if (!recipient) return;
 
-    const bodies: Record<string, string> = {
-      RESERVATION_CONFIRMED: `Your appointment on ${when} is confirmed. Reference ${reservation.reference}.`,
-      RESERVATION_COMPLETED: `How did it go? Leave a review to help other customers.`,
-      RESERVATION_CANCELLED: `Your appointment on ${when} has been cancelled.`,
-      RESERVATION_RESCHEDULED: `Your appointment has been moved.`,
-    };
+    await dispatch({
+      recipient,
+      type,
+      link: `/reservations/${reservation.reference}`,
+      render: (m, t, locale) => {
+        const business = reservation.business.name;
+        const when = formatWhen(reservation.startAt, reservation.business.timezone, locale);
+        const reference = reservation.reference;
 
-    if (reservation.customerId) {
-      const recipient = await recipientOf(reservation.customerId);
-      if (recipient) {
-        await dispatch({
-          recipient,
-          type,
-          title: titles[type] ?? 'Appointment update',
-          body: bodies[to as string] ?? 'Your appointment was updated.',
-          link: `/reservations/${reservation.reference}`,
-        });
-      }
-    }
+        switch (type) {
+          case 'RESERVATION_CONFIRMED':
+            return {
+              title: t(m.notify.confirmedTitle, { business }),
+              body: t(m.notify.confirmedBody, { when, reference }),
+            };
+          case 'RESERVATION_COMPLETED':
+            return {
+              title: t(m.notify.completedTitle, { business }),
+              body: m.notify.completedBody,
+            };
+          case 'RESERVATION_CANCELLED':
+            return {
+              title: t(m.notify.cancelledTitle, { business }),
+              body: t(m.notify.cancelledBody, { when }),
+            };
+          case 'RESERVATION_RESCHEDULED':
+            return {
+              title: t(m.notify.movedTitle, { business }),
+              body: m.notify.movedBody,
+            };
+          default:
+            return { title: m.notify.updatedTitle, body: m.notify.updatedBody };
+        }
+      },
+    });
   },
 
   async reviewReceived(businessOwnerId: string, businessName: string, rating: number) {
@@ -201,9 +265,11 @@ export const notify = {
     await dispatch({
       recipient,
       type: 'REVIEW_RECEIVED',
-      title: `New ${rating}-star review`,
-      body: `A customer reviewed ${businessName}.`,
       link: '/pro/dashboard/reviews',
+      render: (m, t) => ({
+        title: t(m.notify.reviewTitle, { rating }),
+        body: t(m.notify.reviewBody, { business: businessName }),
+      }),
     });
   },
 
@@ -221,18 +287,26 @@ export const notify = {
         : outcome === 'REJECTED'
           ? 'BUSINESS_REJECTED'
           : 'BUSINESS_SUSPENDED';
-    const body =
-      outcome === 'APPROVED'
-        ? `${businessName} is now live on Zynetna.`
-        : outcome === 'REJECTED'
-          ? `${businessName} was not approved. ${note ?? ''}`.trim()
-          : `${businessName} has been suspended. ${note ?? ''}`.trim();
     await dispatch({
       recipient,
       type,
-      title: `${businessName} — ${outcome.toLowerCase()}`,
-      body,
       link: '/pro/dashboard',
+      render: (m, t) => {
+        const body =
+          outcome === 'APPROVED'
+            ? t(m.notify.moderatedApprovedBody, { business: businessName })
+            : outcome === 'REJECTED'
+              ? t(m.notify.moderatedRejectedBody, { business: businessName })
+              : t(m.notify.moderatedSuspendedBody, { business: businessName });
+        return {
+          title: t(m.notify.moderatedTitle, {
+            business: businessName,
+            outcome: m.notify[`outcome${outcome}`],
+          }),
+          // The moderator's own note is their words, appended as written.
+          body: note ? `${body} ${note}` : body,
+        };
+      },
     });
   },
 
@@ -242,9 +316,14 @@ export const notify = {
     await dispatch({
       recipient,
       type: 'TRIAL_ENDING',
-      title: daysLeft <= 0 ? 'Your free trial has ended' : `Your free trial ends in ${daysLeft} days`,
-      body: `Keep ${businessName} visible on Zynetna by activating your subscription.`,
       link: '/pro/dashboard/subscription',
+      render: (m, t) => ({
+        title:
+          daysLeft <= 0
+            ? m.notify.trialEndedTitle
+            : t(m.notify.trialEndingTitle, { days: daysLeft }),
+        body: t(m.notify.trialBody, { business: businessName }),
+      }),
     });
   },
 
@@ -254,9 +333,11 @@ export const notify = {
     await dispatch({
       recipient,
       type: 'SUBSCRIPTION_EXPIRED',
-      title: 'Subscription expired',
-      body: `${businessName} is no longer listed and cannot take new bookings. Existing appointments are unaffected.`,
       link: '/pro/dashboard/subscription',
+      render: (m, t) => ({
+        title: m.notify.subscriptionExpiredTitle,
+        body: t(m.notify.subscriptionExpiredBody, { business: businessName }),
+      }),
     });
   },
 };
@@ -295,11 +376,15 @@ export async function runDueReminders(now = new Date()) {
           await dispatch({
             recipient,
             type: 'RESERVATION_REMINDER',
-            title: `Reminder — ${reservation.business.name}`,
-            body: `${reservation.items[0]?.serviceName ?? 'Your appointment'} with ${
-              reservation.staffMember.displayName
-            } on ${formatWhen(reservation.startAt, reservation.business.timezone)}.`,
             link: `/reservations/${reservation.reference}`,
+            render: (m, t, locale) => ({
+              title: t(m.notify.reminderTitle, { business: reservation.business.name }),
+              body: t(m.notify.reminderBody, {
+                service: reservation.items[0]?.serviceName ?? m.notify.yourAppointment,
+                staff: reservation.staffMember.displayName,
+                when: formatWhen(reservation.startAt, reservation.business.timezone, locale),
+              }),
+            }),
           });
         }
       }
