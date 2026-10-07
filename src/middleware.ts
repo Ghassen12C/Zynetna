@@ -33,13 +33,16 @@ function isExempt(pathname: string): boolean {
 export function middleware(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
 
-  // One canonical origin: www.zynetna.tn answers with a permanent redirect to
-  // zynetna.tn, so links, SEO and the host-only session cookie all agree on a
-  // single host. Built from the Host header because behind App Service the
-  // request URL the server sees is the internal one.
-  const host = request.headers.get('host') ?? '';
-  if (host.startsWith('www.')) {
-    return NextResponse.redirect(`https://${host.slice(4)}${pathname}${search}`, 308);
+  // One canonical origin: the bare domain (zynetna.tn) answers with a
+  // permanent redirect to www.zynetna.tn, so links, SEO and the host-only
+  // session cookie all agree on a single host. Only a two-label host is
+  // redirected, so the platform's own address (zynetna-web.azurewebsites.net)
+  // and localhost are left alone. Built from the Host header because behind
+  // App Service the request URL the server sees is the internal one.
+  const host = (request.headers.get('host') ?? '').toLowerCase();
+  const hostname = host.split(':')[0] ?? '';
+  if (/^[a-z0-9-]+\.[a-z]{2,}$/.test(hostname)) {
+    return NextResponse.redirect(`https://www.${hostname}${pathname}${search}`, 308);
   }
   if (isExempt(pathname)) return NextResponse.next();
 
