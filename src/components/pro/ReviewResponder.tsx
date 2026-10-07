@@ -7,26 +7,32 @@ import { Alert } from '@/components/ui/Alert';
 import { Button } from '@/components/ui/Button';
 import { respondToReviewAction } from '@/server/actions/reviews';
 import { idle } from '@/lib/formState';
+import type { Messages } from '@/i18n';
 
-function Submit() {
+type Dict = { reviews: Messages['dash']['reviews']; common: Messages['common'] };
+
+function Submit({ label }: { label: string }) {
   const { pending } = useFormStatus();
   return (
     <Button type="submit" size="sm" loading={pending}>
-      Publier la réponse
+      {label}
     </Button>
   );
 }
 
 export function ReviewResponder({
+  m,
   reviewId,
   existing,
 }: {
+  m: Dict;
   reviewId: string;
   existing: string | null;
 }) {
   const router = useRouter();
   const [state, formAction] = useActionState(respondToReviewAction, idle);
   const [open, setOpen] = useState(false);
+  const d = m.reviews;
 
   if (state.status === 'success') {
     router.refresh();
@@ -35,10 +41,10 @@ export function ReviewResponder({
   if (existing && !open) {
     return (
       <div className="z-review__response">
-        <strong>Votre réponse</strong>
+        <strong>{d.yourResponse}</strong>
         <p>{existing}</p>
         <button type="button" className="z-linkbtn" onClick={() => setOpen(true)}>
-          Modifier
+          {m.common.edit}
         </button>
       </div>
     );
@@ -47,7 +53,7 @@ export function ReviewResponder({
   if (!open) {
     return (
       <Button variant="ghost" size="sm" onClick={() => setOpen(true)}>
-        Répondre
+        {d.respond}
       </Button>
     );
   }
@@ -62,13 +68,13 @@ export function ReviewResponder({
         defaultValue={existing ?? ''}
         maxLength={1000}
         required
-        placeholder="Merci pour votre retour…"
-        aria-label="Votre réponse"
+        placeholder={d.placeholder}
+        aria-label={d.yourResponse}
       />
-      <div className="z-row" style={{ gap: 'var(--z-space-2)' }}>
-        <Submit />
+      <div className="z-row" style={{ gap: 'var(--z-space-2)', flexWrap: 'wrap' }}>
+        <Submit label={d.publish} />
         <Button type="button" variant="ghost" size="sm" onClick={() => setOpen(false)}>
-          Annuler
+          {m.common.cancel}
         </Button>
       </div>
     </form>

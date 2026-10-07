@@ -4,7 +4,7 @@ import { headers } from 'next/headers';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { db } from '@/lib/db';
-import { AppError, notFound } from '@/lib/errors';
+import { AppError, localizeError, notFound } from '@/lib/errors';
 import { getActor } from '@/server/auth/session';
 import { requireActor } from '@/server/auth/guard';
 import { consume } from '@/server/rateLimit';
@@ -17,7 +17,9 @@ import {
 import { getDayAvailability } from '@/server/services/availability';
 import { cuidSchema, dayKeySchema } from '@/lib/validation/common';
 import type { FormState } from '@/lib/formState';
-import { parseForm, toFormState } from './formState';
+import { done, parseForm, toFormState } from './formState';
+import { getLocale } from '@/i18n/server';
+import { messagesFor } from '@/i18n';
 
 const createSchema = z.object({
   businessId: cuidSchema,
@@ -34,7 +36,7 @@ export async function createReservationAction(
   _prev: FormState<BookingResult>,
   formData: FormData,
 ): Promise<FormState<BookingResult>> {
-  const parsed = parseForm(createSchema, formData);
+  const parsed = await parseForm(createSchema, formData);
   if (!parsed.ok) return parsed.state;
 
   try {
@@ -76,7 +78,7 @@ export async function cancelReservationAction(
   _prev: FormState,
   formData: FormData,
 ): Promise<FormState> {
-  const parsed = parseForm(
+  const parsed = await parseForm(
     z.object({ reservationId: cuidSchema, reason: z.string().trim().max(300).optional() }),
     formData,
   );
@@ -93,7 +95,7 @@ export async function cancelReservationAction(
     });
 
     revalidatePath('/account');
-    return { status: 'success', message: 'Rendez-vous annulé.' };
+    return { status: 'success', message: await done('appointmentCancelled') };
   } catch (error) {
     return toFormState(error, 'cancelReservationAction');
   }
@@ -103,7 +105,7 @@ export async function rescheduleReservationAction(
   _prev: FormState<BookingResult>,
   formData: FormData,
 ): Promise<FormState<BookingResult>> {
-  const parsed = parseForm(
+  const parsed = await parseForm(
     z.object({
       reservationId: cuidSchema,
       startAt: z.string().datetime(),
@@ -180,8 +182,12 @@ export async function fetchAvailabilityAction(input: {
       closedReason: availability.closedReason,
     };
   } catch (error) {
-    if (error instanceof AppError && error.expose) return { ok: false, message: error.message };
-    return { ok: false, message: 'Impossible de charger les disponibilités.' };
+    const locale = await getLocale();
+    const m = messagesFor(locale);
+    if (error instanceof AppError && error.expose) {
+      return { ok: false, message: localizeError(error, m, locale) };
+    }
+    return { ok: false, message: m.feedback.errors.availabilityFailed };
   }
 }
 
@@ -197,7 +203,7 @@ export async function getReservationByReference(reference: string) {
       items: true,
     },
   });
-  if (!reservation) throw notFound('Réservation introuvable.');
+  if (!reservation) throw notFound('reservationNotFound');
 
   // A reservation is readable by its customer, by the business, or by an admin —
   // never by a stranger who guessed a reference.
@@ -205,7 +211,7 @@ export async function getReservationByReference(reference: string) {
   const isOwner = actor && reservation.customerId === actor.userId;
   const isBusiness = actor && Boolean(actor.businessRoles[reservation.businessId]);
   const isAdmin = actor?.globalRoles.includes('SUPER_ADMIN');
-  if (!isOwner && !isBusiness && !isAdmin) throw notFound('Réservation introuvable.');
+  if (!isOwner && !isBusiness && !isAdmin) throw notFound('reservationNotFound');
 
   return reservation;
 }

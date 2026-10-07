@@ -10,7 +10,25 @@ import { Badge, EmptyState, Panel } from '@/components/ui/Primitives';
 import { deleteServiceAction, saveServiceAction } from '@/server/actions/business';
 import { uploadServiceMediaAction } from '@/server/actions/media';
 import { idle } from '@/lib/formState';
-import { formatDuration, formatPrice } from '@/i18n/format';
+import { formatCount, formatDuration, formatNumber, formatPrice } from '@/i18n/format';
+import { LOCALE_META, type Locale } from '@/i18n/config';
+import { interpolate } from '@/i18n/interpolate';
+import type { Messages } from '@/i18n';
+
+type M = { dashSetup: Messages['dashSetup']; common: Messages['common'] };
+
+/** The currency as this locale writes it: "DT", "TND", "د.ت.". */
+function currencySymbol(currency: string, locale: Locale): string {
+  try {
+    const parts = new Intl.NumberFormat(LOCALE_META[locale].intl, {
+      style: 'currency',
+      currency,
+    }).formatToParts(0);
+    return parts.find((p) => p.type === 'currency')?.value ?? currency;
+  } catch {
+    return currency;
+  }
+}
 
 type Service = {
   id: string;
@@ -28,7 +46,7 @@ type Service = {
   bookingCount: number;
 };
 
-function SaveButton({ label = 'Enregistrer' }: { label?: string }) {
+function SaveButton({ label }: { label: string }) {
   const { pending } = useFormStatus();
   return (
     <Button type="submit" loading={pending}>
@@ -38,6 +56,8 @@ function SaveButton({ label = 'Enregistrer' }: { label?: string }) {
 }
 
 function ServiceForm({
+  m,
+  locale,
   businessId,
   currency,
   service,
@@ -45,6 +65,8 @@ function ServiceForm({
   categories,
   onDone,
 }: {
+  m: M;
+  locale: Locale;
   businessId: string;
   currency: string;
   service: Service | null;
@@ -61,6 +83,7 @@ function ServiceForm({
   }
 
   const errors = state.status === 'error' ? state.fieldErrors : undefined;
+  const t = m.dashSetup.services;
 
   return (
     <Panel>
@@ -69,31 +92,36 @@ function ServiceForm({
         {service ? <input type="hidden" name="id" value={service.id} /> : null}
 
         <h3 className="z-profile__h3">
-          {service ? 'Modifier la prestation' : 'Nouvelle prestation'}
+          {service ? t.editTitle : t.newTitle}
         </h3>
 
         {state.status === 'error' ? <Alert tone="error">{state.message}</Alert> : null}
 
         <Input
-          label="Nom"
+          label={t.name}
           name="name"
           defaultValue={service?.name ?? ''}
           required
-          placeholder="Coupe homme"
+          placeholder={t.namePlaceholder}
           error={errors?.name}
         />
 
         <Textarea
-          label="Description"
+          label={t.description}
           name="description"
           defaultValue={service?.description ?? ''}
           optional
-          placeholder="Ce que comprend la prestation."
+          placeholder={t.descriptionPlaceholder}
           error={errors?.description}
         />
 
-        <Select label="Catégorie" name="categoryId" defaultValue={service?.categoryId ?? ''} optional>
-          <option value="">Aucune</option>
+        <Select
+          label={t.category}
+          name="categoryId"
+          defaultValue={service?.categoryId ?? ''}
+          optional
+        >
+          <option value="">{m.dashSetup.shared.none}</option>
           {categories.map((category) => (
             <option key={category.id} value={category.id}>
               {category.label}
@@ -103,7 +131,7 @@ function ServiceForm({
 
         <div className="z-auth__row">
           <Input
-            label={`Prix (${currency})`}
+            label={interpolate(t.price, { currency: currencySymbol(currency, locale) })}
             name="priceAmount"
             type="number"
             step="0.01"
@@ -114,7 +142,7 @@ function ServiceForm({
             error={errors?.priceAmount}
           />
           <Input
-            label="Durée (min)"
+            label={t.duration}
             name="durationMinutes"
             type="number"
             min="5"
@@ -128,31 +156,31 @@ function ServiceForm({
 
         <div className="z-auth__row">
           <Input
-            label="Préparation (min)"
+            label={t.prep}
             name="prepMinutes"
             type="number"
             min="0"
             step="5"
             defaultValue={service?.prepMinutes ?? 0}
-            hint="Avant le client."
+            hint={t.prepHint}
             error={errors?.prepMinutes}
           />
           <Input
-            label="Battement (min)"
+            label={t.buffer}
             name="bufferMinutes"
             type="number"
             min="0"
             step="5"
             defaultValue={service?.bufferMinutes ?? 0}
-            hint="Nettoyage, remise en place."
+            hint={t.bufferHint}
             error={errors?.bufferMinutes}
           />
         </div>
 
         <fieldset className="z-fieldset">
-          <legend className="z-label">Qui réalise cette prestation ?</legend>
+          <legend className="z-label">{t.whoPerforms}</legend>
           {staff.length === 0 ? (
-            <p className="z-help">Ajoutez d’abord un membre d’équipe.</p>
+            <p className="z-help">{t.addStaffFirst}</p>
           ) : (
             <div className="z-checkgrid">
               {staff.map((member) => (
@@ -168,20 +196,18 @@ function ServiceForm({
               ))}
             </div>
           )}
-          <p className="z-help">
-            Seuls les professionnels cochés apparaîtront à la réservation pour cette prestation.
-          </p>
+          <p className="z-help">{t.staffHelp}</p>
         </fieldset>
 
         <label className="z-check">
           <input type="checkbox" name="isActive" defaultChecked={service?.isActive ?? true} />
-          <span>Prestation visible et réservable</span>
+          <span>{t.visible}</span>
         </label>
 
         <div className="z-row" style={{ gap: 'var(--z-space-2)' }}>
-          <SaveButton />
+          <SaveButton label={m.common.save} />
           <Button type="button" variant="ghost" onClick={onDone}>
-            Annuler
+            {m.common.cancel}
           </Button>
         </div>
       </form>
@@ -189,7 +215,15 @@ function ServiceForm({
   );
 }
 
-function ServiceImageForm({ businessId, serviceId }: { businessId: string; serviceId: string }) {
+function ServiceImageForm({
+  m,
+  businessId,
+  serviceId,
+}: {
+  m: M;
+  businessId: string;
+  serviceId: string;
+}) {
   const router = useRouter();
   const [state, formAction] = useActionState(uploadServiceMediaAction, idle);
   if (state.status === 'success') router.refresh();
@@ -199,7 +233,7 @@ function ServiceImageForm({ businessId, serviceId }: { businessId: string; servi
       <input type="hidden" name="businessId" value={businessId} />
       <input type="hidden" name="serviceId" value={serviceId} />
       <label className="z-btn z-btn--ghost z-btn--sm">
-        Photo
+        {m.dashSetup.shared.photo}
         <input
           type="file"
           name="file"
@@ -213,7 +247,8 @@ function ServiceImageForm({ businessId, serviceId }: { businessId: string; servi
   );
 }
 
-function DeleteServiceForm({ businessId, serviceId, bookingCount }: {
+function DeleteServiceForm({ m, businessId, serviceId, bookingCount }: {
+  m: M;
   businessId: string;
   serviceId: string;
   bookingCount: number;
@@ -226,7 +261,7 @@ function DeleteServiceForm({ businessId, serviceId, bookingCount }: {
   if (!confirming) {
     return (
       <Button variant="ghost" size="sm" onClick={() => setConfirming(true)}>
-        Supprimer
+        {m.common.delete}
       </Button>
     );
   }
@@ -236,25 +271,31 @@ function DeleteServiceForm({ businessId, serviceId, bookingCount }: {
       <input type="hidden" name="businessId" value={businessId} />
       <input type="hidden" name="serviceId" value={serviceId} />
       <span className="z-help">
-        {bookingCount > 0 ? 'Sera désactivée (historique conservé).' : 'Confirmer ?'}
+        {bookingCount > 0
+          ? m.dashSetup.services.willDeactivate
+          : m.dashSetup.services.confirmDelete}
       </span>
       <Button type="submit" variant="danger" size="sm">
-        Oui
+        {m.common.yes}
       </Button>
       <Button type="button" variant="ghost" size="sm" onClick={() => setConfirming(false)}>
-        Non
+        {m.common.no}
       </Button>
     </form>
   );
 }
 
 export function ServicesManager({
+  m,
+  locale,
   businessId,
   currency,
   services,
   staff,
   categories,
 }: {
+  m: M;
+  locale: Locale;
   businessId: string;
   currency: string;
   services: Service[];
@@ -263,23 +304,26 @@ export function ServicesManager({
 }) {
   const [editing, setEditing] = useState<Service | null>(null);
   const [creating, setCreating] = useState(false);
+  const t = m.dashSetup.services;
 
   return (
     <div className="z-stack" style={{ gap: 'var(--z-space-6)' }}>
       <div className="z-dash__panel-head">
         <div>
-          <h2 className="z-profile__h3">Prestations ({services.length})</h2>
-          <p className="z-policy">
-            Le prix et la durée que vous définissez ici sont ceux que voient vos clients.
-          </p>
+          <h2 className="z-profile__h3">
+            {interpolate(t.heading, { count: formatNumber(services.length, locale) })}
+          </h2>
+          <p className="z-policy">{t.intro}</p>
         </div>
         {!creating && !editing ? (
-          <Button onClick={() => setCreating(true)}>+ Ajouter une prestation</Button>
+          <Button onClick={() => setCreating(true)}>+ {t.add}</Button>
         ) : null}
       </div>
 
       {creating ? (
         <ServiceForm
+          m={m}
+          locale={locale}
           businessId={businessId}
           currency={currency}
           service={null}
@@ -291,6 +335,8 @@ export function ServicesManager({
 
       {editing ? (
         <ServiceForm
+          m={m}
+          locale={locale}
           businessId={businessId}
           currency={currency}
           service={editing}
@@ -302,9 +348,9 @@ export function ServicesManager({
 
       {services.length === 0 && !creating ? (
         <EmptyState
-          title="Aucune prestation"
-          body="Ajoutez vos prestations avec leur prix et leur durée — c’est ce que vos clients réservent."
-          action={<Button onClick={() => setCreating(true)}>Ajouter une prestation</Button>}
+          title={t.emptyTitle}
+          body={t.emptyBody}
+          action={<Button onClick={() => setCreating(true)}>{t.add}</Button>}
         />
       ) : (
         <ul className="z-svc-list">
@@ -323,27 +369,34 @@ export function ServicesManager({
                   {!service.isActive ? (
                     <>
                       {' '}
-                      <Badge tone="neutral">Masquée</Badge>
+                      <Badge tone="neutral">{t.hidden}</Badge>
                     </>
                   ) : null}
                 </h3>
                 <p className="z-svc__duration">
-                  {formatDuration(service.durationMinutes)}
-                  {service.bufferMinutes > 0 ? ` + ${service.bufferMinutes} min battement` : ''}
+                  {formatDuration(service.durationMinutes, locale)}
+                  {service.bufferMinutes > 0
+                    ? ` ${interpolate(t.bufferSuffix, {
+                        duration: formatDuration(service.bufferMinutes, locale),
+                      })}`
+                    : ''}
                   {' · '}
-                  {service.staffIds.length} professionnel{service.staffIds.length > 1 ? 's' : ''}
-                  {service.bookingCount > 0 ? ` · ${service.bookingCount} réservations` : ''}
+                  {formatCount(t.staffCount, service.staffIds.length, locale)}
+                  {service.bookingCount > 0
+                    ? ` · ${formatCount(t.bookingCount, service.bookingCount, locale)}`
+                    : ''}
                 </p>
               </div>
 
               <div className="z-svc__aside">
-                <span className="z-svc__price">{formatPrice(service.price, 'fr', currency)}</span>
+                <span className="z-svc__price">{formatPrice(service.price, locale, currency)}</span>
                 <div className="z-row" style={{ gap: 'var(--z-space-1)', flexWrap: 'wrap' }}>
-                  <ServiceImageForm businessId={businessId} serviceId={service.id} />
+                  <ServiceImageForm m={m} businessId={businessId} serviceId={service.id} />
                   <Button variant="secondary" size="sm" onClick={() => setEditing(service)}>
-                    Modifier
+                    {m.common.edit}
                   </Button>
                   <DeleteServiceForm
+                    m={m}
                     businessId={businessId}
                     serviceId={service.id}
                     bookingCount={service.bookingCount}

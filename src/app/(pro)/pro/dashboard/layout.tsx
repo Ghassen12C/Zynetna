@@ -7,30 +7,26 @@ import { getActor } from '@/server/auth/session';
 import { primaryBusinessId } from '@/server/auth/guard';
 import { businessHeader } from '@/server/services/proDashboard';
 import { getSubscriptionView } from '@/server/services/subscriptions';
-import { formatPrice } from '@/i18n/format';
+import { Arrow } from '@/components/ui/Arrow';
+import { formatCount, formatPrice } from '@/i18n/format';
+import { translate } from '@/i18n/server';
 import { can } from '@/domain/identity/actor';
 import { PRO_NAV } from '@/domain/identity/proNav';
 
-const STATUS_LABEL: Record<string, string> = {
-  DRAFT: 'Brouillon',
-  PENDING_REVIEW: 'En attente de validation',
-  ACTIVE: 'En ligne',
-  SUSPENDED: 'Suspendu',
-  REJECTED: 'Refusé',
-};
-
 export default async function ProDashboardLayout({ children }: { children: React.ReactNode }) {
+  const { m, locale, t, path } = await translate();
   const actor = await getActor();
-  if (!actor) redirect('/login?redirectTo=/pro/dashboard');
+  if (!actor) redirect(path('/login?redirectTo=/pro/dashboard'));
 
   const businessId = await primaryBusinessId(actor);
   // A signed-in user with no business belongs in onboarding, not here.
-  if (!businessId) redirect('/pro/onboarding');
+  if (!businessId) redirect(path('/pro/onboarding'));
 
   const [business, subscription] = await Promise.all([
     businessHeader(businessId),
     getSubscriptionView(businessId),
   ]);
+  const d = m.dash.layout;
 
   const trialLeft = subscription?.trialDaysLeft ?? null;
 
@@ -42,7 +38,7 @@ export default async function ProDashboardLayout({ children }: { children: React
    * guards already refuse, so the menu should agree with them.
    */
   const navItems = PRO_NAV.filter((item) => can(actor, item.permission, { businessId })).map(
-    ({ href, label }) => ({ href, label }),
+    ({ href, labelKey }) => ({ href: path(href), label: m.dash.nav[labelKey] }),
   );
 
   return (
@@ -67,25 +63,27 @@ export default async function ProDashboardLayout({ children }: { children: React
               <h1>{business.name}</h1>
               <div className="z-pro__badges">
                 <Badge tone={business.status === 'ACTIVE' ? 'success' : 'warning'}>
-                  {STATUS_LABEL[business.status] ?? business.status}
+                  {m.labels.businessStatus[business.status] ?? business.status}
                 </Badge>
                 {business.verification === 'VERIFIED' ? (
-                  <Badge tone="accent">✓ Vérifié</Badge>
+                  <Badge tone="accent">
+                    <span aria-hidden="true">✓</span> {m.labels.verification.VERIFIED}
+                  </Badge>
                 ) : null}
                 {subscription && !subscription.entitled ? (
-                  <Badge tone="danger">Abonnement expiré</Badge>
+                  <Badge tone="danger">{d.subscriptionExpired}</Badge>
                 ) : null}
               </div>
             </div>
           </div>
 
           <div className="z-pro__head-actions">
-            <ButtonLink href="/pro/preview" variant="secondary" size="sm">
-              Voir ma page
+            <ButtonLink href={path('/pro/preview')} variant="secondary" size="sm">
+              {d.viewMyPage}
             </ButtonLink>
             {business.status === 'ACTIVE' ? (
-              <ButtonLink href={`/business/${business.slug}`} variant="ghost" size="sm">
-                Page publique ↗
+              <ButtonLink href={path(`/business/${business.slug}`)} variant="ghost" size="sm">
+                {d.publicPage} <Arrow to="external" />
               </ButtonLink>
             ) : null}
           </div>
@@ -94,27 +92,34 @@ export default async function ProDashboardLayout({ children }: { children: React
         {trialLeft !== null && trialLeft <= 14 ? (
           <div className="z-trialbar">
             <span>
-              <strong>Essai gratuit — {trialLeft} jour{trialLeft > 1 ? 's' : ''} restant{trialLeft > 1 ? 's' : ''}.</strong>{' '}
-              Ensuite {formatPrice(Number(subscription!.plan.priceAmount), 'fr', subscription!.plan.currency)} par mois.
+              <strong>{formatCount(d.trialLeft, trialLeft, locale)}</strong>{' '}
+              {t(d.trialThen, {
+                price: formatPrice(
+                  Number(subscription!.plan.priceAmount),
+                  locale,
+                  subscription!.plan.currency,
+                ),
+                interval: m.labels.interval[subscription!.plan.interval],
+              })}
             </span>
-            <Link href="/pro/dashboard/subscription">Gérer mon abonnement →</Link>
+            <Link href={path('/pro/dashboard/subscription')}>
+              {d.manageSubscription} <Arrow />
+            </Link>
           </div>
         ) : null}
 
         {subscription && !subscription.entitled ? (
           <div className="z-trialbar z-trialbar--danger">
             <span>
-              <strong>Votre abonnement a expiré.</strong> Votre établissement n’apparaît plus dans
-              les recherches et ne reçoit plus de nouvelles réservations. Les rendez-vous déjà
-              pris sont maintenus.
+              <strong>{d.expiredTitle}</strong> {d.expiredBody}
             </span>
-            <Link href="/pro/dashboard/subscription">Réactiver →</Link>
+            <Link href={path('/pro/dashboard/subscription')}>
+              {d.reactivate} <Arrow />
+            </Link>
           </div>
         ) : null}
 
-        <SectionNav
-          items={navItems}
-        />
+        <SectionNav items={navItems} label={d.navLabel} />
 
         <div className="z-pro__body">{children}</div>
       </div>

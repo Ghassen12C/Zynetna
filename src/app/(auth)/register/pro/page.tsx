@@ -4,39 +4,44 @@ import { redirect } from 'next/navigation';
 import { Logo } from '@/components/brand/Mark';
 import { RegisterForm } from '../RegisterForm';
 import { getActor } from '@/server/auth/session';
+import { translate } from '@/i18n/server';
 
-export const metadata: Metadata = {
-  title: 'Créer mon établissement',
-  robots: { index: false, follow: false },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const { m } = await translate();
+  return { title: m.dashSetup.registerPro.title, robots: { index: false, follow: false } };
+}
 
 /**
  * Professionals register as users first; the business is created in the
  * onboarding step that follows. Same account model, no parallel identity.
  */
 export default async function RegisterProPage() {
-  if (await getActor()) redirect('/pro/onboarding');
+  const { m, locale, path } = await translate();
+  if (await getActor()) redirect(path('/pro/onboarding'));
+  const copy = m.dashSetup.registerPro;
 
   return (
     <>
       <div className="z-auth__mobile-logo">
-        <Link href="/" aria-label="Zynetna — accueil">
+        <Link href={path('/')} aria-label={copy.homeLabel}>
           <Logo size={36} />
         </Link>
       </div>
 
       <div>
-        <h1 className="z-auth__title">Mettez votre établissement en ligne</h1>
+        <h1 className="z-auth__title">{copy.heading}</h1>
         <p className="z-auth__subtitle">
-          Créez votre compte — vous créerez votre établissement juste après.
-          <strong> Deux mois offerts.</strong>
+          {copy.subtitle} <strong>{copy.offer}</strong>
         </p>
       </div>
 
-      <RegisterForm />
+      <RegisterForm m={m.auth} locale={locale} />
 
       <p className="z-auth__foot">
-        Déjà un compte ? <Link href="/login?redirectTo=/pro/onboarding">Se connecter</Link>
+        {copy.hasAccount}{' '}
+        <Link href={path(`/login?redirectTo=${encodeURIComponent('/pro/onboarding')}`)}>
+          {copy.login}
+        </Link>
       </p>
     </>
   );

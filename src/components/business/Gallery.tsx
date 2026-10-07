@@ -2,12 +2,21 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import type { ProfileMedia } from '@/server/services/businessProfile';
+import { interpolate } from '@/i18n/interpolate';
+
+export type GalleryLabels = {
+  gallery: string;
+  close: string;
+  enlarge: string;
+  previous: string;
+  next: string;
+};
 
 /**
  * Gallery with a keyboard-complete lightbox: Escape closes, arrows navigate,
  * focus is trapped while open and the page behind does not scroll.
  */
-export function Gallery({ images }: { images: ProfileMedia[] }) {
+export function Gallery({ images, labels }: { images: ProfileMedia[]; labels: GalleryLabels }) {
   const [index, setIndex] = useState<number | null>(null);
   const isOpen = index !== null;
 
@@ -23,9 +32,13 @@ export function Gallery({ images }: { images: ProfileMedia[] }) {
   useEffect(() => {
     if (!isOpen) return;
     const onKey = (event: KeyboardEvent) => {
+      // Right-to-left pages read the strip the other way, so the arrow keys
+      // follow the reading direction, like the mirrored buttons do.
+      const forward = document.documentElement.dir === 'rtl' ? 'ArrowLeft' : 'ArrowRight';
+      const backward = forward === 'ArrowRight' ? 'ArrowLeft' : 'ArrowRight';
       if (event.key === 'Escape') close();
-      if (event.key === 'ArrowRight') step(1);
-      if (event.key === 'ArrowLeft') step(-1);
+      if (event.key === forward) step(1);
+      if (event.key === backward) step(-1);
     };
     document.addEventListener('keydown', onKey);
     const previousOverflow = document.body.style.overflow;
@@ -47,7 +60,7 @@ export function Gallery({ images }: { images: ProfileMedia[] }) {
               type="button"
               className="z-gallery__item"
               onClick={() => setIndex(i)}
-              aria-label={`Agrandir l’image ${i + 1} sur ${images.length}`}
+              aria-label={interpolate(labels.enlarge, { index: i + 1, total: images.length })}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={image.thumbUrl} alt={image.alt ?? ''} loading="lazy" decoding="async" />
@@ -61,10 +74,10 @@ export function Gallery({ images }: { images: ProfileMedia[] }) {
           className="z-lightbox"
           role="dialog"
           aria-modal="true"
-          aria-label="Galerie"
+          aria-label={labels.gallery}
           onClick={close}
         >
-          <button type="button" className="z-lightbox__close" onClick={close} aria-label="Fermer">
+          <button type="button" className="z-lightbox__close" onClick={close} aria-label={labels.close}>
             ×
           </button>
           {images.length > 1 ? (
@@ -75,7 +88,7 @@ export function Gallery({ images }: { images: ProfileMedia[] }) {
                 e.stopPropagation();
                 step(-1);
               }}
-              aria-label="Image précédente"
+              aria-label={labels.previous}
             >
               ‹
             </button>
@@ -97,7 +110,7 @@ export function Gallery({ images }: { images: ProfileMedia[] }) {
                 e.stopPropagation();
                 step(1);
               }}
-              aria-label="Image suivante"
+              aria-label={labels.next}
             >
               ›
             </button>

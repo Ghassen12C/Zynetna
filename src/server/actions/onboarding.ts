@@ -9,6 +9,7 @@ import { recordAudit } from '@/server/audit';
 import { startTrial } from '@/server/services/subscriptions';
 import { consume } from '@/server/rateLimit';
 import { cuidSchema } from '@/lib/validation/common';
+import { v } from '@/lib/validation/keys';
 import type { FormState } from '@/lib/formState';
 import { parseForm, toFormState } from './formState';
 
@@ -19,7 +20,7 @@ import { parseForm, toFormState } from './formState';
  * a constant in this file.
  */
 const createSchema = z.object({
-  name: z.string().trim().min(2, 'Nom trop court.').max(120),
+  name: z.string().trim().min(2, v('nameTooShort')).max(120),
   categoryId: cuidSchema,
   cityId: cuidSchema.optional().or(z.literal('')),
   phone: z.string().trim().max(20).optional().or(z.literal('')),
@@ -54,7 +55,7 @@ export async function createBusinessAction(
   _prev: FormState,
   formData: FormData,
 ): Promise<FormState> {
-  const parsed = parseForm(createSchema, formData);
+  const parsed = await parseForm(createSchema, formData);
   if (!parsed.ok) return parsed.state;
 
   try {
@@ -66,13 +67,13 @@ export async function createBusinessAction(
       where: { userId: actor.userId, role: 'BUSINESS_OWNER' },
       select: { businessId: true },
     });
-    if (existing) throw invalid('Vous gérez déjà un établissement.');
+    if (existing) throw invalid('alreadyOwner');
 
     const category = await db.category.findUnique({
       where: { id: parsed.data.categoryId },
       select: { id: true },
     });
-    if (!category) throw invalid('Choisissez une catégorie.');
+    if (!category) throw invalid('chooseCategory');
 
     const slug = await uniqueSlug(parsed.data.name);
 

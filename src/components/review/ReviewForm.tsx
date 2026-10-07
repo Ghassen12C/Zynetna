@@ -6,14 +6,16 @@ import { Alert } from '@/components/ui/Alert';
 import { Button } from '@/components/ui/Button';
 import { submitReviewAction } from '@/server/actions/reviews';
 import { idle } from '@/lib/formState';
+import type { Locale } from '@/i18n/config';
+import { formatCount } from '@/i18n/format';
+import { interpolate } from '@/i18n/interpolate';
+import type { Messages } from '@/i18n';
 
-const LABELS = ['', 'Décevant', 'Moyen', 'Correct', 'Très bien', 'Excellent'];
-
-function Submit() {
+function Submit({ label }: { label: string }) {
   const { pending } = useFormStatus();
   return (
     <Button type="submit" loading={pending}>
-      Publier mon avis
+      {label}
     </Button>
   );
 }
@@ -23,11 +25,16 @@ export function ReviewForm({
   reservationId,
   businessName,
   serviceName,
+  m,
+  locale,
 }: {
   reservationId: string;
   businessName: string;
   serviceName?: string | null;
+  m: { review: Messages['review']; common: Messages['common'] };
+  locale: Locale;
 }) {
+  const labels = m.review.ratingLabels;
   const [state, formAction] = useActionState(submitReviewAction, idle);
   const [rating, setRating] = useState(0);
   const [hover, setHover] = useState(0);
@@ -50,7 +57,7 @@ export function ReviewForm({
       {state.status === 'error' ? <Alert tone="error">{state.message}</Alert> : null}
 
       <fieldset className="z-stars">
-        <legend className="z-label">Votre note</legend>
+        <legend className="z-label">{m.review.yourRating}</legend>
         <div className="z-stars__row" onMouseLeave={() => setHover(0)}>
           {[1, 2, 3, 4, 5].map((value) => (
             <label key={value} className="z-stars__item">
@@ -63,7 +70,9 @@ export function ReviewForm({
                 required
               />
               <span className="z-sr-only">
-                {`${value} étoile${value > 1 ? 's' : ''} — ${LABELS[value]}`}
+                {interpolate(formatCount(m.review.starOption, value, locale), {
+                  label: labels[value] ?? '',
+                })}
               </span>
               <svg
                 width="34"
@@ -81,24 +90,25 @@ export function ReviewForm({
           ))}
         </div>
         <p className="z-help" aria-live="polite">
-          {shown ? LABELS[shown] : 'Sélectionnez une note'}
+          {shown ? labels[shown] : m.review.pickRating}
         </p>
       </fieldset>
 
       <div className="z-field">
         <label className="z-label" htmlFor={`comment-${reservationId}`}>
-          Votre commentaire <span className="z-label__optional">· optionnel</span>
+          {m.review.yourComment}{' '}
+          <span className="z-label__optional">· {m.common.optional}</span>
         </label>
         <textarea
           id={`comment-${reservationId}`}
           name="comment"
           className="z-textarea"
           maxLength={1500}
-          placeholder="Qu’avez-vous apprécié ? Qu’est-ce qui pourrait être amélioré ?"
+          placeholder={m.review.commentPlaceholder}
         />
       </div>
 
-      <Submit />
+      <Submit label={m.review.publish} />
     </form>
   );
 }

@@ -8,8 +8,17 @@ import { Input, Select } from '@/components/ui/Field';
 import { Badge } from '@/components/ui/Primitives';
 import { createBusinessAction } from '@/server/actions/onboarding';
 import { idle } from '@/lib/formState';
-import { formatPrice } from '@/i18n/format';
+import { formatCount, formatPrice } from '@/i18n/format';
+import type { Locale } from '@/i18n/config';
+import { interpolate } from '@/i18n/interpolate';
+import type { Messages } from '@/i18n';
 import { CategoryIcon } from '@/components/brand/CategoryIcon';
+
+type M = {
+  dashSetup: Messages['dashSetup'];
+  common: Messages['common'];
+  labels: Messages['labels'];
+};
 
 /**
  * Onboarding.
@@ -19,36 +28,26 @@ import { CategoryIcon } from '@/components/brand/CategoryIcon';
  * in the dashboard, where the owner can see the effect of each change on their
  * own page. A long wizard before anything exists is where people drop out.
  */
-const STEPS = [
-  { title: 'Votre établissement', hint: 'Le nom que verront vos clients.' },
-  { title: 'Votre activité', hint: 'Pour apparaître dans les bonnes recherches.' },
-  { title: 'Où êtes-vous ?', hint: 'Pour être trouvé près de chez vos clients.' },
-];
-
-const NEXT_STEPS = [
-  'Ajouter vos prestations, avec prix et durée',
-  'Ajouter votre équipe et qui fait quoi',
-  'Régler vos horaires d’ouverture',
-  'Téléverser vos photos',
-  'Publier votre page',
-];
-
-function Submit() {
+function Submit({ label }: { label: string }) {
   const { pending } = useFormStatus();
   return (
     <Button type="submit" size="lg" block loading={pending}>
-      Créer mon établissement
+      {label}
     </Button>
   );
 }
 
 export function OnboardingWizard({
+  m,
+  locale,
   categories,
   cities,
   trialDays,
   price,
   currency,
 }: {
+  m: M;
+  locale: Locale;
   categories: { id: string; slug: string; name: string; icon: string | null }[];
   cities: { id: string; label: string }[];
   trialDays: number;
@@ -61,6 +60,8 @@ export function OnboardingWizard({
   const [categoryId, setCategoryId] = useState('');
 
   const errors = state.status === 'error' ? state.fieldErrors : undefined;
+  const t = m.dashSetup.onboarding;
+  const steps = t.steps;
   const canContinue = step === 0 ? name.trim().length >= 2 : step === 1 ? categoryId !== '' : true;
 
   return (
@@ -68,18 +69,18 @@ export function OnboardingWizard({
       <div className="z-container z-onboard__inner">
         <header className="z-onboard__head">
           <Badge tone="gold">
-            {Math.round(trialDays / 30)} mois offerts, puis{' '}
-            {formatPrice(price, 'fr', currency)} / mois
+            {interpolate(t.offer, {
+              trial: formatCount(t.trialMonths, Math.round(trialDays / 30), locale),
+              price: formatPrice(price, locale, currency),
+              interval: m.labels.interval.MONTH,
+            })}
           </Badge>
-          <h1>Mettez votre établissement en ligne</h1>
-          <p>
-            Trois questions, et votre page existe. Vous complétez le reste ensuite, en voyant
-            le résultat en direct.
-          </p>
+          <h1>{t.heading}</h1>
+          <p>{t.intro}</p>
         </header>
 
         <ol className="z-steps z-onboard__steps">
-          {STEPS.map((item, index) => (
+          {steps.map((item, index) => (
             <li
               key={item.title}
               className={`z-steps__item ${index === step ? 'is-current' : ''} ${index < step ? 'is-done' : ''}`}
@@ -96,30 +97,31 @@ export function OnboardingWizard({
 
           {/* Every field stays mounted so the final submit carries them all. */}
           <div hidden={step !== 0}>
-            <h2 className="z-profile__h3">{STEPS[0]!.title}</h2>
-            <p className="z-policy">{STEPS[0]!.hint}</p>
+            <h2 className="z-profile__h3">{steps[0]!.title}</h2>
+            <p className="z-policy">{steps[0]!.hint}</p>
             <Input
-              label="Nom de l’établissement"
+              label={t.name}
               name="name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Barber El Medina"
+              placeholder={t.namePlaceholder}
               required
               error={errors?.name}
             />
             <Input
-              label="Téléphone"
+              label={t.phone}
               name="phone"
               type="tel"
+              dir="ltr"
               optional
-              placeholder="20 123 456"
+              placeholder={t.phonePlaceholder}
               error={errors?.phone}
             />
           </div>
 
           <div hidden={step !== 1}>
-            <h2 className="z-profile__h3">{STEPS[1]!.title}</h2>
-            <p className="z-policy">{STEPS[1]!.hint}</p>
+            <h2 className="z-profile__h3">{steps[1]!.title}</h2>
+            <p className="z-policy">{steps[1]!.hint}</p>
             <div className="z-choices z-choices--people">
               {categories.map((category) => (
                 <label
@@ -145,10 +147,10 @@ export function OnboardingWizard({
           </div>
 
           <div hidden={step !== 2}>
-            <h2 className="z-profile__h3">{STEPS[2]!.title}</h2>
-            <p className="z-policy">{STEPS[2]!.hint}</p>
-            <Select label="Ville" name="cityId" optional>
-              <option value="">Je préciserai plus tard</option>
+            <h2 className="z-profile__h3">{steps[2]!.title}</h2>
+            <p className="z-policy">{steps[2]!.hint}</p>
+            <Select label={t.city} name="cityId" optional>
+              <option value="">{t.cityLater}</option>
               {cities.map((city) => (
                 <option key={city.id} value={city.id}>
                   {city.label}
@@ -157,9 +159,9 @@ export function OnboardingWizard({
             </Select>
 
             <div className="z-onboard__next">
-              <h3>Ensuite, dans votre tableau de bord :</h3>
+              <h3>{t.nextHeading}</h3>
               <ul className="z-procta__list">
-                {NEXT_STEPS.map((item) => (
+                {t.nextSteps.map((item) => (
                   <li key={item}>{item}</li>
                 ))}
               </ul>
@@ -169,11 +171,11 @@ export function OnboardingWizard({
           <div className="z-onboard__actions">
             {step > 0 ? (
               <Button type="button" variant="ghost" onClick={() => setStep((s) => s - 1)}>
-                Retour
+                {m.common.back}
               </Button>
             ) : null}
 
-            {step < STEPS.length - 1 ? (
+            {step < steps.length - 1 ? (
               <Button
                 type="button"
                 size="lg"
@@ -181,10 +183,10 @@ export function OnboardingWizard({
                 disabled={!canContinue}
                 onClick={() => setStep((s) => s + 1)}
               >
-                Continuer
+                {t.continue}
               </Button>
             ) : (
-              <Submit />
+              <Submit label={t.submit} />
             )}
           </div>
         </form>

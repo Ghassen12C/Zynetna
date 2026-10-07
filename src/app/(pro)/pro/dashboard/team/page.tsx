@@ -6,10 +6,15 @@ import { variantUrl } from '@/server/services/media';
 import { listInvitations } from '@/server/services/invitations';
 import { InvitationsPanel } from '@/components/pro/InvitationsPanel';
 import { can } from '@/domain/identity/actor';
+import { translate } from '@/i18n/server';
 
-export const metadata: Metadata = { title: 'Équipe', robots: { index: false } };
+export async function generateMetadata(): Promise<Metadata> {
+  const { m } = await translate();
+  return { title: m.pro.team, robots: { index: false } };
+}
 
 export default async function TeamPage() {
+  const { m, locale } = await translate();
   const { actor, businessId } = await proContext('business.staff.read', '/pro/dashboard/team');
 
   // Only someone who may change the team sees the invitation controls at all.
@@ -36,6 +41,8 @@ export default async function TeamPage() {
   return (
     <div className="z-stack" style={{ gap: 'var(--z-space-8)' }}>
       <TeamManager
+        m={{ dashSetup: m.dashSetup, common: m.common }}
+        locale={locale}
         businessId={businessId}
         staff={staff.map((s) => ({
           id: s.id,
@@ -54,6 +61,7 @@ export default async function TeamPage() {
 
       {canInvite ? (
         <InvitationsPanel
+          m={{ dashSetup: m.dashSetup, common: m.common }}
           businessId={businessId}
           invitations={invitations.map((i) => ({
             id: i.id,

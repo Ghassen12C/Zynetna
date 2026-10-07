@@ -40,6 +40,8 @@ export default async function ReviewsPage({
             reservationId={focused.id}
             businessName={focused.business.name}
             serviceName={focused.items[0]?.serviceName}
+            m={{ review: m.review, common: m.common }}
+            locale={locale}
           />
         </section>
       ) : pending.length > 0 ? (

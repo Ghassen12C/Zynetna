@@ -1,29 +1,49 @@
 import 'server-only';
 import { ZodError, type ZodType } from 'zod';
-import { AppError, policyDenialOf } from '@/lib/errors';
+import {
+  AppError,
+  type Feedback,
+  type MessageParams,
+  localizeError,
+  renderFeedback,
+} from '@/lib/errors';
 import { logger } from '@/lib/logger';
 import type { FormState } from '@/lib/formState';
-import { policyMessage } from '@/i18n/format';
+import { fieldErrorsOf } from '@/lib/validation/messages';
+import type { PluralForms } from '@/i18n/config';
 import { getLocale } from '@/i18n/server';
 import { messagesFor } from '@/i18n';
 
 export type { FormState } from '@/lib/formState';
 export { idle, fieldError } from '@/lib/formState';
 
-export function fieldErrorsOf(error: ZodError): Record<string, string> {
-  const out: Record<string, string> = {};
-  for (const issue of error.issues) {
-    const key = issue.path.join('.') || '_';
-    out[key] ??= issue.message;
-  }
-  return out;
+/**
+ * The visitor's feedback dictionary (`m.feedback`), plus `t` to render an entry
+ * that takes parameters or plural forms. What every action uses for the
+ * sentences it returns.
+ */
+export async function feedbackFor(): Promise<
+  Feedback & { t: (entry: string | PluralForms, params?: MessageParams) => string }
+> {
+  const locale = await getLocale();
+  const feedback = messagesFor(locale).feedback;
+  return {
+    ...feedback,
+    t: (entry, params) => renderFeedback(entry, params, feedback, locale),
+  };
+}
+
+/** A success message from `m.feedback.done`, in the visitor's language. */
+export async function done(key: keyof Feedback['done'], params?: MessageParams): Promise<string> {
+  const { t, done: messages } = await feedbackFor();
+  return t(messages[key], params);
 }
 
 /** Parse FormData against a schema, returning the standard error shape. */
-export function parseForm<S extends ZodType>(
+export async function parseForm<S extends ZodType>(
   schema: S,
   formData: FormData,
-): { ok: true; data: S['_output'] } | { ok: false; state: FormState<never> } {
+): Promise<{ ok: true; data: S['_output'] } | { ok: false; state: FormState<never> }> {
   const raw: Record<string, unknown> = {};
   for (const [key, value] of formData.entries()) {
     if (value instanceof File) continue;
@@ -36,15 +56,18 @@ export function parseForm<S extends ZodType>(
     }
   }
 
-  const result = schema.safeParse(raw);
+  // `reportInput` lets the translation tell an empty field from a wrong one.
+  const result = schema.safeParse(raw, { reportInput: true });
   if (result.success) return { ok: true, data: result.data };
 
+  const locale = await getLocale();
+  const m = messagesFor(locale);
   return {
     ok: false,
     state: {
       status: 'error',
-      message: 'Merci de corriger les champs indiqués.',
-      fieldErrors: fieldErrorsOf(result.error),
+      message: m.errors.validation,
+      fieldErrors: fieldErrorsOf(result.error, m.feedback, locale),
     },
   };
 }
@@ -57,21 +80,19 @@ export async function toFormState(
   error: unknown,
   context?: string,
 ): Promise<FormState<never>> {
-  const m = messagesFor(await getLocale());
+  const locale = await getLocale();
+  const m = messagesFor(locale);
 
-  // A policy refusal carries its code, so the sentence is built here in the
-  // visitor's language rather than in the domain layer.
-  const denial = policyDenialOf(error);
-  if (denial) return { status: 'error', message: policyMessage(denial, m.policy) };
-
+  // A policy refusal or a localized error carries a code, so the sentence is
+  // built here in the visitor's language rather than where it was thrown.
   if (error instanceof AppError && error.expose) {
-    return { status: 'error', message: error.message };
+    return { status: 'error', message: localizeError(error, m, locale) };
   }
   if (error instanceof ZodError) {
     return {
       status: 'error',
       message: m.errors.validation,
-      fieldErrors: fieldErrorsOf(error),
+      fieldErrors: fieldErrorsOf(error, m.feedback, locale),
     };
   }
   logger.error('unhandled action error', {

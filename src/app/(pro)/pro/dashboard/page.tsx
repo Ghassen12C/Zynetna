@@ -14,16 +14,22 @@ import {
   overviewMetrics,
   reservationsFor,
 } from '@/server/services/proDashboard';
-import { formatPrice, formatTime } from '@/i18n/format';
+import { Arrow } from '@/components/ui/Arrow';
+import { formatDate, formatNumber, formatPrice, formatTime } from '@/i18n/format';
+import { translate } from '@/i18n/server';
 import { dayKeyOf, instantAt } from '@/domain/scheduling/time';
 
-export const metadata: Metadata = { title: 'Vue d’ensemble', robots: { index: false } };
+export async function generateMetadata(): Promise<Metadata> {
+  const { m } = await translate();
+  return { title: m.dash.nav.overview, robots: { index: false } };
+}
 
 export default async function ProOverviewPage() {
+  const { m, locale, t, path } = await translate();
   const actor = await getActor();
-  if (!actor) redirect('/login?redirectTo=/pro/dashboard');
+  if (!actor) redirect(path('/login?redirectTo=/pro/dashboard'));
   const id = await primaryBusinessId(actor);
-  if (!id) redirect('/pro/onboarding');
+  if (!id) redirect(path('/pro/onboarding'));
 
   /**
    * This overview is a revenue dashboard, which an employee has no business
@@ -31,7 +37,7 @@ export default async function ProOverviewPage() {
    * answering their own landing page with "access denied".
    */
   if (!can(actor, 'business.analytics.read', { businessId: id })) {
-    redirect(PRO_HOME_FALLBACK);
+    redirect(path(PRO_HOME_FALLBACK));
   }
 
   // Even though the layout resolved the business, the page re-checks the
@@ -50,160 +56,182 @@ export default async function ProOverviewPage() {
     }),
   ]);
 
-  const money = (n: number) => formatPrice(n, 'fr', business.currency);
+  const d = m.dash.overview;
+  const money = (n: number) => formatPrice(n, locale, business.currency);
+  const count = (n: number) => formatNumber(n, locale);
+  const percent = (n: number) => t(m.dash.shared.percent, { value: formatNumber(n, locale) });
+  const needsSetup = business._count.services === 0 || business._count.staff === 0;
 
+  // What needs doing today comes first: finishing the setup if anything is
+  // missing, then today's appointments; the trends and rankings follow.
   return (
     <div className="z-dash">
+      {needsSetup ? (
+        <Panel className="z-dash__panel">
+          <h2>{d.setupTitle}</h2>
+          <p className="z-policy">{d.setupBody}</p>
+          <div className="z-row" style={{ gap: 'var(--z-space-2)', flexWrap: 'wrap' }}>
+            {business._count.services === 0 ? (
+              <ButtonLink href={path('/pro/dashboard/services')}>{d.addServices}</ButtonLink>
+            ) : null}
+            {business._count.staff === 0 ? (
+              <ButtonLink href={path('/pro/dashboard/team')} variant="secondary">
+                {d.addTeam}
+              </ButtonLink>
+            ) : null}
+          </div>
+        </Panel>
+      ) : null}
+
       <div className="z-stats" data-reveal="stagger">
         <div className="z-stat">
-          <span className="z-stat__value">{metrics.todayAppointments}</span>
-          <span className="z-stat__label">Rendez-vous aujourd’hui</span>
+          <span className="z-stat__value">{count(metrics.todayAppointments)}</span>
+          <span className="z-stat__label">{d.todayAppointments}</span>
+        </div>
+        <div className="z-stat">
+          <span className="z-stat__value">{count(metrics.upcoming)}</span>
+          <span className="z-stat__label">{d.upcoming}</span>
         </div>
         <div className="z-stat">
           <span className="z-stat__value">{money(metrics.todayRevenue)}</span>
-          <span className="z-stat__label">Chiffre du jour</span>
+          <span className="z-stat__label">{d.todayRevenue}</span>
         </div>
         <div className="z-stat">
           <span className="z-stat__value">{money(metrics.monthRevenue)}</span>
-          <span className="z-stat__label">Chiffre du mois</span>
+          <span className="z-stat__label">{d.monthRevenue}</span>
           {metrics.monthDelta !== null ? (
             <span
               className={`z-stat__delta ${metrics.monthDelta >= 0 ? 'z-stat__delta--up' : 'z-stat__delta--down'}`}
             >
-              {metrics.monthDelta >= 0 ? '▲' : '▼'} {Math.abs(metrics.monthDelta)} % vs mois dernier
+              <span aria-hidden="true">{metrics.monthDelta >= 0 ? '▲' : '▼'}</span>{' '}
+              {t(m.dash.shared.monthDelta, {
+                value: formatNumber(Math.abs(metrics.monthDelta), locale),
+              })}
             </span>
           ) : null}
-        </div>
-        <div className="z-stat">
-          <span className="z-stat__value">{metrics.upcoming}</span>
-          <span className="z-stat__label">Rendez-vous à venir</span>
         </div>
       </div>
 
       <Panel className="z-dash__panel">
         <div className="z-dash__panel-head">
-          <h2>Réservations — 30 derniers jours</h2>
-          <Link href="/pro/dashboard/analytics">Statistiques détaillées →</Link>
+          <h2>{d.todayTitle}</h2>
+          <Link href={path('/pro/dashboard/calendar')}>
+            {d.openCalendar} <Arrow />
+          </Link>
+        </div>
+        {todayList.rows.length === 0 ? (
+          <EmptyState
+            title={d.emptyTodayTitle}
+            body={d.emptyTodayBody}
+            action={
+              business._count.services > 0 && business._count.staff > 0 ? (
+                <ButtonLink href={path('/pro/dashboard/reservations/new')} size="sm">
+                  + {m.dash.shared.newAppointment}
+                </ButtonLink>
+              ) : null
+            }
+          />
+        ) : (
+          <ul className="z-today">
+            {todayList.rows.map((reservation) => (
+              <li key={reservation.id}>
+                <span className="z-today__time">
+                  {formatTime(reservation.startAt, locale, business.timezone)}
+                </span>
+                <span className="z-today__body">
+                  <strong>
+                    {reservation.customer
+                      ? `${reservation.customer.firstName} ${reservation.customer.lastName}`
+                      : (reservation.guestName ?? m.dash.shared.guest)}
+                  </strong>
+                  <span>
+                    {reservation.items[0]?.serviceName} · {reservation.staffMember.displayName}
+                  </span>
+                </span>
+                <span className={`z-today__status is-${reservation.status.toLowerCase()}`}>
+                  {m.status[reservation.status as keyof typeof m.status] ?? reservation.status}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Panel>
+
+      <Panel className="z-dash__panel">
+        <div className="z-dash__panel-head">
+          <h2>{d.trendTitle}</h2>
+          <Link href={path('/pro/dashboard/analytics')}>
+            {d.detailedStats} <Arrow />
+          </Link>
         </div>
         <TrendChart
-          label="Réservations par jour sur les 30 derniers jours"
-          points={trend.map((t) => ({ label: t.day.slice(8), value: t.count }))}
+          label={d.trendAria}
+          emptyLabel={m.dash.shared.noData}
+          format={count}
+          points={trend.map((p) => ({
+            label: formatDate(new Date(`${p.day}T12:00:00Z`), locale, { day: 'numeric' }, 'UTC'),
+            value: p.count,
+          }))}
         />
       </Panel>
 
       <div className="z-dash__grid" data-reveal="stagger">
         <Panel className="z-dash__panel">
           <div className="z-dash__panel-head">
-            <h2>Aujourd’hui</h2>
-            <Link href="/pro/dashboard/calendar">Agenda →</Link>
-          </div>
-          {todayList.rows.length === 0 ? (
-            <EmptyState
-              title="Aucun rendez-vous aujourd’hui"
-              body="Les réservations du jour apparaîtront ici dès qu’un client réserve."
-            />
-          ) : (
-            <ul className="z-today">
-              {todayList.rows.map((reservation) => (
-                <li key={reservation.id}>
-                  <span className="z-today__time">
-                    {formatTime(reservation.startAt, 'fr', business.timezone)}
-                  </span>
-                  <span className="z-today__body">
-                    <strong>
-                      {reservation.customer
-                        ? `${reservation.customer.firstName} ${reservation.customer.lastName}`
-                        : (reservation.guestName ?? 'Client')}
-                    </strong>
-                    <span>
-                      {reservation.items[0]?.serviceName} · {reservation.staffMember.displayName}
-                    </span>
-                  </span>
-                  <span className={`z-today__status is-${reservation.status.toLowerCase()}`}>
-                    {reservation.status === 'CONFIRMED'
-                      ? 'Confirmé'
-                      : reservation.status === 'PENDING'
-                        ? 'En attente'
-                        : reservation.status === 'COMPLETED'
-                          ? 'Terminé'
-                          : 'Annulé'}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Panel>
-
-        <Panel className="z-dash__panel">
-          <div className="z-dash__panel-head">
-            <h2>Prestations les plus demandées</h2>
+            <h2>{d.topServices}</h2>
           </div>
           <BarList
             points={metrics.topServices.map((s) => ({ label: s.name, value: s.count }))}
-            format={(n) => `${n}`}
-            emptyLabel="Aucune réservation sur les 30 derniers jours."
+            format={count}
+            emptyLabel={d.noBookings30}
           />
         </Panel>
 
         <Panel className="z-dash__panel">
           <div className="z-dash__panel-head">
-            <h2>Équipe la plus active</h2>
-            <Link href="/pro/dashboard/team">Gérer →</Link>
+            <h2>{d.topStaff}</h2>
+            <Link href={path('/pro/dashboard/team')}>
+              {d.manageTeam} <Arrow />
+            </Link>
           </div>
           <BarList
             points={metrics.topStaff.map((s) => ({ label: s.name, value: s.count }))}
-            emptyLabel="Aucune réservation sur les 30 derniers jours."
+            format={count}
+            emptyLabel={d.noBookings30}
           />
         </Panel>
 
         <Panel className="z-dash__panel">
           <div className="z-dash__panel-head">
-            <h2>Clientèle</h2>
-            <Link href="/pro/dashboard/customers">Voir tous →</Link>
+            <h2>{d.clientele}</h2>
+            <Link href={path('/pro/dashboard/customers')}>
+              {d.seeAllCustomers} <Arrow />
+            </Link>
           </div>
           <dl className="z-kv">
             <div>
-              <dt>Clients au total</dt>
-              <dd>{metrics.totalCustomers}</dd>
+              <dt>{d.totalCustomers}</dt>
+              <dd>{count(metrics.totalCustomers)}</dd>
             </div>
             <div>
-              <dt>Clients fidèles</dt>
-              <dd>{metrics.returningCustomers}</dd>
+              <dt>{d.returningCustomers}</dt>
+              <dd>{count(metrics.returningCustomers)}</dd>
             </div>
             <div>
-              <dt>Nouveaux clients</dt>
-              <dd>{metrics.newCustomers}</dd>
+              <dt>{d.newCustomers}</dt>
+              <dd>{count(metrics.newCustomers)}</dd>
             </div>
             <div>
-              <dt>Taux d’annulation</dt>
-              <dd>{metrics.cancellationRate} %</dd>
+              <dt>{d.cancellationRate}</dt>
+              <dd>{percent(metrics.cancellationRate)}</dd>
             </div>
             <div>
-              <dt>Taux d’absence</dt>
-              <dd>{metrics.noShowRate} %</dd>
+              <dt>{d.noShowRate}</dt>
+              <dd>{percent(metrics.noShowRate)}</dd>
             </div>
           </dl>
         </Panel>
       </div>
-
-      {business._count.services === 0 || business._count.staff === 0 ? (
-        <Panel className="z-dash__panel">
-          <h2>Finalisez votre établissement</h2>
-          <p className="z-policy">
-            Il manque encore quelques éléments pour que vos clients puissent réserver.
-          </p>
-          <div className="z-row" style={{ gap: 'var(--z-space-2)', flexWrap: 'wrap' }}>
-            {business._count.services === 0 ? (
-              <ButtonLink href="/pro/dashboard/services">Ajouter des prestations</ButtonLink>
-            ) : null}
-            {business._count.staff === 0 ? (
-              <ButtonLink href="/pro/dashboard/team" variant="secondary">
-                Ajouter votre équipe
-              </ButtonLink>
-            ) : null}
-          </div>
-        </Panel>
-      ) : null}
     </div>
   );
 }

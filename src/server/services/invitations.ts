@@ -3,10 +3,13 @@ import type { RoleName } from '@prisma/client';
 import { db } from '@/lib/db';
 import { env } from '@/lib/env';
 import { logger } from '@/lib/logger';
-import { AppError, conflict, invalid, notFound } from '@/lib/errors';
+import { conflict, forbidden, invalid, notFound } from '@/lib/errors';
 import { generateToken, hashToken } from '@/server/auth/hash';
 import { emailProvider } from '@/server/providers/notifications';
 import type { Actor } from '@/domain/identity/actor';
+import { DEFAULT_LOCALE, LOCALE_META, type Locale, isLocale, localePath } from '@/i18n/config';
+import { interpolate } from '@/i18n/interpolate';
+import { messagesFor } from '@/i18n';
 
 /**
  * Team invitations.
@@ -85,16 +88,18 @@ export async function inviteToTeam(input: {
   /** Optional staff row to link the account to on acceptance. */
   staffMemberId?: string | null;
   invitedBy: Actor;
+  /** The inviter's language, used for the email when the invitee has no account. */
+  locale?: Locale;
 }) {
   if (!INVITABLE.includes(input.role)) {
-    throw invalid('That role cannot be granted from here.');
+    throw invalid('roleNotInvitable');
   }
 
   const business = await db.business.findUnique({
     where: { id: input.businessId },
     select: { id: true, name: true },
   });
-  if (!business) throw notFound();
+  if (!business) throw notFound('businessNotFound');
 
   // A staff row, when given, must belong to this business — otherwise an owner
   // could attach an employee of theirs to somebody else's roster.
@@ -103,22 +108,22 @@ export async function inviteToTeam(input: {
       where: { id: input.staffMemberId, businessId: business.id },
       select: { id: true, userId: true },
     });
-    if (!staff) throw notFound('No such team member.');
-    if (staff.userId) throw conflict('That team member already has an account linked.');
+    if (!staff) throw notFound('staffNotFound');
+    if (staff.userId) throw conflict('staffAlreadyLinked');
   }
 
   // Already on the team? Re-inviting would be noise, and accepting would be a
   // no-op, so say so plainly instead.
   const existing = await db.user.findUnique({
     where: { email: input.email },
-    select: { id: true },
+    select: { id: true, locale: true },
   });
   if (existing) {
     const already = await db.roleAssignment.findFirst({
       where: { userId: existing.id, businessId: business.id },
       select: { id: true },
     });
-    if (already) throw conflict('This person is already on your team.');
+    if (already) throw conflict('alreadyOnTeam');
   }
 
   const token = generateToken();
@@ -141,7 +146,7 @@ export async function inviteToTeam(input: {
   } catch (error) {
     // The partial unique index means one outstanding invitation per address.
     if (typeof error === 'object' && error !== null && 'code' in error && error.code === 'P2002') {
-      throw conflict('An invitation is already pending for this address.');
+      throw conflict('invitationPending');
     }
     throw error;
   }
@@ -152,6 +157,11 @@ export async function inviteToTeam(input: {
     inviterName: `${input.invitedBy.firstName} ${input.invitedBy.lastName}`,
     token,
     expiresAt,
+    // The invitee's own language when they already have an account.
+    locale:
+      existing?.locale && isLocale(existing.locale)
+        ? existing.locale
+        : (input.locale ?? DEFAULT_LOCALE),
   });
 
   return { id: invitation.id, token, expiresAt };
@@ -164,7 +174,7 @@ export async function revokeInvitation(businessId: string, invitationId: string)
     select: { id: true, acceptedAt: true, revokedAt: true },
   });
   if (!invitation) throw notFound();
-  if (invitation.acceptedAt) throw conflict('That invitation was already accepted.');
+  if (invitation.acceptedAt) throw conflict('invitationAlreadyAccepted');
   if (invitation.revokedAt) return { revoked: true };
 
   await db.staffInvitation.update({
@@ -225,24 +235,21 @@ export async function acceptInvitation(token: string, actor: Actor) {
       },
     });
 
-    if (!invitation) throw notFound('This invitation link is not valid.');
+    if (!invitation) throw notFound('invitationInvalid');
     if (invitation.acceptedAt) {
-      throw new AppError('CONFLICT', 'This invitation has already been used.');
+      throw conflict('invitationUsed');
     }
     if (invitation.revokedAt) {
-      throw new AppError('CONFLICT', 'This invitation was withdrawn.');
+      throw conflict('invitationRevoked');
     }
     if (invitation.expiresAt.getTime() < Date.now()) {
-      throw new AppError('CONFLICT', 'This invitation has expired. Ask for a new one.');
+      throw conflict('invitationExpired');
     }
 
     // The invitation is for one address. Accepting it from a different account
     // would silently put the wrong person on the team.
     if (invitation.email.toLowerCase() !== actor.email.toLowerCase()) {
-      throw new AppError(
-        'FORBIDDEN',
-        `This invitation was sent to ${invitation.email}. Sign in with that address to accept it.`,
-      );
+      throw forbidden('invitationWrongAccount', { email: invitation.email });
     }
 
     await tx.roleAssignment.upsert({
@@ -288,26 +295,31 @@ async function sendInvitationEmail(input: {
   inviterName: string;
   token: string;
   expiresAt: Date;
+  locale: Locale;
 }) {
-  const url = `${env.APP_URL}/invite?token=${encodeURIComponent(input.token)}`;
+  const path = localePath(input.locale, `/invite?token=${encodeURIComponent(input.token)}`);
+  const url = `${env.APP_URL}${path}`;
+  const { email } = messagesFor(input.locale).feedback;
+  const names = { inviter: input.inviterName, business: input.businessName };
+  const date = input.expiresAt.toLocaleDateString(LOCALE_META[input.locale].intl);
 
   const result = await emailProvider.send({
     to: input.email,
-    subject: `${input.inviterName} vous invite à rejoindre ${input.businessName} sur Zynetna`,
+    subject: interpolate(email.invitation.subject, names),
     text: [
-      'Bonjour,',
+      email.invitation.greeting,
       '',
-      `${input.inviterName} vous invite à rejoindre l’équipe de ${input.businessName} sur Zynetna.`,
-      'Vous pourrez consulter l’agenda et gérer les rendez-vous de l’établissement.',
+      interpolate(email.invitation.intro, names),
+      email.invitation.access,
       '',
-      'Acceptez l’invitation ici :',
+      email.invitation.cta,
       '',
       url,
       '',
-      `Ce lien est valable jusqu’au ${input.expiresAt.toLocaleDateString('fr-TN')} et ne peut servir qu’une fois.`,
-      'Si vous ne connaissez pas cet établissement, ignorez simplement ce message.',
+      interpolate(email.invitation.validity, { date }),
+      email.invitation.ignore,
       '',
-      'Zynetna — Réserve ta chaise. Réserve ton éclat.',
+      email.signature,
     ].join('\n'),
   });
 

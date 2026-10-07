@@ -2,11 +2,16 @@ import type { Metadata } from 'next';
 import { db } from '@/lib/db';
 import { requireSuperAdmin } from '@/server/auth/guard';
 import { CategoryManager } from '@/components/admin/CategoryManager';
+import { translate } from '@/i18n/server';
 
-export const metadata: Metadata = { title: 'Catégories', robots: { index: false } };
+export async function generateMetadata(): Promise<Metadata> {
+  const { m } = await translate();
+  return { title: m.admin.nav.categories, robots: { index: false } };
+}
 
 export default async function AdminCategoriesPage() {
   await requireSuperAdmin();
+  const { m, locale } = await translate();
 
   const categories = await db.category.findMany({
     orderBy: [{ parentId: 'asc' }, { position: 'asc' }],
@@ -34,6 +39,8 @@ export default async function AdminCategoriesPage() {
         services: c._count.services,
         children: c._count.children,
       }))}
+      m={{ admin: m.admin, labels: m.labels, common: m.common }}
+      locale={locale}
     />
   );
 }

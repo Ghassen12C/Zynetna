@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { v } from './keys';
 
 /**
  * Shared field schemas. Defined once so the same rule applies to a server
@@ -10,9 +11,9 @@ export const emailSchema = z
   .string()
   .trim()
   .toLowerCase()
-  .min(1, 'E-mail requis.')
+  .min(1, v('emailRequired'))
   .max(254)
-  .email('Adresse e-mail invalide.');
+  .email(v('emailInvalid'));
 
 /**
  * Tunisian mobile and landline numbers: 8 digits, optionally with the +216
@@ -21,72 +22,69 @@ export const emailSchema = z
 export const phoneSchema = z
   .string()
   .trim()
-  .transform((v) => v.replace(/[\s.\-()]/g, ''))
-  .refine(
-    (v) => /^(\+216)?[2-59]\d{7}$/.test(v),
-    'Numéro tunisien invalide (8 chiffres, ex. 20 123 456).',
-  )
-  .transform((v) => (v.startsWith('+216') ? v : `+216${v}`));
+  .transform((value) => value.replace(/[\s.\-()]/g, ''))
+  .refine((value) => /^(\+216)?[2-59]\d{7}$/.test(value), v('phoneInvalid'))
+  .transform((value) => (value.startsWith('+216') ? value : `+216${value}`));
 
 export const nameSchema = z
   .string()
   .trim()
-  .min(2, 'Au moins 2 caractères.')
-  .max(80, 'Trop long.')
+  .min(2, v('minChars'))
+  .max(80, v('tooLong'))
   // Latin and Arabic letters, apostrophes and hyphens — not digits or symbols.
-  .regex(/^[\p{L}\p{M}][\p{L}\p{M}\s'’-]*$/u, 'Caractères non autorisés.');
+  .regex(/^[\p{L}\p{M}][\p{L}\p{M}\s'’-]*$/u, v('nameChars'));
 
 export const slugSchema = z
   .string()
   .trim()
   .toLowerCase()
-  .min(3, 'Au moins 3 caractères.')
+  .min(3, v('minChars'))
   .max(80)
-  .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'Lettres minuscules, chiffres et tirets.');
+  .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, v('slugFormat'));
 
 /** Prices are stored as DECIMAL(10,2); reject anything that cannot round-trip. */
 export const priceSchema = z.coerce
   .number()
-  .min(0, 'Le prix ne peut pas être négatif.')
-  .max(99_999_999, 'Prix trop élevé.')
-  .refine((v) => Number.isFinite(v) && Math.round(v * 100) === v * 100, 'Deux décimales maximum.');
+  .min(0, v('priceNegative'))
+  .max(99_999_999, v('priceTooHigh'))
+  .refine(
+    (value) => Number.isFinite(value) && Math.round(value * 100) === value * 100,
+    v('priceDecimals'),
+  );
 
 export const durationSchema = z.coerce
   .number()
-  .int('Durée en minutes entières.')
-  .min(5, 'Au moins 5 minutes.')
-  .max(600, '10 heures maximum.');
+  .int(v('durationWhole'))
+  .min(5, v('durationMin'))
+  .max(600, v('durationMax'));
 
 export const minutesOfDaySchema = z.coerce.number().int().min(0).max(1440);
 
 export const dayKeySchema = z
   .string()
-  .regex(/^\d{4}-\d{2}-\d{2}$/, 'Date invalide (AAAA-MM-JJ).');
+  .regex(/^\d{4}-\d{2}-\d{2}$/, v('dateFormat'));
 
 export const cuidSchema = z.string().min(1).max(64);
 
-export const ratingSchema = z.coerce.number().int().min(1, 'Note requise.').max(5);
+export const ratingSchema = z.coerce.number().int().min(1, v('ratingRequired')).max(5);
 
 /** Free text that ends up on a public page. */
 export const richTextSchema = (max: number) =>
-  z.string().trim().max(max, `${max} caractères maximum.`);
+  z.string().trim().max(max, v('maxChars'));
 
 export const urlSchema = z
   .string()
   .trim()
   .max(300)
-  .refine(
-    (v) => v === '' || /^https?:\/\/.+/.test(v),
-    'Adresse web invalide (commence par https://).',
-  );
+  .refine((value) => value === '' || /^https?:\/\/.+/.test(value), v('urlInvalid'));
 
 /** A social handle, with or without the leading @. */
 export const handleSchema = z
   .string()
   .trim()
   .max(60)
-  .transform((v) => v.replace(/^@/, ''))
-  .refine((v) => v === '' || /^[\w.]+$/.test(v), 'Identifiant invalide.');
+  .transform((value) => value.replace(/^@/, ''))
+  .refine((value) => value === '' || /^[\w.]+$/.test(value), v('handleInvalid'));
 
 export const localeSchema = z.enum(['fr', 'ar', 'en']);
 

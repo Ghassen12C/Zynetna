@@ -6,7 +6,10 @@ import { useMemo, useState, useTransition } from 'react';
 import { Badge, EmptyState, Rating } from '@/components/ui/Primitives';
 import { ButtonLink } from '@/components/ui/Button';
 import type { TileSource } from '@/server/providers/maps';
-import { formatPrice } from '@/i18n/format';
+import { Arrow } from '@/components/ui/Arrow';
+import { localePath, type Locale } from '@/i18n/config';
+import { formatCount, formatPrice } from '@/i18n/format';
+import type { Messages } from '@/i18n';
 
 type Pin = {
   slug: string;
@@ -51,6 +54,9 @@ export function MapDiscovery({
   categories,
   cities,
   filters,
+  m,
+  locale,
+  mapPath,
 }: {
   tiles: TileSource;
   providerName: string;
@@ -58,6 +64,16 @@ export function MapDiscovery({
   categories: { slug: string; name: string }[];
   cities: { slug: string; name: string }[];
   filters: { category: string | null; city: string | null };
+  m: {
+    map: Messages['map'];
+    search: Messages['search'];
+    home: Messages['home'];
+    business: Messages['business'];
+    common: Messages['common'];
+  };
+  locale: Locale;
+  /** Locale-aware /map path, so a filter does not leave the language. */
+  mapPath: string;
 }) {
   const router = useRouter();
   const params = useSearchParams();
@@ -68,7 +84,7 @@ export function MapDiscovery({
     const next = new URLSearchParams(params.toString());
     if (value) next.set(key, value);
     else next.delete(key);
-    startTransition(() => router.push(`/map?${next.toString()}`));
+    startTransition(() => router.push(`${mapPath}?${next.toString()}`));
   }
 
   // Frame the viewport on the pins we actually have, with Tunis as a fallback.
@@ -137,14 +153,14 @@ export function MapDiscovery({
       <div className="z-container">
         <header className="z-section__head">
           <div>
-            <h1 className="z-section__title">Sur la carte</h1>
+            <h1 className="z-section__title">{m.map.title}</h1>
             <p className="z-section__lead">
-              {businesses.length} établissement{businesses.length > 1 ? 's' : ''} ·{' '}
-              {tiles.attribution}
+              {formatCount(m.home.businessCount, businesses.length, locale)} ·{' '}
+              <bdi>{tiles.attribution}</bdi>
             </p>
           </div>
-          <ButtonLink href="/search" variant="secondary" size="sm">
-            Vue liste →
+          <ButtonLink href={localePath(locale, '/search')} variant="secondary" size="sm">
+            {m.map.listView} <Arrow />
           </ButtonLink>
         </header>
 
@@ -154,9 +170,9 @@ export function MapDiscovery({
             style={{ width: 'auto' }}
             value={filters.category ?? ''}
             onChange={(e) => setParam('category', e.target.value || null)}
-            aria-label="Catégorie"
+            aria-label={m.search.category}
           >
-            <option value="">Toutes les catégories</option>
+            <option value="">{m.map.allCategories}</option>
             {categories.map((c) => (
               <option key={c.slug} value={c.slug}>
                 {c.name}
@@ -169,9 +185,9 @@ export function MapDiscovery({
             style={{ width: 'auto' }}
             value={filters.city ?? ''}
             onChange={(e) => setParam('city', e.target.value || null)}
-            aria-label="Ville"
+            aria-label={m.search.city}
           >
-            <option value="">Toute la Tunisie</option>
+            <option value="">{m.search.allTunisia}</option>
             {cities.map((c) => (
               <option key={c.slug} value={c.slug}>
                 {c.name}
@@ -181,13 +197,10 @@ export function MapDiscovery({
         </div>
 
         {businesses.length === 0 ? (
-          <EmptyState
-            title="Aucun établissement sur cette zone"
-            body="Essayez une autre catégorie ou une autre ville."
-          />
+          <EmptyState title={m.map.emptyTitle} body={m.map.emptyBody} />
         ) : (
           <div className="z-map" data-provider={providerName}>
-            <div className="z-map__canvas" style={{ width, height }} role="img" aria-label="Carte des établissements">
+            <div className="z-map__canvas" style={{ width, height }} role="img" aria-label={m.map.canvasLabel}>
               {tileList.map((tile) => (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
@@ -223,7 +236,7 @@ export function MapDiscovery({
                     aria-label={`${pin.name}${pin.category ? ` — ${pin.category}` : ''}`}
                   >
                     <span className="z-map__pin-label">
-                      {pin.fromPrice != null ? formatPrice(pin.fromPrice) : pin.name.slice(0, 12)}
+                      {pin.fromPrice != null ? formatPrice(pin.fromPrice, locale) : pin.name.slice(0, 12)}
                     </span>
                   </button>
                 );
@@ -236,7 +249,7 @@ export function MapDiscovery({
                   type="button"
                   className="z-map__close"
                   onClick={() => setSelected(null)}
-                  aria-label="Fermer"
+                  aria-label={m.common.close}
                 >
                   ×
                 </button>
@@ -249,7 +262,12 @@ export function MapDiscovery({
                 <div className="z-map__body">
                   <div className="z-row" style={{ gap: 'var(--z-space-2)', flexWrap: 'wrap' }}>
                     <h2>{selected.name}</h2>
-                    {selected.verified ? <Badge tone="accent">✓</Badge> : null}
+                    {selected.verified ? (
+                      <Badge tone="accent">
+                        <span aria-hidden="true">✓</span>
+                        <span className="z-sr-only">{m.business.verified}</span>
+                      </Badge>
+                    ) : null}
                   </div>
                   <Rating value={selected.rating} count={selected.ratingCount} size={13} />
                   <p className="z-help">
@@ -258,15 +276,19 @@ export function MapDiscovery({
                   </p>
                   {selected.fromPrice != null ? (
                     <p className="z-bcard__price">
-                      <span>à partir de</span> {formatPrice(selected.fromPrice)}
+                      <span>{m.business.from}</span> {formatPrice(selected.fromPrice, locale)}
                     </p>
                   ) : null}
                   <div className="z-row" style={{ gap: 'var(--z-space-2)' }}>
-                    <ButtonLink href={`/business/${selected.slug}`} size="sm">
-                      Voir
+                    <ButtonLink href={localePath(locale, `/business/${selected.slug}`)} size="sm">
+                      {m.map.view}
                     </ButtonLink>
-                    <ButtonLink href={`/business/${selected.slug}/book`} variant="secondary" size="sm">
-                      Réserver
+                    <ButtonLink
+                      href={localePath(locale, `/business/${selected.slug}/book`)}
+                      variant="secondary"
+                      size="sm"
+                    >
+                      {m.business.book}
                     </ButtonLink>
                   </div>
                 </div>
@@ -278,7 +300,7 @@ export function MapDiscovery({
         <ul className="z-maplist">
           {businesses.slice(0, 24).map((pin) => (
             <li key={pin.slug}>
-              <Link href={`/business/${pin.slug}`}>
+              <Link href={localePath(locale, `/business/${pin.slug}`)}>
                 <strong>{pin.name}</strong>
                 <span className="z-help">
                   {pin.category ? `${pin.category} · ` : ''}

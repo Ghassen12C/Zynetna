@@ -4,10 +4,15 @@ import { MediaManager } from '@/components/pro/MediaManager';
 import { proContext } from '@/components/pro/ProGuard';
 import { variantUrl } from '@/server/services/media';
 import { entitlementsFor } from '@/server/services/subscriptions';
+import { translate } from '@/i18n/server';
 
-export const metadata: Metadata = { title: 'Photos', robots: { index: false } };
+export async function generateMetadata(): Promise<Metadata> {
+  const { m } = await translate();
+  return { title: m.pro.gallery, robots: { index: false } };
+}
 
 export default async function GalleryPage() {
+  const { m, locale } = await translate();
   const { businessId } = await proContext('business.media.manage', '/pro/dashboard/gallery');
 
   const [media, entitlements] = await Promise.all([
@@ -21,6 +26,8 @@ export default async function GalleryPage() {
 
   return (
     <MediaManager
+      m={{ dashSetup: m.dashSetup, common: m.common, labels: m.labels }}
+      locale={locale}
       businessId={businessId}
       maxImages={entitlements.maxGalleryImages}
       media={media.map((m) => ({

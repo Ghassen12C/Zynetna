@@ -7,11 +7,11 @@ import { Alert } from '@/components/ui/Alert';
 import { idle } from '@/lib/formState';
 import { acceptInvitationAction } from '@/server/actions/invitations';
 
-function Submit({ businessName }: { businessName: string }) {
+function Submit({ label }: { label: string }) {
   const { pending } = useFormStatus();
   return (
     <Button type="submit" size="lg" loading={pending}>
-      Rejoindre {businessName}
+      {label}
     </Button>
   );
 }
@@ -23,10 +23,11 @@ function Submit({ businessName }: { businessName: string }) {
  */
 export function AcceptInvitation({
   token,
-  businessName,
+  submitLabel,
 }: {
   token: string;
-  businessName: string;
+  /** "Join {business}", already in the reader's language. */
+  submitLabel: string;
 }) {
   const [state, action] = useActionState(acceptInvitationAction, idle);
 
@@ -34,7 +35,7 @@ export function AcceptInvitation({
     <form action={action} className="z-stack" style={{ gap: 'var(--z-space-3)' }}>
       <input type="hidden" name="token" value={token} />
       {state.status === 'error' ? <Alert tone="error">{state.message}</Alert> : null}
-      <Submit businessName={businessName} />
+      <Submit label={submitLabel} />
     </form>
   );
 }

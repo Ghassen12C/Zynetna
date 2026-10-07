@@ -1,3 +1,4 @@
+import type { Messages } from '@/i18n/messages/fr';
 import type { Permission } from './permissions';
 
 /**
@@ -9,33 +10,39 @@ import type { Permission } from './permissions';
  * the list lives inside a layout component.
  *
  * Each entry names the permission its page requires. The permission here must
- * match the one that page passes to `proContext`.
+ * match the one that page passes to `proContext`. The label is a key into
+ * `m.dash.nav`, resolved by the layout in the visitor's language.
  */
-export type ProNavItem = { href: string; label: string; permission: Permission };
+export type ProNavLabel = keyof Messages['dash']['nav'];
+export type ProNavItem = { href: string; labelKey: ProNavLabel; permission: Permission };
 
 export const PRO_NAV: readonly ProNavItem[] = [
-  { href: '/pro/dashboard', label: 'Vue d’ensemble', permission: 'business.analytics.read' },
-  { href: '/pro/dashboard/calendar', label: 'Agenda', permission: 'business.reservation.read' },
+  { href: '/pro/dashboard', labelKey: 'overview', permission: 'business.analytics.read' },
   {
-    href: '/pro/dashboard/reservations',
-    label: 'Réservations',
+    href: '/pro/dashboard/calendar',
+    labelKey: 'calendar',
     permission: 'business.reservation.read',
   },
-  { href: '/pro/dashboard/services', label: 'Prestations', permission: 'business.service.read' },
-  { href: '/pro/dashboard/team', label: 'Équipe', permission: 'business.staff.read' },
-  { href: '/pro/dashboard/hours', label: 'Horaires', permission: 'business.hours.write' },
-  { href: '/pro/dashboard/gallery', label: 'Photos', permission: 'business.media.manage' },
-  { href: '/pro/dashboard/customers', label: 'Clients', permission: 'business.customer.read' },
-  { href: '/pro/dashboard/reviews', label: 'Avis', permission: 'business.review.respond' },
+  {
+    href: '/pro/dashboard/reservations',
+    labelKey: 'reservations',
+    permission: 'business.reservation.read',
+  },
+  { href: '/pro/dashboard/services', labelKey: 'services', permission: 'business.service.read' },
+  { href: '/pro/dashboard/team', labelKey: 'team', permission: 'business.staff.read' },
+  { href: '/pro/dashboard/hours', labelKey: 'hours', permission: 'business.hours.write' },
+  { href: '/pro/dashboard/gallery', labelKey: 'gallery', permission: 'business.media.manage' },
+  { href: '/pro/dashboard/customers', labelKey: 'customers', permission: 'business.customer.read' },
+  { href: '/pro/dashboard/reviews', labelKey: 'reviews', permission: 'business.review.respond' },
   {
     href: '/pro/dashboard/analytics',
-    label: 'Statistiques',
+    labelKey: 'analytics',
     permission: 'business.analytics.read',
   },
-  { href: '/pro/dashboard/profile', label: 'Mon établissement', permission: 'business.update' },
+  { href: '/pro/dashboard/profile', labelKey: 'profile', permission: 'business.update' },
   {
     href: '/pro/dashboard/subscription',
-    label: 'Abonnement',
+    labelKey: 'subscription',
     permission: 'business.subscription.read',
   },
 ];

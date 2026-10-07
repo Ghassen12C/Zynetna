@@ -7,11 +7,12 @@ import { getActor } from '@/server/auth/session';
 import { peekInvitation } from '@/server/services/invitations';
 import { AcceptInvitation } from '@/components/pro/AcceptInvitation';
 import { LogoutButton } from '@/components/account/LogoutButton';
+import { translate } from '@/i18n/server';
 
-export const metadata: Metadata = {
-  title: 'Invitation',
-  robots: { index: false, follow: false },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const { m } = await translate();
+  return { title: m.dashSetup.invite.title, robots: { index: false, follow: false } };
+}
 
 export default async function InvitePage({
   searchParams,
@@ -19,16 +20,15 @@ export default async function InvitePage({
   searchParams: Promise<{ token?: string }>;
 }) {
   const { token } = await searchParams;
+  const { m, t, path } = await translate();
+  const copy = m.dashSetup.invite;
 
   if (!token) {
     return (
       <div className="z-container z-narrow">
         <Card>
-          <h1 className="z-h2">Lien incomplet</h1>
-          <p className="z-body">
-            Ce lien d’invitation est incomplet. Demandez à l’établissement de vous en
-            renvoyer un.
-          </p>
+          <h1 className="z-h2">{copy.incompleteTitle}</h1>
+          <p className="z-body">{copy.incompleteBody}</p>
         </Card>
       </div>
     );
@@ -42,11 +42,8 @@ export default async function InvitePage({
     return (
       <div className="z-container z-narrow">
         <Card>
-          <h1 className="z-h2">Invitation introuvable</h1>
-          <p className="z-body">
-            Ce lien n’est pas valide. Il a peut-être été recopié en partie, ou
-            l’invitation a été supprimée.
-          </p>
+          <h1 className="z-h2">{copy.notFoundTitle}</h1>
+          <p className="z-body">{copy.notFoundBody}</p>
         </Card>
       </div>
     );
@@ -55,38 +52,37 @@ export default async function InvitePage({
   const actor = await getActor();
   if (!actor) {
     // Sign in first, then come straight back to this invitation.
-    redirect(`/login?redirectTo=${encodeURIComponent(`/invite?token=${token}`)}`);
+    redirect(path(`/login?redirectTo=${encodeURIComponent(`/invite?token=${token}`)}`));
   }
 
   const blocked =
     invitation.status === 'ACCEPTED'
-      ? 'Cette invitation a déjà été utilisée.'
+      ? copy.accepted
       : invitation.status === 'REVOKED'
-        ? 'Cette invitation a été retirée par l’établissement.'
+        ? copy.revoked
         : invitation.status === 'EXPIRED'
-          ? 'Cette invitation a expiré. Demandez-en une nouvelle.'
+          ? copy.expired
           : null;
 
   const wrongAccount =
     invitation.email.toLowerCase() !== actor.email.toLowerCase()
-      ? `Cette invitation a été envoyée à ${invitation.email}. Vous êtes connecté en tant que ${actor.email}.`
+      ? t(copy.wrongAccount, { invited: invitation.email, current: actor.email })
       : null;
+  const joinLabel = t(copy.join, { business: invitation.businessName });
 
   return (
     <div className="z-container z-narrow">
       <Card>
-        <h1 className="z-h2">Rejoindre {invitation.businessName}</h1>
+        <h1 className="z-h2">{joinLabel}</h1>
         <p className="z-body">
-          {invitation.role === 'BUSINESS_OWNER'
-            ? 'Vous êtes invité comme responsable : vous pourrez gérer l’établissement, son équipe et ses prestations.'
-            : 'Vous êtes invité comme membre de l’équipe : vous pourrez consulter l’agenda et gérer les rendez-vous.'}
+          {invitation.role === 'BUSINESS_OWNER' ? copy.asOwner : copy.asEmployee}
         </p>
 
         {blocked ? (
           <>
             <Alert tone="warning">{blocked}</Alert>
-            <ButtonLink href="/account" variant="secondary">
-              Retour à mon compte
+            <ButtonLink href={path('/account')} variant="secondary">
+              {copy.backToAccount}
             </ButtonLink>
           </>
         ) : wrongAccount ? (
@@ -95,10 +91,10 @@ export default async function InvitePage({
             {/* Signing out is a server action, not a route — the invitation
                 link survives in the address bar, so signing back in with the
                 invited address returns here. */}
-            <LogoutButton />
+            <LogoutButton label={m.nav.logout} />
           </>
         ) : (
-          <AcceptInvitation token={token} businessName={invitation.businessName} />
+          <AcceptInvitation token={token} submitLabel={joinLabel} />
         )}
       </Card>
     </div>

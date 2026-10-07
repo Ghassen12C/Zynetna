@@ -17,7 +17,7 @@ export async function setNotificationPreferenceAction(
   _prev: FormState,
   formData: FormData,
 ): Promise<FormState> {
-  const parsed = parseForm(schema, formData);
+  const parsed = await parseForm(schema, formData);
   if (!parsed.ok) return parsed.state;
 
   try {

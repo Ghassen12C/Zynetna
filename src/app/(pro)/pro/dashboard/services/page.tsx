@@ -3,10 +3,17 @@ import { db } from '@/lib/db';
 import { ServicesManager } from '@/components/pro/ServicesManager';
 import { proContext } from '@/components/pro/ProGuard';
 import { variantUrl } from '@/server/services/media';
+import { translate } from '@/i18n/server';
+import { localizedName } from '@/i18n/format';
+import { LOCALE_META } from '@/i18n/config';
 
-export const metadata: Metadata = { title: 'Prestations', robots: { index: false } };
+export async function generateMetadata(): Promise<Metadata> {
+  const { m } = await translate();
+  return { title: m.pro.services, robots: { index: false } };
+}
 
 export default async function ServicesPage() {
+  const { m, locale } = await translate();
   const { businessId } = await proContext('business.service.read', '/pro/dashboard/services');
 
   const [services, staff, categories, business] = await Promise.all([
@@ -27,13 +34,32 @@ export default async function ServicesPage() {
     db.category.findMany({
       where: { isActive: true, parentId: { not: null } },
       orderBy: { name: 'asc' },
-      select: { id: true, name: true, parent: { select: { name: true } } },
+      select: {
+        id: true,
+        name: true,
+        nameAr: true,
+        nameEn: true,
+        parent: { select: { name: true, nameAr: true, nameEn: true } },
+      },
     }),
     db.business.findUniqueOrThrow({ where: { id: businessId }, select: { currency: true } }),
   ]);
 
+  // Reference data carries its own translations; sort in the reader's alphabet.
+  const collator = new Intl.Collator(LOCALE_META[locale].intl);
+  const categoryOptions = categories
+    .map((c) => ({
+      id: c.id,
+      label: c.parent
+        ? `${localizedName(c.parent, locale)} · ${localizedName(c, locale)}`
+        : localizedName(c, locale),
+    }))
+    .sort((a, b) => collator.compare(a.label, b.label));
+
   return (
     <ServicesManager
+      m={{ dashSetup: m.dashSetup, common: m.common }}
+      locale={locale}
       businessId={businessId}
       currency={business.currency}
       services={services.map((s) => ({
@@ -52,10 +78,7 @@ export default async function ServicesPage() {
         bookingCount: s._count.items,
       }))}
       staff={staff}
-      categories={categories.map((c) => ({
-        id: c.id,
-        label: c.parent ? `${c.parent.name} · ${c.name}` : c.name,
-      }))}
+      categories={categoryOptions}
     />
   );
 }

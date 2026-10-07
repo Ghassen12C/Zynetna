@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { BusinessCard } from '@/components/business/BusinessCard';
 import { EmptyState } from '@/components/ui/Primitives';
 import { ButtonLink } from '@/components/ui/Button';
+import { Arrow } from '@/components/ui/Arrow';
 import { SearchFilters } from '@/components/search/SearchFilters';
 import { listCities, searchBusinesses, topCategories } from '@/server/services/marketplace';
 import { db } from '@/lib/db';
@@ -136,7 +137,7 @@ export default async function SearchPage({
                   <nav className="z-pagination" aria-label={m.search.pagination}>
                     {page > 1 ? (
                       <Link href={pageHref(page - 1)} className="z-btn z-btn--secondary z-btn--sm">
-                        ← {m.common.previous}
+                        <Arrow to="back" /> {m.common.previous}
                       </Link>
                     ) : null}
                     <span className="z-pagination__state">
@@ -144,7 +145,7 @@ export default async function SearchPage({
                     </span>
                     {page < result.pageCount ? (
                       <Link href={pageHref(page + 1)} className="z-btn z-btn--secondary z-btn--sm">
-                        {m.common.next} →
+                        {m.common.next} <Arrow />
                       </Link>
                     ) : null}
                   </nav>

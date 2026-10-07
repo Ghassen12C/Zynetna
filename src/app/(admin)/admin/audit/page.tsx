@@ -2,41 +2,14 @@ import type { Metadata } from 'next';
 import { db } from '@/lib/db';
 import { Badge, EmptyState } from '@/components/ui/Primitives';
 import { requireSuperAdmin } from '@/server/auth/guard';
-import { formatDateTime } from '@/i18n/format';
+import { Arrow } from '@/components/ui/Arrow';
+import { translate } from '@/i18n/server';
+import { formatDateTime, formatNumber } from '@/i18n/format';
 
-export const metadata: Metadata = { title: 'Journal d’audit', robots: { index: false } };
-
-const ACTION_LABEL: Record<string, string> = {
-  'auth.login': 'Connexion',
-  'auth.logout': 'Déconnexion',
-  'auth.password_changed': 'Mot de passe changé',
-  'business.created': 'Établissement créé',
-  'business.updated': 'Établissement modifié',
-  'business.published': 'Établissement publié',
-  'business.approved': 'Établissement approuvé',
-  'business.rejected': 'Établissement refusé',
-  'business.verified': 'Vérification modifiée',
-  'business.suspended': 'Établissement suspendu',
-  'business.reactivated': 'Établissement réactivé',
-  'user.suspended': 'Utilisateur suspendu',
-  'user.reactivated': 'Utilisateur réactivé',
-  'user.role_granted': 'Rôle accordé',
-  'user.role_revoked': 'Rôle retiré',
-  'reservation.created': 'Réservation créée',
-  'reservation.confirmed': 'Réservation confirmée',
-  'reservation.cancelled': 'Réservation annulée',
-  'reservation.completed': 'Réservation terminée',
-  'reservation.no_show': 'Absence enregistrée',
-  'review.moderated': 'Avis modéré',
-  'report.resolved': 'Signalement traité',
-  'category.created': 'Catégorie créée',
-  'category.updated': 'Catégorie modifiée',
-  'payment.recorded': 'Paiement enregistré',
-  'setting.updated': 'Réglage modifié',
-  'flag.updated': 'Fonctionnalité modifiée',
-  'subscription.plan_updated': 'Formule modifiée',
-  'media.deleted': 'Image supprimée',
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const { m } = await translate();
+  return { title: m.admin.nav.audit, robots: { index: false } };
+}
 
 /** Actions that change who can do what, or what the public sees. */
 const SENSITIVE = new Set([
@@ -50,6 +23,11 @@ export default async function AuditPage({
   searchParams: Promise<{ action?: string; page?: string }>;
 }) {
   await requireSuperAdmin();
+  const { m, locale, t, path } = await translate();
+  const c = m.admin.common;
+  const a = m.admin.audit;
+  // Known codes read as words; an unknown code stays visible as is.
+  const actionLabel = (code: string) => a.actions[code] ?? code;
   const params = await searchParams;
   const page = Math.max(1, Number(params.page ?? 1) || 1);
   const perPage = 50;
@@ -68,14 +46,16 @@ export default async function AuditPage({
   ]);
 
   const pageCount = Math.ceil(total / perPage);
+  const pageHref = (p: number) =>
+    `${path('/admin/audit')}?page=${p}${params.action ? `&action=${params.action}` : ''}`;
 
   return (
     <div className="z-stack" style={{ gap: 'var(--z-space-5)' }}>
       <div>
-        <h1 className="z-search__title">Journal d’audit ({total})</h1>
-        <p className="z-policy">
-          Qui a fait quoi, quand, et sur quel objet. Les écritures sont définitives.
-        </p>
+        <h1 className="z-search__title">
+          {t(c.headingCount, { title: m.admin.nav.audit, count: formatNumber(total, locale) })}
+        </h1>
+        <p className="z-policy">{a.lead}</p>
       </div>
 
       <form className="z-row" style={{ gap: 'var(--z-space-2)', flexWrap: 'wrap' }}>
@@ -84,71 +64,84 @@ export default async function AuditPage({
           style={{ width: 'auto' }}
           name="action"
           defaultValue={params.action ?? ''}
-          aria-label="Filtrer par action"
+          aria-label={a.filterLabel}
         >
-          <option value="">Toutes les actions ({total})</option>
-          {actions.map((a) => (
-            <option key={a.action} value={a.action}>
-              {ACTION_LABEL[a.action] ?? a.action} ({a._count.action})
+          <option value="">{t(a.allActions, { count: formatNumber(total, locale) })}</option>
+          {actions.map((entry) => (
+            <option key={entry.action} value={entry.action}>
+              {t(c.chipCount, {
+                label: actionLabel(entry.action),
+                count: formatNumber(entry._count.action, locale),
+              })}
             </option>
           ))}
         </select>
         <button type="submit" className="z-btn z-btn--secondary z-btn--md">
-          Filtrer
+          {c.filter}
         </button>
       </form>
 
       {logs.length === 0 ? (
-        <EmptyState title="Journal vide" body="Aucune action enregistrée pour ce filtre." />
+        <EmptyState title={a.empty} body={a.emptyBody} />
       ) : (
         <>
           <div className="z-table--scroll">
             <table className="z-table">
               <thead>
                 <tr>
-                  <th>Quand</th>
-                  <th>Qui</th>
-                  <th>Action</th>
-                  <th>Objet</th>
-                  <th>Détails</th>
+                  <th>{c.date}</th>
+                  <th>{a.who}</th>
+                  <th>{a.action}</th>
+                  <th>{a.target}</th>
+                  <th>{a.details}</th>
                 </tr>
               </thead>
               <tbody>
                 {logs.map((log) => (
                   <tr key={log.id}>
                     <td>
-                      <span className="z-help">{formatDateTime(log.createdAt)}</span>
+                      <span className="z-help">{formatDateTime(log.createdAt, locale)}</span>
                     </td>
                     <td>
                       {log.actor ? (
                         <>
                           {log.actor.firstName} {log.actor.lastName}
                           <br />
-                          <span className="z-help">{log.actor.email}</span>
+                          <span className="z-help" dir="ltr">
+                            {log.actor.email}
+                          </span>
                         </>
                       ) : (
-                        <span className="z-help">{log.actorEmail ?? 'système'}</span>
+                        <span className="z-help">
+                          {log.actorEmail ? <bdi dir="ltr">{log.actorEmail}</bdi> : a.system}
+                        </span>
                       )}
                     </td>
                     <td>
-                      <Badge tone={SENSITIVE.has(log.action) ? 'warning' : 'neutral'}>
-                        {ACTION_LABEL[log.action] ?? log.action}
-                      </Badge>
+                      <span title={log.action}>
+                        <Badge tone={SENSITIVE.has(log.action) ? 'warning' : 'neutral'}>
+                          {actionLabel(log.action)}
+                        </Badge>
+                      </span>
                     </td>
                     <td>
                       <span className="z-help">
-                        {log.targetType}
+                        {log.targetType ? (a.targets[log.targetType] ?? log.targetType) : '—'}
                         {log.targetId ? (
                           <>
                             <br />
-                            {log.targetId.slice(0, 12)}…
+                            <bdi dir="ltr" title={log.targetId}>
+                              {log.targetId.slice(0, 12)}…
+                            </bdi>
                           </>
                         ) : null}
                       </span>
                     </td>
                     <td>
                       {log.metadata && Object.keys(log.metadata as object).length > 0 ? (
-                        <code className="z-code">{JSON.stringify(log.metadata)}</code>
+                        <code className="z-code" dir="ltr">
+                          {JSON.stringify(log.metadata)}
+                        </code>
                       ) : (
                         <span className="z-help">—</span>
                       )}
@@ -160,24 +153,21 @@ export default async function AuditPage({
           </div>
 
           {pageCount > 1 ? (
-            <nav className="z-pagination" aria-label="Pagination">
+            <nav className="z-pagination" aria-label={c.pagination}>
               {page > 1 ? (
-                <a
-                  className="z-btn z-btn--secondary z-btn--sm"
-                  href={`/admin/audit?page=${page - 1}${params.action ? `&action=${params.action}` : ''}`}
-                >
-                  ← Précédent
+                <a className="z-btn z-btn--secondary z-btn--sm" href={pageHref(page - 1)}>
+                  <Arrow to="back" /> {m.common.previous}
                 </a>
               ) : null}
               <span className="z-pagination__state">
-                Page {page} sur {pageCount}
+                {t(c.pageState, {
+                  page: formatNumber(page, locale),
+                  total: formatNumber(pageCount, locale),
+                })}
               </span>
               {page < pageCount ? (
-                <a
-                  className="z-btn z-btn--secondary z-btn--sm"
-                  href={`/admin/audit?page=${page + 1}${params.action ? `&action=${params.action}` : ''}`}
-                >
-                  Suivant →
+                <a className="z-btn z-btn--secondary z-btn--sm" href={pageHref(page + 1)}>
+                  {m.common.next} <Arrow />
                 </a>
               ) : null}
             </nav>

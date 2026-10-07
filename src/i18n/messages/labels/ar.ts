@@ -86,4 +86,18 @@ export const labelsAr: typeof labelsFr = {
     TEAM: 'الفريق',
     GALLERY: 'المعرض',
   },
+  ui: {
+    optional: 'اختياري',
+    ratingOutOf: '{value} من 5',
+    ratingWithReviews: '{value} من 5، {reviews}',
+    reviews: {
+      zero: 'لا تقييمات',
+      one: 'تقييم واحد',
+      two: 'تقييمان',
+      few: '{count} تقييمات',
+      many: '{count} تقييماً',
+      other: '{count} تقييم',
+    },
+    chartEmpty: 'لا توجد بيانات بعد.',
+  },
 };

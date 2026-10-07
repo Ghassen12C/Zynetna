@@ -1,1 +1,14 @@
 /* RTL and text-length fixes for the public screens. */
+
+/* The "French version prevails" note on translated legal pages. */
+.z-legal .z-legal__notice {
+  margin-block: var(--z-space-4) var(--z-space-6);
+  padding: var(--z-space-3) var(--z-space-4);
+  border-inline-start: 3px solid var(--z-accent);
+  background: var(--z-bg-sunken);
+  border-radius: var(--z-radius-sm);
+  color: var(--z-fg);
+}
+
+/* Long words (emails, URLs) in legal text must wrap instead of overflowing. */
+.z-legal p { overflow-wrap: anywhere; }

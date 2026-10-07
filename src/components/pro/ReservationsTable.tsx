@@ -7,9 +7,20 @@ import { useFormStatus } from 'react-dom';
 import { Button } from '@/components/ui/Button';
 import { Alert } from '@/components/ui/Alert';
 import { Badge, EmptyState } from '@/components/ui/Primitives';
+import { Arrow } from '@/components/ui/Arrow';
 import { transitionReservationAction } from '@/server/actions/proReservations';
 import { idle } from '@/lib/formState';
 import { formatPrice } from '@/i18n/format';
+import { interpolate } from '@/i18n/interpolate';
+import type { Messages } from '@/i18n';
+import { LOCALE_META, localePath, type Locale } from '@/i18n/config';
+
+type Dict = {
+  reservations: Messages['dash']['reservations'];
+  shared: Messages['dash']['shared'];
+  status: Messages['status'];
+  common: Messages['common'];
+};
 
 type Row = {
   id: string;
@@ -25,17 +36,6 @@ type Row = {
   internalNote: string | null;
 };
 
-const STATUS_LABEL: Record<string, string> = {
-  PENDING: 'En attente',
-  CONFIRMED: 'Confirmé',
-  COMPLETED: 'Terminé',
-  CANCELLED_BY_CUSTOMER: 'Annulé (client)',
-  CANCELLED_BY_BUSINESS: 'Annulé (vous)',
-  RESCHEDULED: 'Reporté',
-  NO_SHOW: 'Absence',
-  EXPIRED: 'Expiré',
-};
-
 const STATUS_TONE: Record<string, 'success' | 'warning' | 'danger' | 'neutral' | 'accent'> = {
   PENDING: 'warning',
   CONFIRMED: 'success',
@@ -47,25 +47,33 @@ const STATUS_TONE: Record<string, 'success' | 'warning' | 'danger' | 'neutral' |
   EXPIRED: 'neutral',
 };
 
-/** Which transitions the business may apply, mirroring the state machine. */
-function actionsFor(status: string): { action: string; label: string; variant: 'primary' | 'secondary' | 'ghost' | 'danger' }[] {
+type Variant = 'primary' | 'secondary' | 'ghost' | 'danger';
+
+/**
+ * Which transitions the business may apply, mirroring the state machine.
+ * The ones that tell the customer bad news ask first.
+ */
+function actionsFor(
+  status: string,
+  d: Dict['reservations'],
+): { action: string; label: string; variant: Variant; ask?: string }[] {
   if (status === 'PENDING') {
     return [
-      { action: 'confirm', label: 'Confirmer', variant: 'primary' },
-      { action: 'cancel', label: 'Refuser', variant: 'ghost' },
+      { action: 'confirm', label: d.actionConfirm, variant: 'primary' },
+      { action: 'cancel', label: d.actionDecline, variant: 'ghost', ask: d.confirmDecline },
     ];
   }
   if (status === 'CONFIRMED') {
     return [
-      { action: 'complete', label: 'Terminé', variant: 'secondary' },
-      { action: 'noShow', label: 'Absence', variant: 'ghost' },
-      { action: 'cancel', label: 'Annuler', variant: 'ghost' },
+      { action: 'complete', label: d.actionComplete, variant: 'secondary' },
+      { action: 'noShow', label: d.actionNoShow, variant: 'ghost', ask: d.confirmNoShow },
+      { action: 'cancel', label: d.actionCancel, variant: 'ghost', ask: d.confirmCancel },
     ];
   }
   return [];
 }
 
-function ActionButton({ label, variant }: { label: string; variant: 'primary' | 'secondary' | 'ghost' | 'danger' }) {
+function ActionButton({ label, variant }: { label: string; variant: Variant }) {
   const { pending } = useFormStatus();
   return (
     <Button type="submit" size="sm" variant={variant} loading={pending}>
@@ -74,18 +82,33 @@ function ActionButton({ label, variant }: { label: string; variant: 'primary' | 
   );
 }
 
-function RowActions({ businessId, row }: { businessId: string; row: Row }) {
+function RowActions({
+  businessId,
+  row,
+  d,
+}: {
+  businessId: string;
+  row: Row;
+  d: Dict['reservations'];
+}) {
   const router = useRouter();
   const [state, formAction] = useActionState(transitionReservationAction, idle);
   if (state.status === 'success') router.refresh();
 
-  const actions = actionsFor(row.status);
+  const actions = actionsFor(row.status, d);
   if (actions.length === 0) return <span className="z-help">—</span>;
 
   return (
     <div className="z-row" style={{ gap: 'var(--z-space-1)', flexWrap: 'wrap' }}>
       {actions.map((item) => (
-        <form key={item.action} action={formAction}>
+        <form
+          key={item.action}
+          action={formAction}
+          onSubmit={(e) => {
+            const ask = item.ask && interpolate(item.ask, { customer: row.customerName });
+            if (ask && !window.confirm(ask)) e.preventDefault();
+          }}
+        >
           <input type="hidden" name="businessId" value={businessId} />
           <input type="hidden" name="reservationId" value={row.id} />
           <input type="hidden" name="action" value={item.action} />
@@ -98,6 +121,8 @@ function RowActions({ businessId, row }: { businessId: string; row: Row }) {
 }
 
 export function ReservationsTable({
+  m,
+  locale,
   businessId,
   timezone,
   currency,
@@ -109,6 +134,8 @@ export function ReservationsTable({
   filters,
   created,
 }: {
+  m: Dict;
+  locale: Locale;
   businessId: string;
   timezone: string;
   currency: string;
@@ -128,14 +155,20 @@ export function ReservationsTable({
 
   function setParam(key: string, value: string | null) {
     const next = new URLSearchParams(params.toString());
+    // A new filter starts back on the first page; turning the page keeps it.
+    if (key !== 'page') next.delete('page');
     if (value) next.set(key, value);
     else next.delete(key);
-    next.delete('page');
-    startTransition(() => router.push(`/pro/dashboard/reservations?${next.toString()}`));
+    startTransition(() =>
+      router.push(localePath(locale, `/pro/dashboard/reservations?${next.toString()}`)),
+    );
   }
 
+  const d = m.reservations;
   const pageCount = Math.ceil(total / perPage);
-  const fmt = new Intl.DateTimeFormat('fr-TN', {
+  const filtered = Boolean(filters.status || filters.staff);
+  const [createdBefore = '', createdAfter = ''] = d.created.split('{reference}');
+  const fmt = new Intl.DateTimeFormat(LOCALE_META[locale].intl, {
     weekday: 'short',
     day: 'numeric',
     month: 'short',
@@ -148,18 +181,25 @@ export function ReservationsTable({
   return (
     <div className="z-stack" style={{ gap: 'var(--z-space-5)' }}>
       <div className="z-dash__panel-head">
-        <h2 className="z-profile__h3">Réservations ({total})</h2>
-        <div className="z-row z-row--gap">
-          <Link className="z-btn z-btn--primary z-btn--sm" href="/pro/dashboard/reservations/new">
-            + Nouveau rendez-vous
+        <h2 className="z-profile__h3">{interpolate(d.title, { count: total })}</h2>
+        <div className="z-row z-row--gap" style={{ flexWrap: 'wrap' }}>
+          <Link
+            className="z-btn z-btn--primary z-btn--sm"
+            href={localePath(locale, '/pro/dashboard/reservations/new')}
+          >
+            + {m.shared.newAppointment}
           </Link>
-          <Link href="/pro/dashboard/calendar">Vue agenda →</Link>
+          <Link href={localePath(locale, '/pro/dashboard/calendar')}>
+            {d.calendarView} <Arrow />
+          </Link>
         </div>
       </div>
 
       {created ? (
         <Alert tone="success">
-          Rendez-vous <strong>{created}</strong> enregistré. Il bloque désormais le créneau.
+          {createdBefore}
+          <strong dir="ltr">{created}</strong>
+          {createdAfter}
         </Alert>
       ) : null}
 
@@ -169,12 +209,12 @@ export function ReservationsTable({
           style={{ width: 'auto' }}
           value={filters.status ?? ''}
           onChange={(e) => setParam('status', e.target.value || null)}
-          aria-label="Filtrer par statut"
+          aria-label={d.statusFilter}
         >
-          <option value="">Tous les statuts</option>
-          {Object.entries(STATUS_LABEL).map(([value, label]) => (
+          <option value="">{d.allStatuses}</option>
+          {Object.keys(STATUS_TONE).map((value) => (
             <option key={value} value={value}>
-              {label}
+              {m.status[value as keyof Dict['status']] ?? value}
             </option>
           ))}
         </select>
@@ -184,9 +224,9 @@ export function ReservationsTable({
           style={{ width: 'auto' }}
           value={filters.staff ?? ''}
           onChange={(e) => setParam('staff', e.target.value || null)}
-          aria-label="Filtrer par professionnel"
+          aria-label={m.shared.staffFilter}
         >
-          <option value="">Toute l’équipe</option>
+          <option value="">{m.shared.allTeam}</option>
           {staff.map((member) => (
             <option key={member.id} value={member.id}>
               {member.displayName}
@@ -197,8 +237,8 @@ export function ReservationsTable({
 
       {rows.length === 0 ? (
         <EmptyState
-          title="Aucune réservation"
-          body="Les réservations apparaîtront ici dès qu’un client réserve en ligne."
+          title={d.emptyTitle}
+          body={filtered ? d.emptyFilteredBody : d.emptyBody}
         />
       ) : (
         <>
@@ -206,13 +246,13 @@ export function ReservationsTable({
             <table className="z-table">
               <thead>
                 <tr>
-                  <th>Quand</th>
-                  <th>Client</th>
-                  <th>Prestation</th>
-                  <th>Professionnel</th>
-                  <th>Statut</th>
-                  <th>Montant</th>
-                  <th>Actions</th>
+                  <th>{d.colWhen}</th>
+                  <th>{d.colCustomer}</th>
+                  <th>{d.colService}</th>
+                  <th>{d.colStaff}</th>
+                  <th>{d.colStatus}</th>
+                  <th>{d.colAmount}</th>
+                  <th>{d.colActions}</th>
                 </tr>
               </thead>
               <tbody>
@@ -221,14 +261,16 @@ export function ReservationsTable({
                     <td>
                       <strong>{fmt.format(new Date(row.startAt))}</strong>
                       <br />
-                      <span className="z-help">{row.reference}</span>
+                      <span className="z-help" dir="ltr">
+                        {row.reference}
+                      </span>
                     </td>
                     <td>
                       {row.customerName}
                       {row.customerPhone ? (
                         <>
                           <br />
-                          <a href={`tel:${row.customerPhone}`} className="z-help">
+                          <a href={`tel:${row.customerPhone}`} className="z-help" dir="ltr">
                             {row.customerPhone}
                           </a>
                         </>
@@ -240,8 +282,9 @@ export function ReservationsTable({
                             type="button"
                             className="z-linkbtn"
                             onClick={() => setExpanded(expanded === row.id ? null : row.id)}
+                            aria-expanded={expanded === row.id}
                           >
-                            {expanded === row.id ? 'Masquer la note' : 'Note du client'}
+                            {expanded === row.id ? d.hideNote : d.showNote}
                           </button>
                           {expanded === row.id ? (
                             <p className="z-note">{row.customerNote}</p>
@@ -253,12 +296,12 @@ export function ReservationsTable({
                     <td>{row.staffName}</td>
                     <td>
                       <Badge tone={STATUS_TONE[row.status] ?? 'neutral'}>
-                        {STATUS_LABEL[row.status] ?? row.status}
+                        {m.status[row.status as keyof Dict['status']] ?? row.status}
                       </Badge>
                     </td>
-                    <td>{formatPrice(row.amount, 'fr', currency)}</td>
+                    <td>{formatPrice(row.amount, locale, currency)}</td>
                     <td>
-                      <RowActions businessId={businessId} row={row} />
+                      <RowActions businessId={businessId} row={row} d={d} />
                     </td>
                   </tr>
                 ))}
@@ -267,18 +310,18 @@ export function ReservationsTable({
           </div>
 
           {pageCount > 1 ? (
-            <nav className="z-pagination" aria-label="Pagination">
+            <nav className="z-pagination" aria-label={d.pagination}>
               {page > 1 ? (
                 <button
                   type="button"
                   className="z-btn z-btn--secondary z-btn--sm"
                   onClick={() => setParam('page', String(page - 1))}
                 >
-                  ← Précédent
+                  <Arrow to="back" /> {m.common.previous}
                 </button>
               ) : null}
               <span className="z-pagination__state">
-                Page {page} sur {pageCount}
+                {interpolate(d.pageOf, { page, count: pageCount })}
               </span>
               {page < pageCount ? (
                 <button
@@ -286,7 +329,7 @@ export function ReservationsTable({
                   className="z-btn z-btn--secondary z-btn--sm"
                   onClick={() => setParam('page', String(page + 1))}
                 >
-                  Suivant →
+                  {m.common.next} <Arrow />
                 </button>
               ) : null}
             </nav>

@@ -11,7 +11,14 @@ import { DEFAULT_LOCALE, LOCALES, LOCALE_META, type Locale } from '@/i18n/config
  * shareable and the middleware records it. French is the canonical unprefixed
  * locale, so switching to it strips the prefix rather than adding one.
  */
-export function LocaleSwitcher({ current }: { current: Locale }) {
+export function LocaleSwitcher({
+  current,
+  label,
+}: {
+  current: Locale;
+  /** Accessible name for the trigger, already in the current language. */
+  label: string;
+}) {
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
@@ -42,7 +49,7 @@ export function LocaleSwitcher({ current }: { current: Locale }) {
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         aria-haspopup="listbox"
-        aria-label={`Langue : ${LOCALE_META[current].nativeLabel}`}
+        aria-label={label}
         disabled={pending}
       >
         <svg width="16" height="16" viewBox="0 0 20 20" aria-hidden="true" fill="none">

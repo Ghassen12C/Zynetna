@@ -3,13 +3,17 @@ import { db } from '@/lib/db';
 import { MapDiscovery } from '@/components/map/MapDiscovery';
 import { mapProvider } from '@/server/providers/maps';
 import { variantUrl } from '@/server/services/media';
+import { localizedName } from '@/i18n/format';
+import { translate } from '@/i18n/server';
 
-export const metadata: Metadata = {
-  title: 'Carte',
-  description:
-    'Trouvez un coiffeur, un barbier, un institut ou un spa près de vous sur la carte de la Tunisie.',
-  alternates: { canonical: '/map' },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const { m } = await translate();
+  return {
+    title: m.nav.map,
+    description: m.map.metaDescription,
+    alternates: { canonical: '/map' },
+  };
+}
 
 export const revalidate = 300;
 
@@ -18,7 +22,7 @@ export default async function MapPage({
 }: {
   searchParams: Promise<{ category?: string; city?: string }>;
 }) {
-  const params = await searchParams;
+  const [params, { m, locale, path }] = await Promise.all([searchParams, translate()]);
 
   const businesses = await db.business.findMany({
     where: {
@@ -47,11 +51,11 @@ export default async function MapPage({
       ratingAverage: true,
       ratingCount: true,
       verification: true,
-      location: { select: { latitude: true, longitude: true, addressLine1: true, city: { select: { name: true } } } },
+      location: { select: { latitude: true, longitude: true, addressLine1: true, city: { select: { name: true, nameAr: true } } } },
       categories: {
         where: { isPrimary: true },
         take: 1,
-        select: { category: { select: { name: true } } },
+        select: { category: { select: { name: true, nameAr: true, nameEn: true } } },
       },
       services: { where: { isActive: true }, orderBy: { priceAmount: 'asc' }, take: 1, select: { priceAmount: true } },
       media: {
@@ -67,17 +71,20 @@ export default async function MapPage({
     db.category.findMany({
       where: { isActive: true, parentId: null },
       orderBy: { position: 'asc' },
-      select: { slug: true, name: true },
+      select: { slug: true, name: true, nameAr: true, nameEn: true },
     }),
-    db.city.findMany({ orderBy: { name: 'asc' }, select: { slug: true, name: true } }),
+    db.city.findMany({ orderBy: { name: 'asc' }, select: { slug: true, name: true, nameAr: true } }),
   ]);
 
   return (
     <MapDiscovery
       tiles={mapProvider.tiles()}
       providerName={mapProvider.name}
-      categories={categories}
-      cities={cities}
+      categories={categories.map((c) => ({ slug: c.slug, name: localizedName(c, locale) }))}
+      cities={cities.map((c) => ({ slug: c.slug, name: localizedName(c, locale) }))}
+      m={{ map: m.map, search: m.search, home: m.home, business: m.business, common: m.common }}
+      locale={locale}
+      mapPath={path('/map')}
       filters={{ category: params.category ?? null, city: params.city ?? null }}
       businesses={businesses
         .filter((b) => b.location)
@@ -86,8 +93,10 @@ export default async function MapPage({
           name: b.name,
           lat: b.location!.latitude,
           lng: b.location!.longitude,
-          address: `${b.location!.addressLine1}${b.location!.city ? `, ${b.location!.city.name}` : ''}`,
-          category: b.categories[0]?.category.name ?? null,
+          address: `${b.location!.addressLine1}${
+            b.location!.city ? `, ${localizedName(b.location!.city, locale)}` : ''
+          }`,
+          category: b.categories[0] ? localizedName(b.categories[0].category, locale) : null,
           rating: b.ratingAverage,
           ratingCount: b.ratingCount,
           verified: b.verification === 'VERIFIED',

@@ -4,8 +4,12 @@ import { BusinessProfileView } from '@/components/business/BusinessProfileView';
 import { proContext } from '@/components/pro/ProGuard';
 import { getBusinessProfile } from '@/server/services/businessProfile';
 import { db } from '@/lib/db';
+import { translate } from '@/i18n/server';
 
-export const metadata: Metadata = { title: 'Aperçu de ma page', robots: { index: false } };
+export async function generateMetadata(): Promise<Metadata> {
+  const { m } = await translate();
+  return { title: m.dash.preview.metaTitle, robots: { index: false } };
+}
 
 /**
  * "How customers see my business".

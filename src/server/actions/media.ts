@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { db } from '@/lib/db';
-import { AppError, invalid, notFound } from '@/lib/errors';
+import { invalid, localized, notFound } from '@/lib/errors';
 import { requireBusinessAccess } from '@/server/auth/guard';
 import { consume } from '@/server/rateLimit';
 import { recordAudit } from '@/server/audit';
@@ -11,9 +11,10 @@ import { MAX_UPLOAD_BYTES, deleteAsset, ingestImage } from '@/server/services/me
 import { entitlementsFor } from '@/server/services/subscriptions';
 import { cuidSchema } from '@/lib/validation/common';
 import type { FormState } from '@/lib/formState';
-import { toFormState } from './formState';
+import { done, toFormState } from './formState';
 
 const ROLES = ['LOGO', 'COVER', 'EXTERIOR', 'INTERIOR', 'PORTFOLIO', 'TEAM', 'GALLERY'] as const;
+const MAX_FILES = 10;
 
 /**
  * Upload business media.
@@ -29,23 +30,23 @@ export async function uploadBusinessMediaAction(
   try {
     const businessId = String(formData.get('businessId') ?? '');
     const role = String(formData.get('role') ?? 'GALLERY');
-    if (!ROLES.includes(role as (typeof ROLES)[number])) throw invalid('Type d’image inconnu.');
+    if (!ROLES.includes(role as (typeof ROLES)[number])) throw invalid('unknownImageType');
 
     const { actor } = await requireBusinessAccess(businessId, 'business.media.manage');
     await consume('mediaUpload', actor.userId);
 
     const files = formData.getAll('files').filter((f): f is File => f instanceof File && f.size > 0);
-    if (files.length === 0) throw invalid('Choisissez au moins une image.');
-    if (files.length > 10) throw invalid('10 images maximum à la fois.');
+    if (files.length === 0) throw invalid('chooseImages');
+    if (files.length > MAX_FILES) throw invalid('tooManyImages', { count: MAX_FILES });
 
     const entitlements = await entitlementsFor(businessId);
     if (entitlements.maxGalleryImages !== null) {
       const existing = await db.businessMedia.count({ where: { businessId } });
       if (existing + files.length > entitlements.maxGalleryImages) {
-        throw new AppError(
-          'SUBSCRIPTION_INACTIVE',
-          `Votre formule est limitée à ${entitlements.maxGalleryImages} photos (${existing} déjà utilisées).`,
-        );
+        throw localized('SUBSCRIPTION_INACTIVE', 'galleryLimit', {
+          used: existing,
+          limit: entitlements.maxGalleryImages,
+        });
       }
     }
 
@@ -69,10 +70,10 @@ export async function uploadBusinessMediaAction(
 
     for (const file of files.slice(0, singular ? 1 : files.length)) {
       if (file.size > MAX_UPLOAD_BYTES) {
-        throw new AppError(
-          'PAYLOAD_TOO_LARGE',
-          `« ${file.name} » dépasse ${Math.floor(MAX_UPLOAD_BYTES / 1024 / 1024)} Mo.`,
-        );
+        throw localized('PAYLOAD_TOO_LARGE', 'namedFileTooLarge', {
+          name: file.name,
+          size: Math.floor(MAX_UPLOAD_BYTES / 1024 / 1024),
+        });
       }
       const buffer = Buffer.from(await file.arrayBuffer());
       const asset = await ingestImage({
@@ -100,7 +101,7 @@ export async function uploadBusinessMediaAction(
 
     revalidatePath('/pro/dashboard', 'layout');
     revalidatePath('/pro/preview');
-    return { status: 'success', message: `${files.length} image(s) ajoutée(s).` };
+    return { status: 'success', message: await done('imagesAdded', { count: files.length }) };
   } catch (error) {
     return toFormState(error, 'uploadBusinessMediaAction');
   }
@@ -127,7 +128,7 @@ export async function deleteBusinessMediaAction(
       where: { id: parsed.mediaId, businessId },
       select: { id: true, assetId: true, role: true },
     });
-    if (!media) throw notFound('Image introuvable.');
+    if (!media) throw notFound('imageNotFound');
 
     await db.businessMedia.delete({ where: { id: media.id } });
     await deleteAsset(media.assetId);
@@ -139,7 +140,7 @@ export async function deleteBusinessMediaAction(
 
     revalidatePath('/pro/dashboard', 'layout');
     revalidatePath('/pro/preview');
-    return { status: 'success', message: 'Image supprimée.' };
+    return { status: 'success', message: await done('imageDeleted') };
   } catch (error) {
     return toFormState(error, 'deleteBusinessMediaAction');
   }
@@ -195,10 +196,10 @@ export async function uploadServiceMediaAction(
       where: { id: serviceId, businessId },
       select: { id: true },
     });
-    if (!service) throw notFound('Prestation introuvable.');
+    if (!service) throw notFound('serviceNotFound');
 
     const file = formData.get('file');
-    if (!(file instanceof File) || file.size === 0) throw invalid('Choisissez une image.');
+    if (!(file instanceof File) || file.size === 0) throw invalid('chooseImage');
 
     // One image per service: replace rather than accumulate.
     const previous = await db.serviceMedia.findMany({
@@ -222,7 +223,7 @@ export async function uploadServiceMediaAction(
 
     revalidatePath('/pro/dashboard/services');
     revalidatePath('/pro/preview');
-    return { status: 'success', message: 'Image enregistrée.' };
+    return { status: 'success', message: await done('imageSaved') };
   } catch (error) {
     return toFormState(error, 'uploadServiceMediaAction');
   }
@@ -243,10 +244,10 @@ export async function uploadStaffAvatarAction(
       where: { id: staffId, businessId },
       select: { id: true, avatarId: true },
     });
-    if (!member) throw notFound('Membre introuvable.');
+    if (!member) throw notFound('staffNotFound');
 
     const file = formData.get('file');
-    if (!(file instanceof File) || file.size === 0) throw invalid('Choisissez une image.');
+    if (!(file instanceof File) || file.size === 0) throw invalid('chooseImage');
 
     const asset = await ingestImage({
       buffer: Buffer.from(await file.arrayBuffer()),
@@ -262,7 +263,7 @@ export async function uploadStaffAvatarAction(
 
     revalidatePath('/pro/dashboard/team');
     revalidatePath('/pro/preview');
-    return { status: 'success', message: 'Photo enregistrée.' };
+    return { status: 'success', message: await done('photoSaved') };
   } catch (error) {
     return toFormState(error, 'uploadStaffAvatarAction');
   }

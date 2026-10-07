@@ -19,11 +19,11 @@ const SPARKS = 7;
 export function FavoriteButton({
   businessId,
   initial,
-  labels = { add: 'Ajouter aux favoris', remove: 'Retirer des favoris' },
+  labels,
 }: {
   businessId: string;
   initial: boolean;
-  labels?: { add: string; remove: string };
+  labels: { add: string; remove: string };
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();

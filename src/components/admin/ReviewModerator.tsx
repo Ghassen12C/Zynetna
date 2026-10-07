@@ -7,6 +7,9 @@ import { Alert } from '@/components/ui/Alert';
 import { Button } from '@/components/ui/Button';
 import { moderateReviewAction } from '@/server/actions/admin';
 import { idle } from '@/lib/formState';
+import type { Messages } from '@/i18n';
+
+type AdminMessages = Pick<Messages, 'admin' | 'labels' | 'common'>;
 
 function Submit({ label, variant }: { label: string; variant: 'primary' | 'secondary' | 'ghost' | 'danger' }) {
   const { pending } = useFormStatus();
@@ -20,19 +23,22 @@ function Submit({ label, variant }: { label: string; variant: 'primary' | 'secon
 export function ReviewModerator({
   reviewId,
   currentStatus,
+  m,
 }: {
   reviewId: string;
   currentStatus: string;
+  m: AdminMessages;
 }) {
+  const r = m.admin.reviews;
   const router = useRouter();
   const [state, formAction] = useActionState(moderateReviewAction, idle);
   const [pendingDecision, setPendingDecision] = useState<string | null>(null);
   if (state.status === 'success') router.refresh();
 
   const decisions = [
-    { key: 'publish', label: 'Publier', variant: 'primary' as const, note: false },
-    { key: 'hide', label: 'Masquer', variant: 'ghost' as const, note: true },
-    { key: 'remove', label: 'Supprimer', variant: 'ghost' as const, note: true },
+    { key: 'publish', label: r.publish, variant: 'primary' as const, note: false },
+    { key: 'hide', label: r.hide, variant: 'ghost' as const, note: true },
+    { key: 'remove', label: r.remove, variant: 'ghost' as const, note: true },
   ].filter((d) => {
     if (d.key === 'publish') return currentStatus !== 'PUBLISHED';
     if (d.key === 'hide') return currentStatus !== 'HIDDEN';
@@ -48,13 +54,13 @@ export function ReviewModerator({
           name="note"
           className="z-textarea"
           rows={2}
-          placeholder="Motif de modération (interne)"
-          aria-label="Motif"
+          placeholder={r.notePlaceholder}
+          aria-label={m.admin.common.reason}
         />
-        <div className="z-row" style={{ gap: 'var(--z-space-2)' }}>
-          <Submit label="Confirmer" variant="danger" />
+        <div className="z-row" style={{ gap: 'var(--z-space-2)', flexWrap: 'wrap' }}>
+          <Submit label={m.common.confirm} variant="danger" />
           <Button type="button" variant="ghost" size="sm" onClick={() => setPendingDecision(null)}>
-            Annuler
+            {m.common.cancel}
           </Button>
         </div>
       </form>

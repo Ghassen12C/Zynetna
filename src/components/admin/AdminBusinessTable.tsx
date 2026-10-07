@@ -9,7 +9,13 @@ import { Button } from '@/components/ui/Button';
 import { Badge, EmptyState } from '@/components/ui/Primitives';
 import { moderateBusinessAction } from '@/server/actions/admin';
 import { idle } from '@/lib/formState';
-import { formatDate } from '@/i18n/format';
+import { Arrow } from '@/components/ui/Arrow';
+import type { Messages } from '@/i18n';
+import { interpolate } from '@/i18n/interpolate';
+import { type Locale, localePath } from '@/i18n/config';
+import { formatCount, formatDate, formatNumber } from '@/i18n/format';
+
+type AdminMessages = Pick<Messages, 'admin' | 'labels' | 'common'>;
 
 type Row = {
   id: string;
@@ -27,14 +33,6 @@ type Row = {
   reservations: number;
   services: number;
   staff: number;
-};
-
-const STATUS_LABEL: Record<string, string> = {
-  DRAFT: 'Brouillon',
-  PENDING_REVIEW: 'À valider',
-  ACTIVE: 'En ligne',
-  SUSPENDED: 'Suspendu',
-  REJECTED: 'Refusé',
 };
 
 const STATUS_TONE: Record<string, 'success' | 'warning' | 'danger' | 'neutral' | 'accent'> = {
@@ -60,7 +58,8 @@ function ModerateButton({ label, variant }: { label: string; variant: 'primary' 
  * Reject and suspend require a written reason — the owner is notified with it,
  * and the audit log keeps it. A decision with no reason is not a decision.
  */
-function Moderate({ row }: { row: Row }) {
+function Moderate({ row, m }: { row: Row; m: AdminMessages }) {
+  const b = m.admin.businesses;
   const router = useRouter();
   const [state, formAction] = useActionState(moderateBusinessAction, idle);
   const [needsNote, setNeedsNote] = useState<string | null>(null);
@@ -69,19 +68,19 @@ function Moderate({ row }: { row: Row }) {
 
   const decisions: { key: string; label: string; variant: 'primary' | 'secondary' | 'ghost' | 'danger'; note?: boolean }[] = [];
   if (row.status === 'PENDING_REVIEW' || row.status === 'DRAFT') {
-    decisions.push({ key: 'approve', label: 'Approuver', variant: 'primary' });
-    decisions.push({ key: 'reject', label: 'Refuser', variant: 'ghost', note: true });
+    decisions.push({ key: 'approve', label: b.approve, variant: 'primary' });
+    decisions.push({ key: 'reject', label: b.reject, variant: 'ghost', note: true });
   }
   if (row.status === 'ACTIVE') {
     decisions.push(
       row.verification === 'VERIFIED'
-        ? { key: 'unverify', label: 'Retirer le badge', variant: 'ghost' }
-        : { key: 'verify', label: 'Vérifier', variant: 'secondary' },
+        ? { key: 'unverify', label: b.unverify, variant: 'ghost' }
+        : { key: 'verify', label: b.verify, variant: 'secondary' },
     );
-    decisions.push({ key: 'suspend', label: 'Suspendre', variant: 'ghost', note: true });
+    decisions.push({ key: 'suspend', label: b.suspend, variant: 'ghost', note: true });
   }
   if (row.status === 'SUSPENDED' || row.status === 'REJECTED') {
-    decisions.push({ key: 'reactivate', label: 'Réactiver', variant: 'primary' });
+    decisions.push({ key: 'reactivate', label: b.reactivate, variant: 'primary' });
   }
 
   return (
@@ -97,13 +96,13 @@ function Moderate({ row }: { row: Row }) {
             className="z-textarea"
             required
             rows={2}
-            placeholder="Motif communiqué au propriétaire…"
-            aria-label="Motif"
+            placeholder={b.notePlaceholder}
+            aria-label={m.admin.common.reason}
           />
-          <div className="z-row" style={{ gap: 'var(--z-space-2)' }}>
-            <ModerateButton label="Confirmer" variant="danger" />
+          <div className="z-row" style={{ gap: 'var(--z-space-2)', flexWrap: 'wrap' }}>
+            <ModerateButton label={m.common.confirm} variant="danger" />
             <Button type="button" variant="ghost" size="sm" onClick={() => setNeedsNote(null)}>
-              Annuler
+              {m.common.cancel}
             </Button>
           </div>
         </form>
@@ -139,13 +138,19 @@ export function AdminBusinessTable({
   page,
   pageCount,
   filters,
+  m,
+  locale,
 }: {
   rows: Row[];
   total: number;
   page: number;
   pageCount: number;
   filters: Record<string, string | undefined>;
+  m: AdminMessages;
+  locale: Locale;
 }) {
+  const c = m.admin.common;
+  const b = m.admin.businesses;
   const router = useRouter();
   const params = useSearchParams();
   const [, startTransition] = useTransition();
@@ -156,12 +161,17 @@ export function AdminBusinessTable({
     if (value) next.set(key, value);
     else next.delete(key);
     if (key !== 'page') next.delete('page');
-    startTransition(() => router.push(`/admin/businesses?${next.toString()}`));
+    startTransition(() => router.push(localePath(locale, `/admin/businesses?${next.toString()}`)));
   }
 
   return (
     <div className="z-stack" style={{ gap: 'var(--z-space-5)' }}>
-      <h1 className="z-search__title">Établissements ({total})</h1>
+      <h1 className="z-search__title">
+        {interpolate(c.headingCount, {
+          title: m.admin.nav.businesses,
+          count: formatNumber(total, locale),
+        })}
+      </h1>
 
       <form
         className="z-row"
@@ -176,11 +186,11 @@ export function AdminBusinessTable({
           style={{ width: 'auto', minWidth: 220 }}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Nom, slug ou e-mail du propriétaire"
-          aria-label="Rechercher"
+          placeholder={b.searchPlaceholder}
+          aria-label={c.search}
         />
         <Button type="submit" variant="secondary">
-          Rechercher
+          {c.search}
         </Button>
 
         <select
@@ -188,10 +198,10 @@ export function AdminBusinessTable({
           style={{ width: 'auto' }}
           value={filters.status ?? ''}
           onChange={(e) => setParam('status', e.target.value || null)}
-          aria-label="Statut"
+          aria-label={c.status}
         >
-          <option value="">Tous les statuts</option>
-          {Object.entries(STATUS_LABEL).map(([value, label]) => (
+          <option value="">{c.allStatuses}</option>
+          {Object.entries(m.labels.businessStatus).map(([value, label]) => (
             <option key={value} value={value}>
               {label}
             </option>
@@ -203,74 +213,95 @@ export function AdminBusinessTable({
           style={{ width: 'auto' }}
           value={filters.verification ?? ''}
           onChange={(e) => setParam('verification', e.target.value || null)}
-          aria-label="Vérification"
+          aria-label={b.verification}
         >
-          <option value="">Toutes vérifications</option>
-          <option value="VERIFIED">Vérifié</option>
-          <option value="PENDING">En attente</option>
-          <option value="UNVERIFIED">Non vérifié</option>
-          <option value="REJECTED">Refusé</option>
+          <option value="">{b.allVerifications}</option>
+          {(['VERIFIED', 'PENDING', 'UNVERIFIED', 'REJECTED'] as const).map((value) => (
+            <option key={value} value={value}>
+              {m.labels.verification[value]}
+            </option>
+          ))}
         </select>
       </form>
 
       {rows.length === 0 ? (
-        <EmptyState title="Aucun établissement" body="Aucun résultat pour ces filtres." />
+        <EmptyState title={b.empty} body={c.noResults} />
       ) : (
         <>
           <div className="z-table--scroll">
             <table className="z-table">
               <thead>
                 <tr>
-                  <th>Établissement</th>
-                  <th>Propriétaire</th>
-                  <th>Statut</th>
-                  <th>Abonnement</th>
-                  <th>Activité</th>
-                  <th>Modération</th>
+                  <th>{c.business}</th>
+                  <th>{c.owner}</th>
+                  <th>{c.status}</th>
+                  <th>{b.subscription}</th>
+                  <th>{c.activity}</th>
+                  <th>{b.moderation}</th>
                 </tr>
               </thead>
               <tbody>
                 {rows.map((row) => (
                   <tr key={row.id}>
                     <td>
-                      <Link href={`/business/${row.slug}`} className="z-ranklist__name">
+                      <Link
+                        href={localePath(locale, `/business/${row.slug}`)}
+                        className="z-ranklist__name"
+                      >
                         {row.name}
                       </Link>
                       <br />
                       <span className="z-help">
-                        {row.cityName ?? '—'} · créé le {formatDate(new Date(row.createdAt))}
+                        {row.cityName ?? '—'} ·{' '}
+                        {interpolate(b.createdOn, {
+                          date: formatDate(new Date(row.createdAt), locale),
+                        })}
                       </span>
                     </td>
                     <td>
                       {row.ownerName}
                       <br />
-                      <span className="z-help">{row.ownerEmail}</span>
+                      <span className="z-help" dir="ltr">
+                        {row.ownerEmail}
+                      </span>
                     </td>
                     <td>
                       <Badge tone={STATUS_TONE[row.status] ?? 'neutral'}>
-                        {STATUS_LABEL[row.status] ?? row.status}
+                        {m.labels.businessStatus[row.status as keyof typeof m.labels.businessStatus] ??
+                          row.status}
                       </Badge>
                       {row.verification === 'VERIFIED' ? (
                         <>
                           <br />
-                          <Badge tone="accent">✓ Vérifié</Badge>
+                          <Badge tone="accent">✓ {m.labels.verification.VERIFIED}</Badge>
                         </>
                       ) : null}
                     </td>
                     <td>
-                      <span className="z-help">{row.subscriptionStatus ?? '—'}</span>
-                    </td>
-                    <td>
                       <span className="z-help">
-                        {row.reservations} RDV · {row.services} prestations · {row.staff} équipe
-                        <br />
-                        {row.ratingCount > 0
-                          ? `${row.ratingAverage.toFixed(1)}★ (${row.ratingCount})`
-                          : 'pas d’avis'}
+                        {row.subscriptionStatus
+                          ? (m.labels.subscriptionStatus[
+                              row.subscriptionStatus as keyof typeof m.labels.subscriptionStatus
+                            ] ?? row.subscriptionStatus)
+                          : '—'}
                       </span>
                     </td>
                     <td>
-                      <Moderate row={row} />
+                      <span className="z-help">
+                        {formatCount(c.reservationsCount, row.reservations, locale)} ·{' '}
+                        {formatCount(c.servicesCount, row.services, locale)} ·{' '}
+                        {formatCount(c.staffCount, row.staff, locale)}
+                        <br />
+                        {row.ratingCount > 0
+                          ? interpolate(c.rating, {
+                              rating: formatNumber(Math.round(row.ratingAverage * 10) / 10, locale),
+                              count: formatNumber(row.ratingCount, locale),
+                            })
+                          : c.noReviews}
+                      </span>
+                    </td>
+                    <td>
+                      <Moderate row={row} m={m} />
                     </td>
                   </tr>
                 ))}
@@ -279,18 +310,21 @@ export function AdminBusinessTable({
           </div>
 
           {pageCount > 1 ? (
-            <nav className="z-pagination" aria-label="Pagination">
+            <nav className="z-pagination" aria-label={c.pagination}>
               {page > 1 ? (
                 <button type="button" className="z-btn z-btn--secondary z-btn--sm" onClick={() => setParam('page', String(page - 1))}>
-                  ← Précédent
+                  <Arrow to="back" /> {m.common.previous}
                 </button>
               ) : null}
               <span className="z-pagination__state">
-                Page {page} sur {pageCount}
+                {interpolate(c.pageState, {
+                  page: formatNumber(page, locale),
+                  total: formatNumber(pageCount, locale),
+                })}
               </span>
               {page < pageCount ? (
                 <button type="button" className="z-btn z-btn--secondary z-btn--sm" onClick={() => setParam('page', String(page + 1))}>
-                  Suivant →
+                  {m.common.next} <Arrow />
                 </button>
               ) : null}
             </nav>

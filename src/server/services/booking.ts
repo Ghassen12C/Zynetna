@@ -5,6 +5,7 @@ import {
   conflict,
   forbidden,
   invalid,
+  localized,
   notFound,
   policyViolation,
   slotUnavailable,
@@ -91,23 +92,17 @@ export async function createReservation(input: CreateReservationInput) {
       ownerId: true,
     },
   });
-  if (!business) throw notFound('Business not found.');
+  if (!business) throw notFound('businessNotFound');
 
   // A suspended or unpublished business cannot take bookings.
   if (business.status !== 'ACTIVE') {
-    throw new AppError(
-      'BUSINESS_UNAVAILABLE',
-      'This business is not currently accepting online bookings.',
-    );
+    throw localized('BUSINESS_UNAVAILABLE', 'businessNotBookable');
   }
 
   // An expired subscription removes the business from the marketplace and
   // blocks new bookings — a real consequence, not a badge.
   if (!(await isEntitledToBookings(business.id))) {
-    throw new AppError(
-      'SUBSCRIPTION_INACTIVE',
-      'This business is not currently accepting online bookings.',
-    );
+    throw localized('SUBSCRIPTION_INACTIVE', 'businessNotBookable');
   }
 
   const service = await db.service.findFirst({
@@ -120,7 +115,7 @@ export async function createReservation(input: CreateReservationInput) {
       minNoticeMinutes: true,
     },
   });
-  if (!service) throw notFound('Service not found.');
+  if (!service) throw notFound('serviceNotFound');
 
   // The professional must actually perform this service.
   const staff = await db.staffMember.findFirst({
@@ -134,7 +129,7 @@ export async function createReservation(input: CreateReservationInput) {
     select: { id: true, displayName: true },
   });
   if (!staff) {
-    throw invalid('That professional does not offer this service.');
+    throw invalid('staffDoesNotOfferService');
   }
 
   const policy: BookingPolicy = {
@@ -314,15 +309,13 @@ export async function transitionReservation(opts: {
     where: { id: opts.reservationId },
     select: { id: true, status: true, businessId: true, customerId: true },
   });
-  if (!existing) throw notFound('Reservation not found.');
+  if (!existing) throw notFound('reservationNotFound');
 
   if (!canTransition(existing.status, opts.to)) {
-    throw new AppError(
-      'ILLEGAL_TRANSITION',
-      `A ${existing.status.toLowerCase().replace(/_/g, ' ')} appointment cannot become ${opts.to
-        .toLowerCase()
-        .replace(/_/g, ' ')}.`,
-    );
+    throw localized('ILLEGAL_TRANSITION', 'illegalTransition', undefined, {
+      from: existing.status,
+      to: opts.to,
+    });
   }
 
   const now = new Date();
@@ -384,7 +377,7 @@ export async function cancelAsCustomer(reservationId: string, actor: Actor, reas
       },
     },
   });
-  if (!reservation) throw notFound('Reservation not found.');
+  if (!reservation) throw notFound('reservationNotFound');
   if (reservation.customerId !== actor.userId && !isSuperAdmin(actor)) throw forbidden();
 
   const check = canCustomerCancel(reservation, reservation.business, new Date());
@@ -432,14 +425,14 @@ export async function rescheduleAsCustomer(opts: {
       },
     },
   });
-  if (!original) throw notFound('Reservation not found.');
+  if (!original) throw notFound('reservationNotFound');
   if (original.customerId !== opts.actor.userId && !isSuperAdmin(opts.actor)) throw forbidden();
 
   const check = canCustomerReschedule(original, original.business, new Date());
   if (!check.allowed) throw policyViolation(check.reason);
 
   const serviceId = original.items[0]?.serviceId;
-  if (!serviceId) throw conflict('This appointment has no service to reschedule.');
+  if (!serviceId) throw conflict('noServiceToReschedule');
 
   const replacement = await createReservation({
     businessId: original.businessId,

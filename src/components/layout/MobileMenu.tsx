@@ -3,6 +3,14 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useId, useRef, useState } from 'react';
+import { LOCALES } from '@/i18n/config';
+
+const LOCALE_PREFIX = new RegExp(`^/(${LOCALES.join('|')})(?=/|$)`);
+
+/** The middleware rewrites `/ar/x` to `/x`, so compare without the prefix. */
+function samePage(pathname: string, href: string): boolean {
+  return (pathname.replace(LOCALE_PREFIX, '') || '/') === (href.replace(LOCALE_PREFIX, '') || '/');
+}
 
 export type MenuLink = { href: string; label: string; emphasis?: 'primary' | 'quiet' };
 
@@ -70,7 +78,7 @@ export function MobileMenu({
               href={link.href}
               className="z-mmenu__link"
               style={{ ['--i' as string]: i }}
-              aria-current={pathname === link.href ? 'page' : undefined}
+              aria-current={samePage(pathname, link.href) ? 'page' : undefined}
             >
               {link.label}
             </Link>

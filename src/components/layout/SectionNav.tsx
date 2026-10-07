@@ -35,7 +35,7 @@ function isActive(pathname: string, href: string): boolean {
  * One underline slides between tabs instead of each tab owning its own, so a
  * change of section shows where you moved from, not only where you are.
  */
-export function SectionNav({ items, label = 'Sections' }: { items: NavItem[]; label?: string }) {
+export function SectionNav({ items, label }: { items: NavItem[]; label: string }) {
   const pathname = usePathname();
   const scroller = useRef<HTMLDivElement>(null);
   const [edges, setEdges] = useState({ start: false, end: false });

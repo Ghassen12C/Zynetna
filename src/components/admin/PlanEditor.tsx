@@ -9,7 +9,12 @@ import { Input, Select, Textarea } from '@/components/ui/Field';
 import { Badge, Panel } from '@/components/ui/Primitives';
 import { savePlanAction } from '@/server/actions/admin';
 import { idle } from '@/lib/formState';
-import { formatPrice } from '@/i18n/format';
+import type { Messages } from '@/i18n';
+import { interpolate } from '@/i18n/interpolate';
+import type { Locale } from '@/i18n/config';
+import { formatCount, formatPrice } from '@/i18n/format';
+
+type AdminMessages = Pick<Messages, 'admin' | 'labels' | 'common'>;
 
 type Plan = {
   id: string;
@@ -25,11 +30,11 @@ type Plan = {
   isDefault: boolean;
 };
 
-function Submit() {
+function Submit({ label }: { label: string }) {
   const { pending } = useFormStatus();
   return (
     <Button type="submit" loading={pending}>
-      Enregistrer
+      {label}
     </Button>
   );
 }
@@ -39,7 +44,17 @@ function Submit() {
  * edited here, never a constant in the codebase, so changing the price or the
  * trial length is an admin action rather than a deployment.
  */
-export function PlanEditor({ plans }: { plans: Plan[] }) {
+export function PlanEditor({
+  plans,
+  m,
+  locale,
+}: {
+  plans: Plan[];
+  m: AdminMessages;
+  locale: Locale;
+}) {
+  const p = m.admin.plans;
+  const days = (n: number) => formatCount(m.admin.common.daysCount, n, locale);
   const router = useRouter();
   const [state, formAction] = useActionState(savePlanAction, idle);
   const [editing, setEditing] = useState<Plan | null>(null);
@@ -58,15 +73,12 @@ export function PlanEditor({ plans }: { plans: Plan[] }) {
     <Panel className="z-dash__panel">
       <div className="z-dash__panel-head">
         <div>
-          <h2 className="z-profile__h3">Formules</h2>
-          <p className="z-policy">
-            Le prix et la durée d’essai sont des données, pas du code — vos changements
-            s’appliquent aux nouveaux abonnements sans redéploiement.
-          </p>
+          <h2 className="z-profile__h3">{p.title}</h2>
+          <p className="z-policy">{p.lead}</p>
         </div>
         {!creating && !editing ? (
           <Button size="sm" onClick={() => setCreating(true)}>
-            + Formule
+            {p.create}
           </Button>
         ) : null}
       </div>
@@ -77,15 +89,34 @@ export function PlanEditor({ plans }: { plans: Plan[] }) {
           {state.status === 'error' ? <Alert tone="error">{state.message}</Alert> : null}
 
           <div className="z-auth__row">
-            <Input label="Nom" name="name" defaultValue={target?.name ?? ''} required error={errors?.name} />
-            <Input label="Code" name="code" defaultValue={target?.code ?? ''} required hint="minuscules-et-tirets" error={errors?.code} />
+            <Input
+              label={p.name}
+              name="name"
+              defaultValue={target?.name ?? ''}
+              required
+              error={errors?.name}
+            />
+            <Input
+              label={p.code}
+              name="code"
+              defaultValue={target?.code ?? ''}
+              required
+              dir="ltr"
+              hint={p.codeHint}
+              error={errors?.code}
+            />
           </div>
 
-          <Textarea label="Description" name="description" defaultValue={target?.description ?? ''} optional />
+          <Textarea
+            label={p.description}
+            name="description"
+            defaultValue={target?.description ?? ''}
+            optional
+          />
 
           <div className="z-auth__row">
             <Input
-              label="Prix"
+              label={p.price}
               name="priceAmount"
               type="number"
               step="0.01"
@@ -94,42 +125,49 @@ export function PlanEditor({ plans }: { plans: Plan[] }) {
               required
               error={errors?.priceAmount}
             />
-            <Input label="Devise" name="currency" defaultValue={target?.currency ?? 'TND'} maxLength={3} required />
+            <Input
+              label={p.currency}
+              name="currency"
+              defaultValue={target?.currency ?? 'TND'}
+              maxLength={3}
+              dir="ltr"
+              required
+            />
           </div>
 
           <div className="z-auth__row">
-            <Select label="Périodicité" name="interval" defaultValue={target?.interval ?? 'MONTH'}>
-              <option value="MONTH">Mensuelle</option>
-              <option value="YEAR">Annuelle</option>
+            <Select label={p.interval} name="interval" defaultValue={target?.interval ?? 'MONTH'}>
+              <option value="MONTH">{p.monthly}</option>
+              <option value="YEAR">{p.yearly}</option>
             </Select>
             <Input
-              label="Jours d’essai"
+              label={p.trialDays}
               name="trialDays"
               type="number"
               min="0"
               defaultValue={target?.trialDays ?? 60}
               required
-              hint="60 = deux mois offerts."
+              hint={p.trialHint}
             />
           </div>
 
           <Input
-            label="Période de grâce (jours)"
+            label={p.graceDays}
             name="gracePeriodDays"
             type="number"
             min="0"
             defaultValue={target?.gracePeriodDays ?? 7}
             required
-            hint="Délai après échéance avant la coupure."
+            hint={p.graceHint}
           />
 
           <label className="z-check">
             <input type="checkbox" name="isActive" defaultChecked={target?.isActive ?? true} />
-            <span>Formule proposée</span>
+            <span>{p.offered}</span>
           </label>
 
-          <div className="z-row" style={{ gap: 'var(--z-space-2)' }}>
-            <Submit />
+          <div className="z-row" style={{ gap: 'var(--z-space-2)', flexWrap: 'wrap' }}>
+            <Submit label={m.common.save} />
             <Button
               type="button"
               variant="ghost"
@@ -138,7 +176,7 @@ export function PlanEditor({ plans }: { plans: Plan[] }) {
                 setCreating(false);
               }}
             >
-              Annuler
+              {m.common.cancel}
             </Button>
           </div>
         </form>
@@ -149,18 +187,24 @@ export function PlanEditor({ plans }: { plans: Plan[] }) {
           <div key={plan.id} className={`z-plan ${plan.isDefault ? 'is-current' : ''}`}>
             <h3>
               {plan.name}{' '}
-              {plan.isDefault ? <Badge tone="accent">Par défaut</Badge> : null}
-              {!plan.isActive ? <Badge tone="neutral">Inactive</Badge> : null}
+              {plan.isDefault ? <Badge tone="accent">{p.isDefault}</Badge> : null}
+              {!plan.isActive ? <Badge tone="neutral">{p.inactive}</Badge> : null}
             </h3>
             <p className="z-plan__price">
-              {formatPrice(plan.priceAmount, 'fr', plan.currency)}
-              <span> / {plan.interval === 'MONTH' ? 'mois' : 'an'}</span>
+              {formatPrice(plan.priceAmount, locale, plan.currency)}
+              <span>
+                {' / '}
+                {m.labels.interval[plan.interval as keyof typeof m.labels.interval] ??
+                  plan.interval}
+              </span>
             </p>
             <p className="z-help">
-              {plan.code} · {plan.trialDays} jours d’essai · {plan.gracePeriodDays} jours de grâce
+              <bdi dir="ltr">{plan.code}</bdi> ·{' '}
+              {interpolate(p.trial, { days: days(plan.trialDays) })} ·{' '}
+              {interpolate(p.grace, { days: days(plan.gracePeriodDays) })}
             </p>
             <Button size="sm" variant="secondary" onClick={() => setEditing(plan)}>
-              Modifier
+              {m.common.edit}
             </Button>
           </div>
         ))}

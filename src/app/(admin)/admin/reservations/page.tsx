@@ -2,21 +2,15 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { db } from '@/lib/db';
 import { Badge, EmptyState } from '@/components/ui/Primitives';
+import { Arrow } from '@/components/ui/Arrow';
 import { requireSuperAdmin } from '@/server/auth/guard';
-import { formatDateTime, formatPrice } from '@/i18n/format';
+import { translate } from '@/i18n/server';
+import { formatDateTime, formatNumber, formatPrice } from '@/i18n/format';
 
-export const metadata: Metadata = { title: 'Réservations', robots: { index: false } };
-
-const STATUS_LABEL: Record<string, string> = {
-  PENDING: 'En attente',
-  CONFIRMED: 'Confirmé',
-  COMPLETED: 'Terminé',
-  CANCELLED_BY_CUSTOMER: 'Annulé (client)',
-  CANCELLED_BY_BUSINESS: 'Annulé (établissement)',
-  RESCHEDULED: 'Reporté',
-  NO_SHOW: 'Absence',
-  EXPIRED: 'Expiré',
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const { m } = await translate();
+  return { title: m.admin.nav.reservations, robots: { index: false } };
+}
 
 const STATUS_TONE: Record<string, 'success' | 'warning' | 'danger' | 'neutral' | 'accent'> = {
   PENDING: 'warning',
@@ -35,6 +29,10 @@ export default async function AdminReservationsPage({
   searchParams: Promise<{ status?: string; q?: string; page?: string }>;
 }) {
   await requireSuperAdmin();
+  const { m, locale, t, path } = await translate();
+  const c = m.admin.common;
+  const r = m.admin.reservations;
+  const statusLabel = (status: string) => m.status[status as keyof typeof m.status] ?? status;
   const params = await searchParams;
   const page = Math.max(1, Number(params.page ?? 1) || 1);
   const perPage = 40;
@@ -70,75 +68,93 @@ export default async function AdminReservationsPage({
 
   const pageCount = Math.ceil(total / perPage);
   const link = (p: number) =>
-    `/admin/reservations?page=${p}${params.status ? `&status=${params.status}` : ''}${params.q ? `&q=${encodeURIComponent(params.q)}` : ''}`;
+    `${path('/admin/reservations')}?page=${p}${params.status ? `&status=${params.status}` : ''}${params.q ? `&q=${encodeURIComponent(params.q)}` : ''}`;
 
   return (
     <div className="z-stack" style={{ gap: 'var(--z-space-5)' }}>
-      <h1 className="z-search__title">Réservations ({total})</h1>
+      <h1 className="z-search__title">
+        {t(c.headingCount, { title: m.admin.nav.reservations, count: formatNumber(total, locale) })}
+      </h1>
 
-      <nav className="z-row" style={{ gap: 'var(--z-space-2)', flexWrap: 'wrap' }}>
-        <Link href="/admin/reservations" className={`z-chip ${!params.status ? 'z-chip--active' : ''}`}>
-          Toutes
+      <nav
+        className="z-row"
+        style={{ gap: 'var(--z-space-2)', flexWrap: 'wrap' }}
+        aria-label={c.filterByStatus}
+      >
+        <Link
+          href={path('/admin/reservations')}
+          className={`z-chip ${!params.status ? 'z-chip--active' : ''}`}
+        >
+          {c.allFeminine}
         </Link>
         {statusCounts.map((s) => (
           <Link
             key={s.status}
-            href={`/admin/reservations?status=${s.status}`}
+            href={`${path('/admin/reservations')}?status=${s.status}`}
             className={`z-chip ${params.status === s.status ? 'z-chip--active' : ''}`}
           >
-            {STATUS_LABEL[s.status] ?? s.status} ({s._count.status})
+            {t(c.chipCount, {
+              label: statusLabel(s.status),
+              count: formatNumber(s._count.status, locale),
+            })}
           </Link>
         ))}
       </nav>
 
-      <form className="z-row" style={{ gap: 'var(--z-space-2)' }}>
+      <form className="z-row" style={{ gap: 'var(--z-space-2)', flexWrap: 'wrap' }}>
         <input
           className="z-input"
           style={{ width: 'auto', minWidth: 240 }}
           name="q"
           defaultValue={params.q ?? ''}
-          placeholder="Référence (ZY-…) ou établissement"
-          aria-label="Rechercher"
+          placeholder={r.searchPlaceholder}
+          aria-label={c.search}
         />
         <button type="submit" className="z-btn z-btn--secondary z-btn--md">
-          Rechercher
+          {c.search}
         </button>
       </form>
 
       {rows.length === 0 ? (
-        <EmptyState title="Aucune réservation" body="Aucun résultat pour ce filtre." />
+        <EmptyState title={r.empty} body={c.noResult} />
       ) : (
         <>
           <div className="z-table--scroll">
             <table className="z-table">
               <thead>
                 <tr>
-                  <th>Référence</th>
-                  <th>Établissement</th>
-                  <th>Client</th>
-                  <th>Prestation</th>
-                  <th>Quand</th>
-                  <th>Statut</th>
-                  <th>Montant</th>
+                  <th>{r.reference}</th>
+                  <th>{c.business}</th>
+                  <th>{c.customer}</th>
+                  <th>{r.service}</th>
+                  <th>{r.when}</th>
+                  <th>{c.status}</th>
+                  <th>{c.amount}</th>
                 </tr>
               </thead>
               <tbody>
                 {rows.map((row) => (
                   <tr key={row.id}>
                     <td>
-                      <Link href={`/reservations/${row.reference}`} className="z-ranklist__name">
+                      <Link
+                        href={path(`/reservations/${row.reference}`)}
+                        className="z-ranklist__name"
+                        dir="ltr"
+                      >
                         {row.reference}
                       </Link>
                     </td>
                     <td>
-                      <Link href={`/business/${row.business.slug}`}>{row.business.name}</Link>
+                      <Link href={path(`/business/${row.business.slug}`)}>{row.business.name}</Link>
                     </td>
                     <td>
                       {row.customer
                         ? `${row.customer.firstName} ${row.customer.lastName}`
                         : (row.guestName ?? '—')}
                       <br />
-                      <span className="z-help">{row.customer?.email ?? row.guestEmail ?? ''}</span>
+                      <span className="z-help" dir="ltr">
+                        {row.customer?.email ?? row.guestEmail ?? ''}
+                      </span>
                     </td>
                     <td>
                       {row.items[0]?.serviceName ?? '—'}
@@ -147,15 +163,21 @@ export default async function AdminReservationsPage({
                     </td>
                     <td>
                       <span className="z-help">
-                        {formatDateTime(row.startAt, 'fr', row.business.timezone)}
+                        {formatDateTime(row.startAt, locale, row.business.timezone)}
                       </span>
                     </td>
                     <td>
                       <Badge tone={STATUS_TONE[row.status] ?? 'neutral'}>
-                        {STATUS_LABEL[row.status] ?? row.status}
+                        {statusLabel(row.status)}
                       </Badge>
+                      <br />
+                      <span className="z-help">
+                        {t(r.channel, {
+                          channel: m.labels.channel[row.channel] ?? row.channel,
+                        })}
+                      </span>
                     </td>
-                    <td>{formatPrice(Number(row.totalAmount), 'fr', row.currency)}</td>
+                    <td>{formatPrice(Number(row.totalAmount), locale, row.currency)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -163,18 +185,21 @@ export default async function AdminReservationsPage({
           </div>
 
           {pageCount > 1 ? (
-            <nav className="z-pagination" aria-label="Pagination">
+            <nav className="z-pagination" aria-label={c.pagination}>
               {page > 1 ? (
                 <a className="z-btn z-btn--secondary z-btn--sm" href={link(page - 1)}>
-                  ← Précédent
+                  <Arrow to="back" /> {m.common.previous}
                 </a>
               ) : null}
               <span className="z-pagination__state">
-                Page {page} sur {pageCount}
+                {t(c.pageState, {
+                  page: formatNumber(page, locale),
+                  total: formatNumber(pageCount, locale),
+                })}
               </span>
               {page < pageCount ? (
                 <a className="z-btn z-btn--secondary z-btn--sm" href={link(page + 1)}>
-                  Suivant →
+                  {m.common.next} <Arrow />
                 </a>
               ) : null}
             </nav>

@@ -4,18 +4,13 @@ import { Alert } from '@/components/ui/Alert';
 import { proContext } from '@/components/pro/ProGuard';
 import { getSubscriptionView } from '@/server/services/subscriptions';
 import { db } from '@/lib/db';
-import { formatDate, formatPrice } from '@/i18n/format';
+import { formatCount, formatDate, formatPrice } from '@/i18n/format';
+import { translate } from '@/i18n/server';
 
-export const metadata: Metadata = { title: 'Abonnement', robots: { index: false } };
-
-const STATUS_LABEL: Record<string, string> = {
-  TRIALING: 'Essai gratuit',
-  ACTIVE: 'Actif',
-  PAST_DUE: 'Paiement en retard',
-  GRACE: 'Période de grâce',
-  EXPIRED: 'Expiré',
-  CANCELLED: 'Résilié',
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const { m } = await translate();
+  return { title: m.dash.nav.subscription, robots: { index: false } };
+}
 
 const STATUS_TONE: Record<string, 'success' | 'warning' | 'danger' | 'neutral' | 'accent'> = {
   TRIALING: 'accent',
@@ -29,20 +24,24 @@ const STATUS_TONE: Record<string, 'success' | 'warning' | 'danger' | 'neutral' |
 export default async function SubscriptionPage() {
   const { businessId } = await proContext('business.subscription.read', '/pro/dashboard/subscription');
 
-  const [subscription, plans] = await Promise.all([
+  const [subscription, plans, { m, locale, t }] = await Promise.all([
     getSubscriptionView(businessId),
     db.subscriptionPlan.findMany({ where: { isActive: true }, orderBy: { position: 'asc' } }),
+    translate(),
   ]);
+  const d = m.dash.subscription;
 
   if (!subscription) {
-    return <Alert tone="warning">Aucun abonnement associé à cet établissement.</Alert>;
+    return <Alert tone="warning">{d.none}</Alert>;
   }
 
   const price = formatPrice(
     Number(subscription.plan.priceAmount),
-    'fr',
+    locale,
     subscription.plan.currency,
   );
+  const interval = m.labels.interval[subscription.plan.interval];
+  const status = subscription.effectiveStatus as keyof typeof m.labels.subscriptionStatus;
 
   return (
     <div className="z-dash">
@@ -53,89 +52,84 @@ export default async function SubscriptionPage() {
             <p className="z-policy">{subscription.plan.description}</p>
           </div>
           <Badge tone={STATUS_TONE[subscription.effectiveStatus] ?? 'neutral'}>
-            {STATUS_LABEL[subscription.effectiveStatus] ?? subscription.effectiveStatus}
+            {m.labels.subscriptionStatus[status] ?? subscription.effectiveStatus}
           </Badge>
         </div>
 
         <dl className="z-kv">
           <div>
-            <dt>Tarif</dt>
-            <dd>
-              {price} / {subscription.plan.interval === 'MONTH' ? 'mois' : 'an'}
-            </dd>
+            <dt>{d.price}</dt>
+            <dd>{t(d.pricePer, { price, interval })}</dd>
           </div>
           {subscription.trialEndAt ? (
             <div>
-              <dt>Fin de l’essai</dt>
+              <dt>{d.trialEnd}</dt>
               <dd>
-                {formatDate(subscription.trialEndAt)}
                 {subscription.trialDaysLeft !== null
-                  ? ` (${subscription.trialDaysLeft} j restants)`
-                  : ''}
+                  ? t(d.trialEndValue, {
+                      date: formatDate(subscription.trialEndAt, locale),
+                      left: formatCount(d.daysLeft, subscription.trialDaysLeft, locale),
+                    })
+                  : formatDate(subscription.trialEndAt, locale)}
               </dd>
             </div>
           ) : null}
           {subscription.currentEndAt ? (
             <div>
-              <dt>Période en cours jusqu’au</dt>
-              <dd>{formatDate(subscription.currentEndAt)}</dd>
+              <dt>{d.currentEnd}</dt>
+              <dd>{formatDate(subscription.currentEndAt, locale)}</dd>
             </div>
           ) : null}
           <div>
-            <dt>Visible dans les recherches</dt>
-            <dd>{subscription.entitled ? 'Oui' : 'Non'}</dd>
+            <dt>{d.visible}</dt>
+            <dd>{subscription.entitled ? m.common.yes : m.common.no}</dd>
           </div>
         </dl>
 
         {!subscription.entitled ? (
-          <Alert tone="error">
-            Votre établissement n’apparaît plus dans les recherches et n’accepte plus de nouvelles
-            réservations. Les rendez-vous déjà pris sont maintenus. Contactez Zynetna pour
-            régulariser votre abonnement.
-          </Alert>
+          <Alert tone="error">{d.expiredAlert}</Alert>
         ) : null}
 
         {subscription.effectiveStatus === 'TRIALING' ? (
-          <Alert tone="info">
-            Vos deux premiers mois sont offerts. À la fin de l’essai, l’abonnement passe à {price}{' '}
-            par mois, sans engagement.
-          </Alert>
+          <Alert tone="info">{t(d.trialAlert, { price, interval })}</Alert>
         ) : null}
 
-        <Alert tone="info">
-          Le paiement en ligne n’est pas encore ouvert. Zynetna vous contactera avant la fin de
-          votre période pour convenir du règlement.
-        </Alert>
+        <Alert tone="info">{d.paymentNotice}</Alert>
       </Panel>
 
       <Panel className="z-dash__panel">
-        <h2 className="z-profile__h3">Historique des paiements</h2>
+        <h2 className="z-profile__h3">{d.paymentsTitle}</h2>
         {subscription.payments.length === 0 ? (
-          <p className="z-help">Aucun paiement enregistré.</p>
+          <p className="z-help">{d.noPayments}</p>
         ) : (
           <div className="z-table--scroll">
             <table className="z-table">
               <thead>
                 <tr>
-                  <th>Date</th>
-                  <th>Montant</th>
-                  <th>Période</th>
-                  <th>Statut</th>
+                  <th>{d.colDate}</th>
+                  <th>{d.colAmount}</th>
+                  <th>{d.colPeriod}</th>
+                  <th>{d.colStatus}</th>
                 </tr>
               </thead>
               <tbody>
                 {subscription.payments.map((payment) => (
                   <tr key={payment.id}>
-                    <td>{payment.paidAt ? formatDate(payment.paidAt) : '—'}</td>
-                    <td>{formatPrice(Number(payment.amount), 'fr', payment.currency)}</td>
+                    <td>{payment.paidAt ? formatDate(payment.paidAt, locale) : '—'}</td>
+                    <td>{formatPrice(Number(payment.amount), locale, payment.currency)}</td>
                     <td>
                       {payment.periodStart && payment.periodEnd
-                        ? `${formatDate(payment.periodStart)} → ${formatDate(payment.periodEnd)}`
+                        ? t(d.periodRange, {
+                            start: formatDate(payment.periodStart, locale),
+                            end: formatDate(payment.periodEnd, locale),
+                          })
                         : '—'}
                     </td>
                     <td>
                       <Badge tone={payment.status === 'SUCCEEDED' ? 'success' : 'warning'}>
-                        {payment.status === 'SUCCEEDED' ? 'Payé' : payment.status}
+                        {m.labels.paymentStatus[
+                          payment.status as keyof typeof m.labels.paymentStatus
+                        ] ?? payment.status}
                       </Badge>
                     </td>
                   </tr>
@@ -147,7 +141,7 @@ export default async function SubscriptionPage() {
       </Panel>
 
       <Panel className="z-dash__panel">
-        <h2 className="z-profile__h3">Formules disponibles</h2>
+        <h2 className="z-profile__h3">{d.plansTitle}</h2>
         <div className="z-grid z-grid--2">
           {plans.map((plan) => (
             <div
@@ -156,14 +150,16 @@ export default async function SubscriptionPage() {
             >
               <h3>{plan.name}</h3>
               <p className="z-plan__price">
-                {formatPrice(Number(plan.priceAmount), 'fr', plan.currency)}
-                <span> / {plan.interval === 'MONTH' ? 'mois' : 'an'}</span>
+                {formatPrice(Number(plan.priceAmount), locale, plan.currency)}
+                <span> / {m.labels.interval[plan.interval]}</span>
               </p>
               {plan.trialDays > 0 ? (
-                <Badge tone="gold">{Math.round(plan.trialDays / 30)} mois offerts</Badge>
+                <Badge tone="gold">
+                  {formatCount(d.monthsFree, Math.round(plan.trialDays / 30), locale)}
+                </Badge>
               ) : null}
               {plan.description ? <p className="z-policy">{plan.description}</p> : null}
-              {plan.id === subscription.planId ? <Badge tone="accent">Formule actuelle</Badge> : null}
+              {plan.id === subscription.planId ? <Badge tone="accent">{d.currentPlan}</Badge> : null}
             </div>
           ))}
         </div>

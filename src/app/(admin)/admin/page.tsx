@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Panel } from '@/components/ui/Primitives';
+import { Arrow } from '@/components/ui/Arrow';
 import { BarList, TrendChart } from '@/components/charts/Charts';
 import { requireSuperAdmin } from '@/server/auth/guard';
 import {
@@ -10,12 +11,19 @@ import {
   popularCategories,
   topBusinesses,
 } from '@/server/services/adminDashboard';
-import { formatPrice } from '@/i18n/format';
+import { db } from '@/lib/db';
+import { translate } from '@/i18n/server';
+import { formatCount, formatNumber, formatPrice, localizedName } from '@/i18n/format';
 
-export const metadata: Metadata = { title: 'Administration', robots: { index: false } };
+export async function generateMetadata(): Promise<Metadata> {
+  const { m } = await translate();
+  return { title: m.admin.shell.title, robots: { index: false } };
+}
 
 export default async function AdminDashboardPage() {
   await requireSuperAdmin();
+  const { m, locale, t, path } = await translate();
+  const a = m.admin.overview;
 
   const [overview, trend, geo, categories, top] = await Promise.all([
     platformOverview(),
@@ -25,149 +33,193 @@ export default async function AdminDashboardPage() {
     topBusinesses(8),
   ]);
 
-  const money = (n: number) => formatPrice(n, 'fr', 'TND');
+  // The dashboard services return the French names; look up the translated
+  // ones so an Arabic or English page does not mix languages.
+  const [cityNames, categoryNames] = await Promise.all([
+    db.city.findMany({
+      where: { name: { in: geo.map((g) => g.city) } },
+      select: { name: true, nameAr: true },
+    }),
+    db.category.findMany({
+      where: { parentId: null, name: { in: categories.map((c) => c.name) } },
+      select: { name: true, nameAr: true, nameEn: true },
+    }),
+  ]);
+  const cityName = (name: string) => {
+    const row = cityNames.find((c) => c.name === name);
+    return row ? localizedName(row, locale) : name;
+  };
+  const categoryName = (name: string) => {
+    const row = categoryNames.find((c) => c.name === name);
+    return row ? localizedName(row, locale) : name;
+  };
+
+  const money = (n: number) => formatPrice(n, locale, 'TND');
+  const num = (n: number) => formatNumber(n, locale);
+  const percent = (n: number) => t(m.admin.common.percent, { value: num(n) });
 
   return (
     <div className="z-dash">
-      <h1 className="z-search__title">Tableau de bord</h1>
+      <div>
+        <h1 className="z-search__title">{m.admin.nav.overview}</h1>
+        <p className="z-policy">{a.lead}</p>
+      </div>
 
       <section>
-        <h2 className="z-profile__h3">Marketplace</h2>
+        <h2 className="z-profile__h3">{a.marketplace}</h2>
         <div className="z-stats">
           <div className="z-stat">
-            <span className="z-stat__value">{overview.users.total}</span>
-            <span className="z-stat__label">Utilisateurs</span>
+            <span className="z-stat__value">{num(overview.users.total)}</span>
+            <span className="z-stat__label">{a.users}</span>
             <span className="z-stat__delta z-stat__delta--up">
-              +{overview.users.new30} ce mois
+              {t(a.newUsers, { count: num(overview.users.new30) })}
             </span>
           </div>
           <div className="z-stat">
-            <span className="z-stat__value">{overview.businesses.active}</span>
-            <span className="z-stat__label">Établissements en ligne</span>
+            <span className="z-stat__value">{num(overview.businesses.active)}</span>
+            <span className="z-stat__label">{a.activeBusinesses}</span>
             {overview.businesses.pending > 0 ? (
               <span className="z-stat__delta z-stat__delta--down">
-                {overview.businesses.pending} en attente
+                {t(a.pendingBusinesses, { count: num(overview.businesses.pending) })}
               </span>
             ) : null}
           </div>
           <div className="z-stat">
-            <span className="z-stat__value">{overview.reservations.total}</span>
-            <span className="z-stat__label">Réservations au total</span>
+            <span className="z-stat__value">{num(overview.reservations.total)}</span>
+            <span className="z-stat__label">{a.totalReservations}</span>
             <span className="z-stat__delta z-stat__delta--up">
-              {overview.reservations.week} cette semaine
+              {t(a.thisWeek, { count: num(overview.reservations.week) })}
             </span>
           </div>
           <div className="z-stat">
             <span className="z-stat__value">{money(overview.reservations.gmvMonth)}</span>
-            <span className="z-stat__label">Volume d’affaires du mois</span>
+            <span className="z-stat__label">{a.gmvMonth}</span>
           </div>
         </div>
       </section>
 
       <section>
-        <h2 className="z-profile__h3">Abonnements</h2>
+        <h2 className="z-profile__h3">{a.subscriptions}</h2>
         <div className="z-stats">
           <div className="z-stat">
             <span className="z-stat__value">{money(overview.subscriptions.mrr)}</span>
-            <span className="z-stat__label">Revenu mensuel récurrent</span>
+            <span className="z-stat__label">{a.mrr}</span>
           </div>
           <div className="z-stat">
-            <span className="z-stat__value">{overview.subscriptions.trialing}</span>
-            <span className="z-stat__label">En essai gratuit</span>
+            <span className="z-stat__value">{num(overview.subscriptions.trialing)}</span>
+            <span className="z-stat__label">{a.trialing}</span>
           </div>
           <div className="z-stat">
-            <span className="z-stat__value">{overview.subscriptions.active}</span>
-            <span className="z-stat__label">Abonnés payants</span>
+            <span className="z-stat__value">{num(overview.subscriptions.active)}</span>
+            <span className="z-stat__label">{a.paying}</span>
           </div>
           <div className="z-stat">
-            <span className="z-stat__value">{overview.subscriptions.conversionRate} %</span>
-            <span className="z-stat__label">Taux de conversion</span>
+            <span className="z-stat__value">{percent(overview.subscriptions.conversionRate)}</span>
+            <span className="z-stat__label">{a.conversion}</span>
           </div>
           <div className="z-stat">
-            <span className="z-stat__value">{overview.subscriptions.churnRate} %</span>
-            <span className="z-stat__label">Taux d’attrition</span>
+            <span className="z-stat__value">{percent(overview.subscriptions.churnRate)}</span>
+            <span className="z-stat__label">{a.churn}</span>
           </div>
           <div className="z-stat">
-            <span className="z-stat__value">{overview.subscriptions.expired}</span>
-            <span className="z-stat__label">Expirés</span>
+            <span className="z-stat__value">{num(overview.subscriptions.expired)}</span>
+            <span className="z-stat__label">{a.expired}</span>
           </div>
         </div>
       </section>
 
       <div className="z-dash__grid">
         <Panel className="z-dash__panel">
-          <h2 className="z-profile__h3">Inscriptions — 30 jours</h2>
+          <h2 className="z-profile__h3">{a.signups30}</h2>
           <TrendChart
-            label="Nouveaux utilisateurs par jour"
-            points={trend.users.map((t) => ({ label: t.day.slice(8), value: t.count }))}
+            label={a.signupsChart}
+            emptyLabel={a.noData}
+            format={num}
+            points={trend.users.map((p) => ({ label: p.day.slice(8), value: p.count }))}
           />
         </Panel>
 
         <Panel className="z-dash__panel">
-          <h2 className="z-profile__h3">Réservations — 30 jours</h2>
+          <h2 className="z-profile__h3">{a.reservations30}</h2>
           <TrendChart
-            label="Réservations créées par jour"
-            points={trend.reservations.map((t) => ({ label: t.day.slice(8), value: t.count }))}
+            label={a.reservationsChart}
+            emptyLabel={a.noData}
+            format={num}
+            points={trend.reservations.map((p) => ({ label: p.day.slice(8), value: p.count }))}
           />
         </Panel>
 
         <Panel className="z-dash__panel">
           <div className="z-dash__panel-head">
-            <h2 className="z-profile__h3">Villes les plus actives</h2>
+            <h2 className="z-profile__h3">{a.topCities}</h2>
           </div>
           <BarList
             points={geo.slice(0, 8).map((g) => ({
-              label: `${g.city} (${g.businesses})`,
+              label: t(a.cityPoint, { city: cityName(g.city), count: num(g.businesses) }),
               value: g.reservations,
             }))}
-            emptyLabel="Aucune activité géolocalisée."
+            format={num}
+            emptyLabel={a.noGeo}
           />
         </Panel>
 
         <Panel className="z-dash__panel">
-          <h2 className="z-profile__h3">Catégories populaires</h2>
+          <h2 className="z-profile__h3">{a.topCategories}</h2>
           <BarList
-            points={categories.map((c) => ({ label: c.name, value: c.reservations }))}
+            points={categories.map((c) => ({ label: categoryName(c.name), value: c.reservations }))}
+            format={num}
+            emptyLabel={a.noData}
           />
         </Panel>
 
         <Panel className="z-dash__panel">
           <div className="z-dash__panel-head">
-            <h2 className="z-profile__h3">Établissements les plus réservés</h2>
-            <Link href="/admin/businesses">Tous →</Link>
+            <h2 className="z-profile__h3">{a.topBusinesses}</h2>
+            <Link href={path('/admin/businesses')}>
+              {m.common.seeAll} <Arrow />
+            </Link>
           </div>
           <ul className="z-ranklist">
             {top.map((business, index) => (
               <li key={business.id}>
-                <span className="z-ranklist__rank">{index + 1}</span>
-                <Link href={`/business/${business.slug}`} className="z-ranklist__name">
+                <span className="z-ranklist__rank">{num(index + 1)}</span>
+                <Link href={path(`/business/${business.slug}`)} className="z-ranklist__name">
                   {business.name}
                 </Link>
-                <span className="z-ranklist__value">{business.reservations} RDV</span>
+                <span className="z-ranklist__value">
+                  {formatCount(m.admin.common.reservationsCount, business.reservations, locale)}
+                </span>
               </li>
             ))}
           </ul>
         </Panel>
 
         <Panel className="z-dash__panel">
-          <h2 className="z-profile__h3">Opérations — 30 jours</h2>
+          <h2 className="z-profile__h3">{a.operations30}</h2>
           <dl className="z-kv">
             <div>
-              <dt>Réservations annulées / absences</dt>
-              <dd>{overview.reservations.cancelled30}</dd>
+              <dt>{a.cancelledNoShow}</dt>
+              <dd>{num(overview.reservations.cancelled30)}</dd>
             </div>
             <div>
-              <dt>Utilisateurs actifs</dt>
-              <dd>{overview.users.active30}</dd>
+              <dt>{a.activeUsers}</dt>
+              <dd>{num(overview.users.active30)}</dd>
             </div>
             <div>
-              <dt>Établissements suspendus</dt>
-              <dd>{overview.businesses.suspended}</dd>
+              <dt>{a.suspendedBusinesses}</dt>
+              <dd>{num(overview.businesses.suspended)}</dd>
             </div>
             <div>
-              <dt>Paiements encaissés</dt>
+              <dt>{a.paymentsRecorded}</dt>
               <dd>
-                {money(overview.subscriptions.revenue30)} ({overview.subscriptions.payments30})
+                {t(a.paymentsValue, {
+                  amount: money(overview.subscriptions.revenue30),
+                  payments: formatCount(
+                    a.paymentsCount,
+                    overview.subscriptions.payments30,
+                    locale,
+                  ),
+                })}
               </dd>
             </div>
           </dl>

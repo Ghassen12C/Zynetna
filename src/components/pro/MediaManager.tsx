@@ -10,6 +10,16 @@ import {
   uploadBusinessMediaAction,
 } from '@/server/actions/media';
 import { idle } from '@/lib/formState';
+import { formatNumber } from '@/i18n/format';
+import { LOCALE_META, type Locale } from '@/i18n/config';
+import { interpolate } from '@/i18n/interpolate';
+import type { Messages } from '@/i18n';
+
+type M = {
+  dashSetup: Messages['dashSetup'];
+  common: Messages['common'];
+  labels: Messages['labels'];
+};
 
 type Item = {
   id: string;
@@ -28,30 +38,34 @@ type Item = {
  * Images are grouped by what they are for, because a salon owner thinks in
  * "the front of my shop" and "my work", not in "gallery item 7".
  */
-const SECTIONS: { role: string; title: string; hint: string; single?: boolean }[] = [
-  { role: 'LOGO', title: 'Logo', hint: 'Carré de préférence. Apparaît partout sur Zynetna.', single: true },
-  { role: 'COVER', title: 'Photo de couverture', hint: 'La grande image en haut de votre page.', single: true },
-  { role: 'EXTERIOR', title: 'Devanture', hint: 'La façade, pour qu’on vous reconnaisse dans la rue.' },
-  { role: 'INTERIOR', title: 'Intérieur', hint: 'Accueil, fauteuils, cabines, espace d’attente.' },
-  { role: 'PORTFOLIO', title: 'Réalisations', hint: 'Votre travail : coupes, couleurs, ongles, maquillage.' },
-  { role: 'TEAM', title: 'Équipe', hint: 'Vos photos d’équipe.' },
+type SectionRole = keyof Messages['dashSetup']['gallery']['hints'];
+
+const SECTIONS: { role: SectionRole; single?: boolean }[] = [
+  { role: 'LOGO', single: true },
+  { role: 'COVER', single: true },
+  { role: 'EXTERIOR' },
+  { role: 'INTERIOR' },
+  { role: 'PORTFOLIO' },
+  { role: 'TEAM' },
 ];
 
-function UploadButton({ single }: { single?: boolean }) {
+function UploadButton({ m, single }: { m: M; single?: boolean }) {
   const { pending } = useFormStatus();
   return (
     <span className={`z-btn z-btn--secondary z-btn--sm ${pending ? 'is-busy' : ''}`}>
       {pending ? <span className="z-spinner" aria-hidden="true" /> : null}
-      {single ? 'Remplacer' : '+ Ajouter'}
+      {single ? m.dashSetup.gallery.replace : `+ ${m.dashSetup.gallery.add}`}
     </span>
   );
 }
 
 function UploadForm({
+  m,
   businessId,
   role,
   single,
 }: {
+  m: M;
   businessId: string;
   role: string;
   single?: boolean;
@@ -67,7 +81,7 @@ function UploadForm({
       <input type="hidden" name="businessId" value={businessId} />
       <input type="hidden" name="role" value={role} />
       <label>
-        <UploadButton single={single} />
+        <UploadButton m={m} single={single} />
         <input
           type="file"
           name="files"
@@ -82,7 +96,15 @@ function UploadForm({
   );
 }
 
-function DeleteForm({ businessId, mediaId }: { businessId: string; mediaId: string }) {
+function DeleteForm({
+  label,
+  businessId,
+  mediaId,
+}: {
+  label: string;
+  businessId: string;
+  mediaId: string;
+}) {
   const router = useRouter();
   const [state, formAction] = useActionState(deleteBusinessMediaAction, idle);
   if (state.status === 'success') router.refresh();
@@ -91,7 +113,7 @@ function DeleteForm({ businessId, mediaId }: { businessId: string; mediaId: stri
     <form action={formAction}>
       <input type="hidden" name="businessId" value={businessId} />
       <input type="hidden" name="mediaId" value={mediaId} />
-      <button type="submit" className="z-media__delete" aria-label="Supprimer cette image">
+      <button type="submit" className="z-media__delete" aria-label={label} title={label}>
         ×
       </button>
     </form>
@@ -99,24 +121,46 @@ function DeleteForm({ businessId, mediaId }: { businessId: string; mediaId: stri
 }
 
 export function MediaManager({
+  m,
+  locale,
   businessId,
   media,
   maxImages,
 }: {
+  m: M;
+  locale: Locale;
   businessId: string;
   media: Item[];
   maxImages: number | null;
 }) {
   const [preview, setPreview] = useState<Item | null>(null);
+  const t = m.dashSetup.gallery;
+  const kilobytes = new Intl.NumberFormat(LOCALE_META[locale].intl, {
+    style: 'unit',
+    unit: 'kilobyte',
+    maximumFractionDigits: 0,
+  });
+  const roleLabel = (role: string) =>
+    m.labels.mediaRole[role as keyof Messages['labels']['mediaRole']] ?? role;
+  const previewAlt = preview
+    ? interpolate(t.imageAlt, {
+        role: roleLabel(preview.role),
+        n: media.filter((x) => x.role === preview.role).indexOf(preview) + 1,
+      })
+    : '';
 
   return (
     <div className="z-stack" style={{ gap: 'var(--z-space-6)' }}>
       <div>
-        <h2 className="z-profile__h3">Photos ({media.length}{maxImages ? ` / ${maxImages}` : ''})</h2>
-        <p className="z-policy">
-          Les images sont automatiquement optimisées et converties en AVIF et WebP — vos clients
-          chargent la bonne taille, même en 4G.
-        </p>
+        <h2 className="z-profile__h3">
+          {maxImages
+            ? interpolate(t.headingWithMax, {
+                count: formatNumber(media.length, locale),
+                max: formatNumber(maxImages, locale),
+              })
+            : interpolate(t.heading, { count: formatNumber(media.length, locale) })}
+        </h2>
+        <p className="z-policy">{t.intro}</p>
       </div>
 
       {SECTIONS.map((section) => {
@@ -125,14 +169,19 @@ export function MediaManager({
           <Panel key={section.role} className="z-dash__panel">
             <div className="z-dash__panel-head">
               <div>
-                <h3 className="z-profile__h3">{section.title}</h3>
-                <p className="z-policy">{section.hint}</p>
+                <h3 className="z-profile__h3">{m.labels.mediaRole[section.role]}</h3>
+                <p className="z-policy">{t.hints[section.role]}</p>
               </div>
-              <UploadForm businessId={businessId} role={section.role} single={section.single} />
+              <UploadForm
+                m={m}
+                businessId={businessId}
+                role={section.role}
+                single={section.single}
+              />
             </div>
 
             {items.length === 0 ? (
-              <p className="z-help">Aucune image pour l’instant.</p>
+              <p className="z-help">{t.empty}</p>
             ) : (
               <ul className="z-media-grid">
                 {items.map((item) => (
@@ -141,14 +190,14 @@ export function MediaManager({
                       type="button"
                       className="z-media__btn"
                       onClick={() => setPreview(item)}
-                      aria-label="Agrandir"
+                      aria-label={t.enlarge}
                     >
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={item.thumbUrl} alt="" loading="lazy" />
                     </button>
-                    <DeleteForm businessId={businessId} mediaId={item.id} />
-                    <span className="z-media__meta">
-                      {item.width}×{item.height} · {Math.round(item.bytes / 1024)} Ko
+                    <DeleteForm label={t.deleteImage} businessId={businessId} mediaId={item.id} />
+                    <span className="z-media__meta" dir="ltr">
+                      {item.width}×{item.height} · {kilobytes.format(Math.round(item.bytes / 1024))}
                     </span>
                   </li>
                 ))}
@@ -164,12 +213,12 @@ export function MediaManager({
             type="button"
             className="z-lightbox__close"
             onClick={() => setPreview(null)}
-            aria-label="Fermer"
+            aria-label={m.common.close}
           >
             ×
           </button>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={preview.url} alt="" className="z-lightbox__img" />
+          <img src={preview.url} alt={previewAlt} className="z-lightbox__img" />
         </div>
       ) : null}
     </div>

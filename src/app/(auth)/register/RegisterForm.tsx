@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useActionState, useState } from 'react';
+import { Fragment, useActionState, useState } from 'react';
 import { useFormStatus } from 'react-dom';
 import { Alert } from '@/components/ui/Alert';
 import { Button } from '@/components/ui/Button';
@@ -9,40 +9,61 @@ import { Input } from '@/components/ui/Field';
 import { registerAction } from '@/server/actions/auth';
 import { idle } from '@/lib/formState';
 import { MIN_PASSWORD_LENGTH, strengthOf } from '@/domain/identity/password';
+import { localePath, type Locale } from '@/i18n/config';
+import { interpolate } from '@/i18n/interpolate';
+import type { Messages } from '@/i18n';
 
-const STRENGTH_LABEL = {
-  weak: 'Faible',
-  fair: 'Moyen',
-  good: 'Bon',
-  strong: 'Excellent',
-} as const;
-
-function Submit() {
+function Submit({ label }: { label: string }) {
   const { pending } = useFormStatus();
   return (
     <Button type="submit" size="lg" block loading={pending}>
-      Créer mon compte
+      {label}
     </Button>
   );
 }
 
-export function RegisterForm() {
+/**
+ * The consent sentence with its two links placed where each language puts
+ * them, rather than glued together from fragments.
+ */
+function AcceptTerms({ m, locale }: { m: Messages['auth']; locale: Locale }) {
+  const links: Record<string, React.ReactNode> = {
+    terms: <Link href={localePath(locale, '/legal/terms')}>{m.termsLink}</Link>,
+    privacy: <Link href={localePath(locale, '/legal/privacy')}>{m.privacyLink}</Link>,
+  };
+  return (
+    <>
+      {m.acceptTerms.split(/(\{\w+\})/).map((part, i) => {
+        const key = /^\{(\w+)\}$/.exec(part)?.[1];
+        return <Fragment key={i}>{key && links[key] ? links[key] : part}</Fragment>;
+      })}
+    </>
+  );
+}
+
+export function RegisterForm({ m, locale }: { m: Messages['auth']; locale: Locale }) {
   const [state, formAction] = useActionState(registerAction, idle);
   const [password, setPassword] = useState('');
   const strength = password ? strengthOf(password) : null;
   const errors = state.status === 'error' ? state.fieldErrors : undefined;
+  const strengthLabel = {
+    weak: m.strengthWeak,
+    fair: m.strengthFair,
+    good: m.strengthGood,
+    strong: m.strengthStrong,
+  };
 
   return (
     <form action={formAction} className="z-auth__form" noValidate>
       {state.status === 'error' ? <Alert tone="error">{state.message}</Alert> : null}
 
       <div className="z-auth__row">
-        <Input label="Prénom" name="firstName" autoComplete="given-name" required error={errors?.firstName} />
-        <Input label="Nom" name="lastName" autoComplete="family-name" required error={errors?.lastName} />
+        <Input label={m.firstName} name="firstName" autoComplete="given-name" required error={errors?.firstName} />
+        <Input label={m.lastName} name="lastName" autoComplete="family-name" required error={errors?.lastName} />
       </div>
 
       <Input
-        label="E-mail"
+        label={m.email}
         name="email"
         type="email"
         autoComplete="email"
@@ -52,27 +73,27 @@ export function RegisterForm() {
       />
 
       <Input
-        label="Téléphone"
+        label={m.phone}
         name="phone"
         type="tel"
         autoComplete="tel"
         inputMode="tel"
         placeholder="20 123 456"
         optional
-        hint="Pour recevoir vos rappels de rendez-vous."
+        hint={m.phoneHint}
         error={errors?.phone}
       />
 
       <div>
         <Input
-          label="Mot de passe"
+          label={m.password}
           name="password"
           type="password"
           autoComplete="new-password"
           required
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          hint={`${MIN_PASSWORD_LENGTH} caractères minimum, avec un chiffre ou un symbole.`}
+          hint={interpolate(m.passwordHint, { min: MIN_PASSWORD_LENGTH })}
           error={errors?.password}
         />
         {strength ? (
@@ -80,7 +101,7 @@ export function RegisterForm() {
             <span className="z-strength__bar" aria-hidden="true">
               <span />
             </span>
-            {STRENGTH_LABEL[strength]}
+            {strengthLabel[strength]}
           </p>
         ) : null}
       </div>
@@ -88,13 +109,12 @@ export function RegisterForm() {
       <label className="z-check">
         <input type="checkbox" name="acceptTerms" required />
         <span>
-          J’accepte les <Link href="/legal/terms">conditions d’utilisation</Link> et la{' '}
-          <Link href="/legal/privacy">politique de confidentialité</Link>.
+          <AcceptTerms m={m} locale={locale} />
         </span>
       </label>
       {errors?.acceptTerms ? <p className="z-error">{errors.acceptTerms}</p> : null}
 
-      <Submit />
+      <Submit label={m.submitRegister} />
     </form>
   );
 }

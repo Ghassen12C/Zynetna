@@ -6,12 +6,13 @@ import { MobileMenu, type MenuLink } from '@/components/layout/MobileMenu';
 import { getActor } from '@/server/auth/session';
 import { isSuperAdmin } from '@/domain/identity/actor';
 import { translate } from '@/i18n/server';
+import { LOCALE_META } from '@/i18n/config';
 
 /** An account action, plus how the desktop bar dresses it. */
 type Action = MenuLink & { look: 'primary' | 'secondary' | 'ghost' | 'link' };
 
 export async function Header() {
-  const [actor, { m, locale, path }] = await Promise.all([getActor(), translate()]);
+  const [actor, { m, t, locale, path }] = await Promise.all([getActor(), translate()]);
   const hasBusiness = actor ? Object.keys(actor.businessRoles).length > 0 : false;
 
   // One list of destinations and one of actions feed both the desktop bar and
@@ -25,12 +26,12 @@ export async function Header() {
   const actions: Action[] = actor
     ? [
         ...(isSuperAdmin(actor)
-          ? [{ href: '/admin', label: m.nav.admin, look: 'link' as const }]
+          ? [{ href: path('/admin'), label: m.nav.admin, look: 'link' as const }]
           : []),
         ...(hasBusiness
           ? [
               {
-                href: '/pro/dashboard',
+                href: path('/pro/dashboard'),
                 label: m.nav.dashboard,
                 emphasis: 'primary' as const,
                 look: 'secondary' as const,
@@ -56,7 +57,7 @@ export async function Header() {
   return (
     <header className="z-header">
       <div className="z-container z-header__inner">
-        <Link href={path('/')} aria-label={`${m.brand.name} — ${m.nav.discover}`}>
+        <Link href={path('/')} aria-label={m.nav.homeLabel}>
           <Logo size={34} />
         </Link>
 
@@ -69,7 +70,10 @@ export async function Header() {
         </nav>
 
         <div className="z-header__actions">
-          <LocaleSwitcher current={locale} />
+          <LocaleSwitcher
+            current={locale}
+            label={t(m.nav.language, { language: LOCALE_META[locale].nativeLabel })}
+          />
 
           {/* On a phone only the language and the menu stay in the bar; the
               account actions move into the menu instead of overflowing. */}

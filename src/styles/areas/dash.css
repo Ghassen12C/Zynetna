@@ -1,1 +1,8 @@
 /* RTL and text-length fixes for the dash screens. */
+
+/* Long unbroken values (e-mail addresses) wrap instead of widening a table. */
+.z-dash__wrap { overflow-wrap: anywhere; }
+
+/* A status in today's list can be a long phrase in French or Arabic
+   ("Annulé par l’établissement"); let it wrap rather than squeeze the name. */
+.z-today__status { white-space: normal; text-align: end; max-width: 16ch; }

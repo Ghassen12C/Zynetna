@@ -9,7 +9,7 @@ import { recordAudit } from '@/server/audit';
 import { transitionReservation } from '@/server/services/booking';
 import { cuidSchema } from '@/lib/validation/common';
 import type { FormState } from '@/lib/formState';
-import { parseForm, toFormState } from './formState';
+import { done, parseForm, toFormState } from './formState';
 
 const TRANSITIONS = {
   confirm: 'CONFIRMED',
@@ -28,7 +28,7 @@ export async function transitionReservationAction(
   _prev: FormState,
   formData: FormData,
 ): Promise<FormState> {
-  const parsed = parseForm(
+  const parsed = await parseForm(
     z.object({
       businessId: cuidSchema,
       reservationId: cuidSchema,
@@ -49,7 +49,7 @@ export async function transitionReservationAction(
       where: { id: parsed.data.reservationId, businessId },
       select: { id: true },
     });
-    if (!reservation) throw notFound('Réservation introuvable.');
+    if (!reservation) throw notFound('reservationNotFound');
 
     const to = TRANSITIONS[parsed.data.action];
     await transitionReservation({
@@ -76,7 +76,7 @@ export async function transitionReservationAction(
     });
 
     revalidatePath('/pro/dashboard', 'layout');
-    return { status: 'success', message: 'Réservation mise à jour.' };
+    return { status: 'success', message: await done('reservationUpdated') };
   } catch (error) {
     return toFormState(error, 'transitionReservationAction');
   }
@@ -87,7 +87,7 @@ export async function saveInternalNoteAction(
   _prev: FormState,
   formData: FormData,
 ): Promise<FormState> {
-  const parsed = parseForm(
+  const parsed = await parseForm(
     z.object({
       businessId: cuidSchema,
       reservationId: cuidSchema,
@@ -107,10 +107,10 @@ export async function saveInternalNoteAction(
       where: { id: parsed.data.reservationId, businessId },
       data: { internalNote: parsed.data.internalNote || null },
     });
-    if (count === 0) throw notFound('Réservation introuvable.');
+    if (count === 0) throw notFound('reservationNotFound');
 
     revalidatePath('/pro/dashboard/reservations');
-    return { status: 'success', message: 'Note enregistrée.' };
+    return { status: 'success', message: await done('noteSaved') };
   } catch (error) {
     return toFormState(error, 'saveInternalNoteAction');
   }

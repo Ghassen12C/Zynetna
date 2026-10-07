@@ -8,17 +8,23 @@ import { Input } from '@/components/ui/Field';
 import { changePasswordAction } from '@/server/actions/auth';
 import { idle } from '@/lib/formState';
 import { MIN_PASSWORD_LENGTH } from '@/domain/identity/password';
+import { interpolate } from '@/i18n/interpolate';
+import type { Messages } from '@/i18n';
 
-function Submit() {
+function Submit({ label }: { label: string }) {
   const { pending } = useFormStatus();
   return (
     <Button type="submit" variant="secondary" loading={pending}>
-      Changer le mot de passe
+      {label}
     </Button>
   );
 }
 
-export function PasswordForm() {
+export function PasswordForm({
+  m,
+}: {
+  m: { auth: Messages['auth']; account: Messages['account'] };
+}) {
   const [state, formAction] = useActionState(changePasswordAction, idle);
   const errors = state.status === 'error' ? state.fieldErrors : undefined;
 
@@ -28,7 +34,7 @@ export function PasswordForm() {
       {state.status === 'success' ? <Alert tone="success">{state.message}</Alert> : null}
 
       <Input
-        label="Mot de passe actuel"
+        label={m.account.currentPassword}
         name="current"
         type="password"
         autoComplete="current-password"
@@ -36,16 +42,16 @@ export function PasswordForm() {
         error={errors?.current}
       />
       <Input
-        label="Nouveau mot de passe"
+        label={m.auth.newPassword}
         name="password"
         type="password"
         autoComplete="new-password"
         required
-        hint={`${MIN_PASSWORD_LENGTH} caractères minimum.`}
+        hint={interpolate(m.account.passwordMin, { min: MIN_PASSWORD_LENGTH })}
         error={errors?.password}
       />
       <Input
-        label="Confirmer"
+        label={m.auth.confirmPassword}
         name="confirm"
         type="password"
         autoComplete="new-password"
@@ -53,7 +59,7 @@ export function PasswordForm() {
         error={errors?.confirm}
       />
 
-      <Submit />
+      <Submit label={m.account.changePassword} />
     </form>
   );
 }

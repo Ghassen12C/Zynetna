@@ -9,7 +9,10 @@ import { Alert } from '@/components/ui/Alert';
 import { Input, Select, Textarea } from '@/components/ui/Field';
 import { Badge, Card } from '@/components/ui/Primitives';
 import { idle, fieldError } from '@/lib/formState';
-import { formatPrice } from '@/i18n/format';
+import { formatDuration, formatPrice } from '@/i18n/format';
+import { interpolate } from '@/i18n/interpolate';
+import type { Messages } from '@/i18n';
+import { localePath, type Locale } from '@/i18n/config';
 import {
   createWalkInAction,
   proAvailabilityAction,
@@ -27,12 +30,10 @@ type Staff = { id: string; displayName: string };
 type Slot = { time: string; startAt: string; staffMemberIds: string[] };
 type Customer = { id: string; name: string; phone: string | null };
 
-const CLOSED_REASON: Record<string, string> = {
-  CLOSED: 'Fermé ce jour-là.',
-  PAST: 'Cette date est passée.',
-  TOO_FAR: 'Cette date dépasse votre horizon de réservation.',
-  NO_STAFF: 'Aucun professionnel disponible ce jour-là.',
-  FULLY_BOOKED: 'Journée complète — plus aucun créneau libre.',
+type Dict = {
+  walkIn: Messages['dash']['walkIn'];
+  channel: Messages['labels']['channel'];
+  common: Messages['common'];
 };
 
 function todayIn(timezone: string): string {
@@ -46,11 +47,11 @@ function todayIn(timezone: string): string {
   }).format(new Date());
 }
 
-function Submit({ disabled }: { disabled: boolean }) {
+function Submit({ disabled, d }: { disabled: boolean; d: Dict['walkIn'] }) {
   const { pending } = useFormStatus();
   return (
     <Button type="submit" variant="primary" size="lg" disabled={disabled || pending}>
-      {pending ? 'Enregistrement…' : 'Enregistrer le rendez-vous'}
+      {pending ? d.submitting : d.submit}
     </Button>
   );
 }
@@ -65,12 +66,16 @@ function Submit({ disabled }: { disabled: boolean }) {
  * account and never will.
  */
 export function WalkInForm({
+  m,
+  locale,
   businessId,
   services,
   staff,
   currency,
   timezone,
 }: {
+  m: Dict;
+  locale: Locale;
   businessId: string;
   services: Service[];
   staff: Staff[];
@@ -79,6 +84,7 @@ export function WalkInForm({
 }) {
   const router = useRouter();
   const [state, action] = useActionState(createWalkInAction, idle);
+  const d = m.walkIn;
 
   const [serviceId, setServiceId] = useState(services[0]?.id ?? '');
   const [staffId, setStaffId] = useState('');
@@ -102,14 +108,14 @@ export function WalkInForm({
 
   // Only professionals who actually perform the chosen service.
   const eligibleStaff = useMemo(
-    () => (service ? staff.filter((m) => service.staffIds.includes(m.id)) : staff),
+    () => (service ? staff.filter((member) => service.staffIds.includes(member.id)) : staff),
     [staff, service],
   );
 
   // If the selected professional does not perform the newly chosen service,
   // fall back to "anyone" rather than silently keeping an invalid pair.
   useEffect(() => {
-    if (staffId && !eligibleStaff.some((m) => m.id === staffId)) setStaffId('');
+    if (staffId && !eligibleStaff.some((member) => member.id === staffId)) setStaffId('');
   }, [eligibleStaff, staffId]);
 
   // Load availability whenever the query changes. A sequence number drops
@@ -155,9 +161,11 @@ export function WalkInForm({
 
   useEffect(() => {
     if (state.status === 'success' && state.data) {
-      router.push(`/pro/dashboard/reservations?created=${state.data.reference}`);
+      router.push(
+        localePath(locale, `/pro/dashboard/reservations?created=${state.data.reference}`),
+      );
     }
-  }, [state, router]);
+  }, [state, router, locale]);
 
   const chosen = slots.find((s) => s.startAt === startAt);
   // The engine returns every professional free at that instant; pin one so the
@@ -169,17 +177,17 @@ export function WalkInForm({
   if (services.length === 0 || staff.length === 0) {
     return (
       <Card>
-        <h2 className="z-h3">Il manque une étape</h2>
-        <p className="z-body">
-          Pour enregistrer un rendez-vous, vous avez besoin d’au moins un service et un
-          professionnel.
-        </p>
-        <div className="z-row z-row--gap">
-          <Link className="z-btn z-btn--secondary" href="/pro/dashboard/services">
-            Gérer les services
+        <h2 className="z-h3">{d.missingTitle}</h2>
+        <p className="z-body">{d.missingBody}</p>
+        <div className="z-row z-row--gap" style={{ flexWrap: 'wrap' }}>
+          <Link
+            className="z-btn z-btn--secondary"
+            href={localePath(locale, '/pro/dashboard/services')}
+          >
+            {d.manageServices}
           </Link>
-          <Link className="z-btn z-btn--ghost" href="/pro/dashboard/team">
-            Gérer l’équipe
+          <Link className="z-btn z-btn--ghost" href={localePath(locale, '/pro/dashboard/team')}>
+            {d.manageTeam}
           </Link>
         </div>
       </Card>
@@ -199,12 +207,12 @@ export function WalkInForm({
       {state.status === 'error' ? <Alert tone="error">{state.message}</Alert> : null}
 
       <Card>
-        <h2 className="z-h3">1 · Comment la réservation arrive-t-elle ?</h2>
-        <div className="z-choices" role="radiogroup" aria-label="Canal">
+        <h2 className="z-h3">{d.step1}</h2>
+        <div className="z-choices" role="radiogroup" aria-label={d.channelLabel}>
           {(
             [
-              { value: 'WALK_IN', label: 'Sur place', hint: 'La personne est au salon' },
-              { value: 'PHONE', label: 'Par téléphone', hint: 'Appel reçu' },
+              { value: 'WALK_IN', label: d.walkInTitle, hint: d.walkInHint },
+              { value: 'PHONE', label: d.phoneTitle, hint: d.phoneHint },
             ] as const
           ).map((opt) => (
             <button
@@ -225,12 +233,12 @@ export function WalkInForm({
       </Card>
 
       <Card>
-        <h2 className="z-h3">2 · Pour qui ?</h2>
-        <div className="z-choices" role="radiogroup" aria-label="Type de client">
+        <h2 className="z-h3">{d.step2}</h2>
+        <div className="z-choices" role="radiogroup" aria-label={d.customerTypeLabel}>
           {(
             [
-              { value: 'guest', label: 'Nouvelle personne', hint: 'Pas de compte Zynetna' },
-              { value: 'existing', label: 'Client connu', hint: 'Déjà venu chez vous' },
+              { value: 'guest', label: d.guestTitle, hint: d.guestHint },
+              { value: 'existing', label: d.existingTitle, hint: d.existingHint },
             ] as const
           ).map((opt) => (
             <button
@@ -256,21 +264,22 @@ export function WalkInForm({
         {mode === 'guest' ? (
           <div className="z-grid z-grid--2 z-mt-md">
             <Input
-              label="Nom de la personne"
+              label={d.guestName}
               name="guestName"
               required
               autoComplete="off"
-              placeholder="Ex. Leïla Ben Salah"
+              placeholder={d.guestNamePlaceholder}
               error={fieldError(state, 'guestName')}
             />
             <Input
-              label="Téléphone"
+              label={d.guestPhone}
               name="guestPhone"
               type="tel"
               inputMode="tel"
+              dir="ltr"
               optional
-              placeholder="+216 …"
-              hint="Pour la retrouver et la rappeler."
+              placeholder={d.guestPhonePlaceholder}
+              hint={d.guestPhoneHint}
               error={fieldError(state, 'guestPhone')}
             />
           </div>
@@ -280,37 +289,46 @@ export function WalkInForm({
               <div className="z-selected-customer">
                 <div>
                   <strong>{customer.name}</strong>
-                  {customer.phone ? <span className="z-muted"> · {customer.phone}</span> : null}
+                  {customer.phone ? (
+                    <span className="z-muted">
+                      {' · '}
+                      <bdi dir="ltr">{customer.phone}</bdi>
+                    </span>
+                  ) : null}
                 </div>
                 <Button type="button" variant="ghost" size="sm" onClick={() => setCustomer(null)}>
-                  Changer
+                  {d.change}
                 </Button>
               </div>
             ) : (
               <>
                 <Input
-                  label="Rechercher un client"
+                  label={d.search}
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   autoComplete="off"
-                  placeholder="Nom ou téléphone"
-                  hint="Parmi les clients déjà venus chez vous."
+                  placeholder={d.searchPlaceholder}
+                  hint={d.searchHint}
                   error={fieldError(state, 'guestName')}
                 />
                 {matches.length > 0 ? (
                   <ul className="z-suggest">
-                    {matches.map((m) => (
-                      <li key={m.id}>
-                        <button type="button" className="z-suggest__item" onClick={() => setCustomer(m)}>
-                          <span>{m.name}</span>
-                          {m.phone ? <span className="z-muted">{m.phone}</span> : null}
+                    {matches.map((match) => (
+                      <li key={match.id}>
+                        <button type="button" className="z-suggest__item" onClick={() => setCustomer(match)}>
+                          <span>{match.name}</span>
+                          {match.phone ? (
+                            <span className="z-muted" dir="ltr">
+                              {match.phone}
+                            </span>
+                          ) : null}
                         </button>
                       </li>
                     ))}
                   </ul>
                 ) : query.trim().length >= 2 ? (
                   <p className="z-help z-mt-sm">
-                    Aucun client trouvé. Utilisez « Nouvelle personne ».
+                    {interpolate(d.noMatch, { guest: d.guestTitle })}
                   </p>
                 ) : null}
               </>
@@ -320,10 +338,10 @@ export function WalkInForm({
       </Card>
 
       <Card>
-        <h2 className="z-h3">3 · Quelle prestation ?</h2>
+        <h2 className="z-h3">{d.step3}</h2>
         <div className="z-grid z-grid--3">
           <Select
-            label="Service"
+            label={d.service}
             name="serviceId"
             value={serviceId}
             onChange={(e) => setServiceId(e.target.value)}
@@ -331,25 +349,29 @@ export function WalkInForm({
           >
             {services.map((s) => (
               <option key={s.id} value={s.id}>
-                {s.name} · {formatPrice(s.price, 'fr', currency)} · {s.durationMinutes} min
+                {interpolate(d.serviceOption, {
+                  name: s.name,
+                  price: formatPrice(s.price, locale, currency),
+                  duration: formatDuration(s.durationMinutes, locale),
+                })}
               </option>
             ))}
           </Select>
           <Select
-            label="Professionnel"
+            label={d.staff}
             value={staffId}
             onChange={(e) => setStaffId(e.target.value)}
-            hint={staffId ? undefined : 'Le premier disponible sera assigné.'}
+            hint={staffId ? undefined : d.staffHint}
           >
-            <option value="">Peu importe</option>
-            {eligibleStaff.map((m) => (
-              <option key={m.id} value={m.id}>
-                {m.displayName}
+            <option value="">{d.anyone}</option>
+            {eligibleStaff.map((member) => (
+              <option key={member.id} value={member.id}>
+                {member.displayName}
               </option>
             ))}
           </Select>
           <Input
-            label="Date"
+            label={d.date}
             type="date"
             value={day}
             min={todayIn(timezone)}
@@ -359,14 +381,16 @@ export function WalkInForm({
       </Card>
 
       <Card>
-        <h2 className="z-h3">4 · Quel créneau ?</h2>
+        <h2 className="z-h3">{d.step4}</h2>
         {loadingSlots ? (
-          <p className="z-help">Chargement des disponibilités…</p>
+          <p className="z-help">{d.loadingSlots}</p>
         ) : slots.length === 0 ? (
-          <p className="z-help">{closedReason ? CLOSED_REASON[closedReason] ?? 'Aucun créneau disponible.' : 'Aucun créneau disponible.'}</p>
+          <p className="z-help">
+            {(closedReason && (d.closed as Record<string, string>)[closedReason]) || d.noSlots}
+          </p>
         ) : (
           <>
-            <div className="z-slots__grid" role="radiogroup" aria-label="Créneaux">
+            <div className="z-slots__grid" role="radiogroup" aria-label={d.slotsLabel}>
               {slots.map((s) => (
                 <button
                   key={s.startAt}
@@ -376,27 +400,24 @@ export function WalkInForm({
                   className={`z-slot ${startAt === s.startAt ? 'is-selected' : ''}`}
                   onClick={() => setStartAt(s.startAt)}
                 >
-                  {s.time}
+                  <bdi dir="ltr">{s.time}</bdi>
                 </button>
               ))}
             </div>
-            <p className="z-help z-mt-sm">
-              Ces créneaux tiennent compte des horaires, des congés et des rendez-vous déjà
-              pris. Les minutes de préavis ne s’appliquent pas au comptoir.
-            </p>
+            <p className="z-help z-mt-sm">{d.slotsHelp}</p>
           </>
         )}
       </Card>
 
       <Card>
-        <h2 className="z-h3">5 · Note interne</h2>
+        <h2 className="z-h3">{d.step5}</h2>
         <Textarea
-          label="Visible par votre équipe uniquement"
+          label={d.noteLabel}
           name="internalNote"
           optional
           rows={3}
           maxLength={500}
-          placeholder="Ex. a demandé Nour, allergique à l’ammoniaque…"
+          placeholder={d.notePlaceholder}
           error={fieldError(state, 'internalNote')}
         />
       </Card>
@@ -405,23 +426,31 @@ export function WalkInForm({
         <div className="z-sticky-actions__summary">
           {service ? (
             <>
-              <Badge tone="accent">{channel === 'WALK_IN' ? 'Sur place' : 'Téléphone'}</Badge>
+              <Badge tone="accent">{m.channel[channel]}</Badge>
               <span>
-                {service.name} · {formatPrice(service.price, 'fr', currency)}
-                {chosen ? ` · ${chosen.time}` : ''}
+                {service.name} · {formatPrice(service.price, locale, currency)}
+                {chosen ? (
+                  <>
+                    {' · '}
+                    <bdi dir="ltr">{chosen.time}</bdi>
+                  </>
+                ) : null}
               </span>
             </>
           ) : null}
         </div>
         <div className="z-row z-row--gap">
-          <Link className="z-btn z-btn--ghost" href="/pro/dashboard/reservations">
-            Annuler
+          <Link
+            className="z-btn z-btn--ghost"
+            href={localePath(locale, '/pro/dashboard/reservations')}
+          >
+            {m.common.cancel}
           </Link>
-          <Submit disabled={!ready} />
+          <Submit disabled={!ready} d={d} />
         </div>
       </div>
       {!ready ? (
-        <p className="z-help">Choisissez un service, une date et un créneau pour enregistrer.</p>
+        <p className="z-help">{d.notReady}</p>
       ) : null}
     </form>
   );

@@ -25,8 +25,8 @@ export async function Footer() {
         <nav className="z-footer__col" aria-label={m.footer.professionals}>
           <h2 className="z-eyebrow">{m.footer.professionals}</h2>
           <Link href={path('/pro')}>{m.footer.joinZynetna}</Link>
-          <Link href="/pro/onboarding">{m.footer.createBusiness}</Link>
-          <Link href="/pro/dashboard">{m.nav.dashboard}</Link>
+          <Link href={path('/pro/onboarding')}>{m.footer.createBusiness}</Link>
+          <Link href={path('/pro/dashboard')}>{m.nav.dashboard}</Link>
         </nav>
 
         <nav className="z-footer__col" aria-label={m.footer.company}>

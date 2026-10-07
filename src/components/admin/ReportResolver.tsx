@@ -5,13 +5,15 @@ import { useRouter } from 'next/navigation';
 import { Alert } from '@/components/ui/Alert';
 import { resolveReportAction } from '@/server/actions/admin';
 import { idle } from '@/lib/formState';
+import type { Messages } from '@/i18n';
 
 /**
  * Three outcomes submit the same form; each button carries its own
  * `name`/`value`, which is why there is no shared submit component here.
  */
 
-export function ReportResolver({ reportId }: { reportId: string }) {
+export function ReportResolver({ reportId, m }: { reportId: string; m: Messages['admin'] }) {
+  const r = m.reports;
   const router = useRouter();
   const [state, formAction] = useActionState(resolveReportAction, idle);
   if (state.status === 'success') router.refresh();
@@ -24,18 +26,18 @@ export function ReportResolver({ reportId }: { reportId: string }) {
         name="resolution"
         className="z-textarea"
         rows={2}
-        placeholder="Suite donnée (interne)"
-        aria-label="Résolution"
+        placeholder={r.resolutionPlaceholder}
+        aria-label={r.resolutionLabel}
       />
       <div className="z-row" style={{ gap: 'var(--z-space-2)', flexWrap: 'wrap' }}>
         <button type="submit" name="status" value="REVIEWING" className="z-btn z-btn--ghost z-btn--sm">
-          En cours
+          {r.markReviewing}
         </button>
         <button type="submit" name="status" value="RESOLVED" className="z-btn z-btn--primary z-btn--sm">
-          Traité
+          {r.markResolved}
         </button>
         <button type="submit" name="status" value="DISMISSED" className="z-btn z-btn--secondary z-btn--sm">
-          Rejeter
+          {r.dismiss}
         </button>
       </div>
     </form>

@@ -2,10 +2,17 @@ import type { Metadata } from 'next';
 import { db } from '@/lib/db';
 import { BusinessProfileEditor } from '@/components/pro/BusinessProfileEditor';
 import { proContext } from '@/components/pro/ProGuard';
+import { translate } from '@/i18n/server';
+import { localizedName } from '@/i18n/format';
+import { LOCALE_META } from '@/i18n/config';
 
-export const metadata: Metadata = { title: 'Mon établissement', robots: { index: false } };
+export async function generateMetadata(): Promise<Metadata> {
+  const { m } = await translate();
+  return { title: m.pro.profile, robots: { index: false } };
+}
 
 export default async function ProProfilePage() {
+  const { m, locale } = await translate();
   const { businessId } = await proContext('business.read', '/pro/dashboard/profile');
 
   const [business, cities] = await Promise.all([
@@ -18,12 +25,28 @@ export default async function ProProfilePage() {
     }),
     db.city.findMany({
       orderBy: { name: 'asc' },
-      select: { id: true, name: true, governorate: { select: { name: true } } },
+      select: {
+        id: true,
+        name: true,
+        nameAr: true,
+        governorate: { select: { name: true, nameAr: true } },
+      },
     }),
   ]);
 
+  // Place names carry their own translations; sort in the reader's alphabet.
+  const collator = new Intl.Collator(LOCALE_META[locale].intl);
+  const cityOptions = cities
+    .map((c) => ({
+      id: c.id,
+      label: `${localizedName(c, locale)} (${localizedName(c.governorate, locale)})`,
+    }))
+    .sort((a, b) => collator.compare(a.label, b.label));
+
   return (
     <BusinessProfileEditor
+      m={{ dashSetup: m.dashSetup, common: m.common, labels: m.labels }}
+      locale={locale}
       businessId={businessId}
       business={{
         name: business.name,
@@ -64,7 +87,7 @@ export default async function ProProfilePage() {
             }
           : null
       }
-      cities={cities.map((c) => ({ id: c.id, label: `${c.name} (${c.governorate.name})` }))}
+      cities={cityOptions}
       readiness={{
         services: business._count.services,
         staff: business._count.staff,

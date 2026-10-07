@@ -3,23 +3,29 @@ import { EmptyState } from '@/components/ui/Primitives';
 import { proContext } from '@/components/pro/ProGuard';
 import { businessCustomers } from '@/server/services/proDashboard';
 import { db } from '@/lib/db';
-import { formatDate, formatPhone, formatPrice } from '@/i18n/format';
+import { formatDate, formatNumber, formatPhone, formatPrice } from '@/i18n/format';
+import { translate } from '@/i18n/server';
 
-export const metadata: Metadata = { title: 'Clients', robots: { index: false } };
+export async function generateMetadata(): Promise<Metadata> {
+  const { m } = await translate();
+  return { title: m.dash.nav.customers, robots: { index: false } };
+}
 
 export default async function CustomersPage() {
   const { businessId } = await proContext('business.customer.read', '/pro/dashboard/customers');
 
-  const [customers, business] = await Promise.all([
+  const [customers, business, { m, locale, t }] = await Promise.all([
     businessCustomers(businessId),
     db.business.findUniqueOrThrow({ where: { id: businessId }, select: { currency: true } }),
+    translate(),
   ]);
+  const d = m.dash.customers;
 
   if (customers.length === 0) {
     return (
       <EmptyState
-        title="Aucun client pour l’instant"
-        body="Les clients qui réservent chez vous via Zynetna apparaîtront ici."
+        title={d.emptyTitle}
+        body={d.emptyBody}
       />
     );
   }
@@ -27,23 +33,22 @@ export default async function CustomersPage() {
   return (
     <div className="z-stack" style={{ gap: 'var(--z-space-4)' }}>
       <div>
-        <h2 className="z-profile__h3">Clients ({customers.length})</h2>
-        <p className="z-policy">
-          Seules les informations nécessaires au rendez-vous sont visibles. Elles ne doivent
-          servir qu’à la relation avec vos clients.
-        </p>
+        <h2 className="z-profile__h3">
+          {t(d.title, { count: formatNumber(customers.length, locale) })}
+        </h2>
+        <p className="z-policy">{d.privacy}</p>
       </div>
 
       <div className="z-table--scroll">
         <table className="z-table">
           <thead>
             <tr>
-              <th>Client</th>
-              <th>Contact</th>
-              <th>Rendez-vous</th>
-              <th>Honorés</th>
-              <th>Dernière visite</th>
-              <th>Total dépensé</th>
+              <th>{d.colCustomer}</th>
+              <th>{d.colContact}</th>
+              <th>{d.colBookings}</th>
+              <th>{d.colCompleted}</th>
+              <th>{d.colLastVisit}</th>
+              <th>{d.colTotalSpent}</th>
             </tr>
           </thead>
           <tbody>
@@ -54,23 +59,29 @@ export default async function CustomersPage() {
                   {customer.completed >= 3 ? (
                     <>
                       <br />
-                      <span className="z-badge z-badge--gold">Fidèle</span>
+                      <span className="z-badge z-badge--gold" title={d.regularHint}>
+                        {d.regular}
+                      </span>
                     </>
                   ) : null}
                 </td>
                 <td>
                   {customer.phone ? (
-                    <a href={`tel:${customer.phone}`}>{formatPhone(customer.phone)}</a>
+                    <a href={`tel:${customer.phone}`} dir="ltr">
+                      {formatPhone(customer.phone)}
+                    </a>
                   ) : (
                     <span className="z-help">—</span>
                   )}
                   <br />
-                  <span className="z-help">{customer.email}</span>
+                  <span className="z-help z-dash__wrap" dir="ltr">
+                    {customer.email}
+                  </span>
                 </td>
-                <td>{customer.bookings}</td>
-                <td>{customer.completed}</td>
-                <td>{customer.lastVisit ? formatDate(customer.lastVisit) : '—'}</td>
-                <td>{formatPrice(customer.totalSpent, 'fr', business.currency)}</td>
+                <td>{formatNumber(customer.bookings, locale)}</td>
+                <td>{formatNumber(customer.completed, locale)}</td>
+                <td>{customer.lastVisit ? formatDate(customer.lastVisit, locale) : '—'}</td>
+                <td>{formatPrice(customer.totalSpent, locale, business.currency)}</td>
               </tr>
             ))}
           </tbody>

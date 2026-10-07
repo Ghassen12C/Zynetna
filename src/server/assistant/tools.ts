@@ -4,6 +4,7 @@ import type { Actor } from '@/domain/identity/actor';
 import { AppError, forbidden, invalid, notFound } from '@/lib/errors';
 import { dayKeyOf } from '@/domain/scheduling/time';
 import { cuidSchema, dayKeySchema } from '@/lib/validation/common';
+import { englishIssueMessage } from '@/lib/validation/messages';
 import {
   listCities,
   searchBusinesses,
@@ -75,7 +76,7 @@ function toResult(error: unknown): ToolResult<never> {
 }
 
 function requireActor(ctx: AssistantContext): Actor {
-  if (!ctx.actor) throw forbidden('Sign-in is required for this.');
+  if (!ctx.actor) throw forbidden('signInRequired');
   return ctx.actor;
 }
 
@@ -280,7 +281,7 @@ async function createReservationTool(ctx: AssistantContext, raw: unknown) {
   if (!parsed.success) {
     const confirmIssue = parsed.error.issues.find((i) => i.path[0] === 'confirmed');
     if (confirmIssue) return fail('NOT_CONFIRMED', confirmIssue.message);
-    return fail('VALIDATION_FAILED', parsed.error.issues[0]?.message ?? 'Invalid arguments.');
+    return fail('VALIDATION_FAILED', englishIssueMessage(parsed.error.issues[0]));
   }
   const input = parsed.data;
 
@@ -327,7 +328,7 @@ async function cancelReservationTool(ctx: AssistantContext, raw: unknown) {
   if (!parsed.success) {
     const confirmIssue = parsed.error.issues.find((i) => i.path[0] === 'confirmed');
     if (confirmIssue) return fail('NOT_CONFIRMED', confirmIssue.message);
-    return fail('VALIDATION_FAILED', parsed.error.issues[0]?.message ?? 'Invalid arguments.');
+    return fail('VALIDATION_FAILED', englishIssueMessage(parsed.error.issues[0]));
   }
 
   try {
@@ -355,7 +356,7 @@ async function rescheduleReservationTool(ctx: AssistantContext, raw: unknown) {
   if (!parsed.success) {
     const confirmIssue = parsed.error.issues.find((i) => i.path[0] === 'confirmed');
     if (confirmIssue) return fail('NOT_CONFIRMED', confirmIssue.message);
-    return fail('VALIDATION_FAILED', parsed.error.issues[0]?.message ?? 'Invalid arguments.');
+    return fail('VALIDATION_FAILED', englishIssueMessage(parsed.error.issues[0]));
   }
 
   try {
@@ -525,7 +526,7 @@ export async function callAssistantTool(
   } catch (error) {
     // A schema failure inside a tool lands here; the model gets told what to fix.
     if (error instanceof z.ZodError) {
-      return fail('VALIDATION_FAILED', error.issues[0]?.message ?? 'Invalid arguments.');
+      return fail('VALIDATION_FAILED', englishIssueMessage(error.issues[0]));
     }
     return toResult(error);
   }

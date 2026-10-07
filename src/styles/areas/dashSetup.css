@@ -1,1 +1,14 @@
 /* RTL and text-length fixes for the dashSetup screens. */
+
+/* Hours: the start–end pair of a period stays in reading order 09:00 – 13:00
+   even on an Arabic page; the row around it still mirrors. */
+.z-dayrow__range { display: inline-flex; align-items: center; gap: var(--z-space-2); }
+
+/* Long Arabic/French weekday names must not push the period inputs out. */
+.z-dayrow__name { min-width: 0; overflow-wrap: anywhere; }
+
+/* Invitation rows: an e-mail address is one unbreakable word otherwise. */
+.z-invite > div { min-width: 0; overflow-wrap: anywhere; }
+
+/* Service and member actions wrap instead of overflowing when labels grow. */
+.z-svc__aside { min-width: 0; }

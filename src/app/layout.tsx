@@ -8,6 +8,7 @@ import '@/styles/areas/public.css';
 import { env } from '@/lib/env';
 import { LOCALE_META, LOCALES } from '@/i18n/config';
 import { translate } from '@/i18n/server';
+import { UiTextProvider } from '@/components/ui/UiText';
 
 /**
  * Fonts from the brand guide, self-hosted by next/font at build time: no
@@ -28,37 +29,43 @@ const tajawal = Tajawal({
   display: 'swap',
 });
 
-export const metadata: Metadata = {
-  metadataBase: new URL(env.APP_URL),
-  title: {
-    default: 'Zynetna — Barber & Beauty · Tunisie',
-    template: '%s · Zynetna',
-  },
-  description:
-    'Trouvez et réservez un coiffeur, un barbier, un institut de beauté ou un spa partout en Tunisie. Réservation en ligne, en quelques secondes.',
-  applicationName: 'Zynetna',
-  openGraph: {
-    type: 'website',
-    siteName: 'Zynetna',
-    locale: 'fr_TN',
-    title: 'Zynetna — Barber & Beauty · Tunisie',
-    description: 'Réserve ta chaise. Réserve ton éclat.',
-  },
-  twitter: { card: 'summary_large_image' },
-  alternates: {
-    languages: Object.fromEntries(
-      LOCALES.map((code) => [
-        LOCALE_META[code].intl,
-        code === 'fr' ? '/' : `/${code}`,
-      ]),
-    ),
-  },
-  robots: { index: true, follow: true },
-  icons: {
-    icon: [{ url: '/icon.svg', type: 'image/svg+xml' }],
-    apple: [{ url: '/apple-icon.png' }],
-  },
-};
+const OG_LOCALE = { fr: 'fr_TN', ar: 'ar_TN', en: 'en_US' } as const;
+
+export async function generateMetadata(): Promise<Metadata> {
+  const { m, locale } = await translate();
+  const title = `${m.brand.name} — ${m.brand.descriptor}`;
+
+  return {
+    metadataBase: new URL(env.APP_URL),
+    title: {
+      default: title,
+      template: `%s · ${m.brand.name}`,
+    },
+    description: m.home.metaDescription,
+    applicationName: m.brand.name,
+    openGraph: {
+      type: 'website',
+      siteName: m.brand.name,
+      locale: OG_LOCALE[locale],
+      title,
+      description: m.brand.tagline,
+    },
+    twitter: { card: 'summary_large_image' },
+    alternates: {
+      languages: Object.fromEntries(
+        LOCALES.map((code) => [
+          LOCALE_META[code].intl,
+          code === 'fr' ? '/' : `/${code}`,
+        ]),
+      ),
+    },
+    robots: { index: true, follow: true },
+    icons: {
+      icon: [{ url: '/icon.svg', type: 'image/svg+xml' }],
+      apple: [{ url: '/apple-icon.png' }],
+    },
+  };
+}
 
 export const viewport: Viewport = {
   width: 'device-width',
@@ -80,7 +87,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <a className="z-skip-link" href="#main">
           {m.common.skipToContent}
         </a>
-        {children}
+        <UiTextProvider value={{ locale, ui: m.labels.ui }}>{children}</UiTextProvider>
       </body>
     </html>
   );

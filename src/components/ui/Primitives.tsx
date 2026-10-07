@@ -101,42 +101,6 @@ export function EmptyState({
   );
 }
 
-/** Star rating. Decorative stars are hidden; the value is announced once. */
-export function Rating({
-  value,
-  count,
-  size = 15,
-  showValue = true,
-}: {
-  value: number;
-  count?: number;
-  size?: number;
-  showValue?: boolean;
-}) {
-  const rounded = Math.round(value * 2) / 2;
-  return (
-    <span
-      style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
-      aria-label={`${value.toFixed(1)} out of 5${count ? `, ${count} reviews` : ''}`}
-    >
-      <span style={{ display: 'inline-flex', gap: 1 }} aria-hidden="true">
-        {[1, 2, 3, 4, 5].map((i) => (
-          <svg key={i} width={size} height={size} viewBox="0 0 20 20">
-            <path
-              d="M10 1.6l2.47 5.2 5.53.78-4 3.98.95 5.64L10 14.5l-4.95 2.7.95-5.64-4-3.98 5.53-.78L10 1.6Z"
-              fill={rounded >= i ? 'var(--z-jasmin)' : 'var(--z-chaux-300)'}
-            />
-          </svg>
-        ))}
-      </span>
-      {showValue ? (
-        <span style={{ fontSize: 'var(--z-text-sm)', fontWeight: 600 }}>
-          {value > 0 ? value.toFixed(1) : '—'}
-          {count !== undefined ? (
-            <span style={{ color: 'var(--z-fg-muted)', fontWeight: 400 }}> ({count})</span>
-          ) : null}
-        </span>
-      ) : null}
-    </span>
-  );
-}
+// Rating reads the page's language from context, so it lives in its own
+// client module; re-exported here so existing imports keep working.
+export { Rating } from './Rating';

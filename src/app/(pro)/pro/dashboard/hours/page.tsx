@@ -2,10 +2,15 @@ import type { Metadata } from 'next';
 import { db } from '@/lib/db';
 import { HoursManager } from '@/components/pro/HoursManager';
 import { proContext } from '@/components/pro/ProGuard';
+import { translate } from '@/i18n/server';
 
-export const metadata: Metadata = { title: 'Horaires', robots: { index: false } };
+export async function generateMetadata(): Promise<Metadata> {
+  const { m } = await translate();
+  return { title: m.dashSetup.hours.title, robots: { index: false } };
+}
 
 export default async function HoursPage() {
+  const { m, locale } = await translate();
   const { businessId } = await proContext('business.read', '/pro/dashboard/hours');
 
   const [hours, exceptions, staff] = await Promise.all([
@@ -27,6 +32,8 @@ export default async function HoursPage() {
 
   return (
     <HoursManager
+      m={{ dashSetup: m.dashSetup, common: m.common, labels: m.labels }}
+      locale={locale}
       businessId={businessId}
       hours={hours.map((h) => ({ weekday: h.weekday, startMin: h.startMin, endMin: h.endMin }))}
       exceptions={exceptions.map((e) => ({

@@ -10,6 +10,11 @@ import { Badge, Panel } from '@/components/ui/Primitives';
 import { saveCategoryAction, toggleCategoryAction } from '@/server/actions/admin';
 import { idle } from '@/lib/formState';
 import { CategoryIcon } from '@/components/brand/CategoryIcon';
+import type { Messages } from '@/i18n';
+import type { Locale } from '@/i18n/config';
+import { formatCount, localizedName } from '@/i18n/format';
+
+type AdminMessages = Pick<Messages, 'admin' | 'labels' | 'common'>;
 
 type Category = {
   id: string;
@@ -27,12 +32,33 @@ type Category = {
   children: number;
 };
 
-function Submit() {
+function Submit({ label }: { label: string }) {
   const { pending } = useFormStatus();
   return (
     <Button type="submit" loading={pending}>
-      Enregistrer
+      {label}
     </Button>
+  );
+}
+
+/** The names in the other two languages, so an admin can check every translation. */
+function OtherNames({ category, locale }: { category: Category; locale: Locale }) {
+  const names = [
+    { lang: 'fr', dir: 'ltr' as const, value: category.name },
+    { lang: 'ar', dir: 'rtl' as const, value: category.nameAr },
+    { lang: 'en', dir: 'ltr' as const, value: category.nameEn },
+  ].filter((n) => n.lang !== locale && n.value);
+  return (
+    <span className="z-help">
+      {names.map((n, i) => (
+        <span key={n.lang}>
+          {i > 0 ? ' · ' : null}
+          <bdi lang={n.lang} dir={n.dir}>
+            {n.value}
+          </bdi>
+        </span>
+      ))}
+    </span>
   );
 }
 
@@ -40,11 +66,16 @@ function CategoryForm({
   category,
   roots,
   onDone,
+  m,
+  locale,
 }: {
   category: Category | null;
   roots: Category[];
   onDone: () => void;
+  m: AdminMessages;
+  locale: Locale;
 }) {
+  const k = m.admin.categories;
   const router = useRouter();
   const [state, formAction] = useActionState(saveCategoryAction, idle);
   if (state.status === 'success') {
@@ -57,45 +88,97 @@ function CategoryForm({
     <Panel>
       <form action={formAction} className="z-auth__form">
         {category ? <input type="hidden" name="id" value={category.id} /> : null}
-        <h3 className="z-profile__h3">{category ? 'Modifier' : 'Nouvelle catégorie'}</h3>
+        <h3 className="z-profile__h3">{category ? k.editTitle : k.newTitle}</h3>
         {state.status === 'error' ? <Alert tone="error">{state.message}</Alert> : null}
 
-        <Select label="Catégorie parente" name="parentId" defaultValue={category?.parentId ?? ''} optional>
-          <option value="">Aucune (catégorie principale)</option>
+        <Select
+          label={k.parent}
+          name="parentId"
+          defaultValue={category?.parentId ?? ''}
+          optional
+        >
+          <option value="">{k.noParent}</option>
           {roots
             .filter((r) => r.id !== category?.id)
             .map((root) => (
               <option key={root.id} value={root.id}>
-                {root.name}
+                {localizedName(root, locale)}
               </option>
             ))}
         </Select>
 
         <div className="z-auth__row">
-          <Input label="Nom (français)" name="name" defaultValue={category?.name ?? ''} required error={errors?.name} />
-          <Input label="Identifiant URL" name="slug" defaultValue={category?.slug ?? ''} required hint="minuscules-et-tirets" error={errors?.slug} />
+          <Input
+            label={k.nameFr}
+            name="name"
+            defaultValue={category?.name ?? ''}
+            required
+            lang="fr"
+            dir="ltr"
+            error={errors?.name}
+          />
+          <Input
+            label={k.slug}
+            name="slug"
+            defaultValue={category?.slug ?? ''}
+            required
+            dir="ltr"
+            hint={k.slugHint}
+            error={errors?.slug}
+          />
         </div>
 
         <div className="z-auth__row">
-          <Input label="Nom (arabe)" name="nameAr" defaultValue={category?.nameAr ?? ''} required dir="rtl" error={errors?.nameAr} />
-          <Input label="Nom (anglais)" name="nameEn" defaultValue={category?.nameEn ?? ''} required error={errors?.nameEn} />
+          <Input
+            label={k.nameAr}
+            name="nameAr"
+            defaultValue={category?.nameAr ?? ''}
+            required
+            lang="ar"
+            dir="rtl"
+            error={errors?.nameAr}
+          />
+          <Input
+            label={k.nameEn}
+            name="nameEn"
+            defaultValue={category?.nameEn ?? ''}
+            required
+            lang="en"
+            dir="ltr"
+            error={errors?.nameEn}
+          />
         </div>
 
         <div className="z-auth__row">
-          <Input label="Icône" name="icon" defaultValue={category?.icon ?? ''} optional maxLength={8} placeholder="💈" error={errors?.icon} />
-          <Input label="Position" name="position" type="number" min="0" defaultValue={category?.position ?? 0} required />
+          <Input
+            label={k.icon}
+            name="icon"
+            defaultValue={category?.icon ?? ''}
+            optional
+            maxLength={8}
+            placeholder="💈"
+            error={errors?.icon}
+          />
+          <Input
+            label={k.position}
+            name="position"
+            type="number"
+            min="0"
+            defaultValue={category?.position ?? 0}
+            required
+          />
         </div>
 
-        <Select label="Clientèle" name="servedGender" defaultValue={category?.servedGender ?? 'EVERYONE'}>
-          <option value="EVERYONE">Hommes et femmes</option>
-          <option value="WOMEN">Femmes</option>
-          <option value="MEN">Hommes</option>
+        <Select label={k.audience} name="servedGender" defaultValue={category?.servedGender ?? 'EVERYONE'}>
+          <option value="EVERYONE">{k.audienceEveryone}</option>
+          <option value="WOMEN">{m.labels.servedGender.WOMEN}</option>
+          <option value="MEN">{m.labels.servedGender.MEN}</option>
         </Select>
 
-        <div className="z-row" style={{ gap: 'var(--z-space-2)' }}>
-          <Submit />
+        <div className="z-row" style={{ gap: 'var(--z-space-2)', flexWrap: 'wrap' }}>
+          <Submit label={m.common.save} />
           <Button type="button" variant="ghost" onClick={onDone}>
-            Annuler
+            {m.common.cancel}
           </Button>
         </div>
       </form>
@@ -103,7 +186,7 @@ function CategoryForm({
   );
 }
 
-function ToggleForm({ category }: { category: Category }) {
+function ToggleForm({ category, m }: { category: Category; m: AdminMessages }) {
   const router = useRouter();
   const [, formAction] = useActionState(toggleCategoryAction, idle);
   return (
@@ -111,13 +194,22 @@ function ToggleForm({ category }: { category: Category }) {
       <input type="hidden" name="categoryId" value={category.id} />
       <input type="hidden" name="isActive" value={category.isActive ? 'false' : 'true'} />
       <Button type="submit" size="sm" variant="ghost">
-        {category.isActive ? 'Désactiver' : 'Activer'}
+        {category.isActive ? m.admin.categories.deactivate : m.admin.categories.activate}
       </Button>
     </form>
   );
 }
 
-export function CategoryManager({ categories }: { categories: Category[] }) {
+export function CategoryManager({
+  categories,
+  m,
+  locale,
+}: {
+  categories: Category[];
+  m: AdminMessages;
+  locale: Locale;
+}) {
+  const k = m.admin.categories;
   const [editing, setEditing] = useState<Category | null>(null);
   const [creating, setCreating] = useState(false);
 
@@ -127,19 +219,32 @@ export function CategoryManager({ categories }: { categories: Category[] }) {
     <div className="z-stack" style={{ gap: 'var(--z-space-5)' }}>
       <div className="z-dash__panel-head">
         <div>
-          <h1 className="z-search__title">Catégories</h1>
-          <p className="z-policy">
-            Deux niveaux au maximum. Une catégorie principale regroupe ses sous-catégories dans
-            la recherche.
-          </p>
+          <h1 className="z-search__title">{m.admin.nav.categories}</h1>
+          <p className="z-policy">{k.lead}</p>
         </div>
         {!creating && !editing ? (
-          <Button onClick={() => setCreating(true)}>+ Nouvelle catégorie</Button>
+          <Button onClick={() => setCreating(true)}>{k.create}</Button>
         ) : null}
       </div>
 
-      {creating ? <CategoryForm category={null} roots={roots} onDone={() => setCreating(false)} /> : null}
-      {editing ? <CategoryForm category={editing} roots={roots} onDone={() => setEditing(null)} /> : null}
+      {creating ? (
+        <CategoryForm
+          category={null}
+          roots={roots}
+          onDone={() => setCreating(false)}
+          m={m}
+          locale={locale}
+        />
+      ) : null}
+      {editing ? (
+        <CategoryForm
+          category={editing}
+          roots={roots}
+          onDone={() => setEditing(null)}
+          m={m}
+          locale={locale}
+        />
+      ) : null}
 
       <div className="z-stack" style={{ gap: 'var(--z-space-4)' }}>
         {roots.map((root) => {
@@ -153,22 +258,24 @@ export function CategoryManager({ categories }: { categories: Category[] }) {
                   </span>
                   <div>
                     <h2 className="z-profile__h3">
-                      {root.name}{' '}
-                      {!root.isActive ? <Badge tone="neutral">Désactivée</Badge> : null}
+                      {localizedName(root, locale)}{' '}
+                      {!root.isActive ? <Badge tone="neutral">{k.inactive}</Badge> : null}
                     </h2>
                     <p className="z-help">
-                      {root.slug} · {root.businesses} établissements · {children.length} sous-catégories
+                      <bdi dir="ltr">{root.slug}</bdi> ·{' '}
+                      {formatCount(m.admin.common.businessesCount, root.businesses, locale)} ·{' '}
+                      {formatCount(k.subcategoriesCount, children.length, locale)}
                     </p>
-                    <p className="z-help" dir="rtl" lang="ar">
-                      {root.nameAr}
+                    <p>
+                      <OtherNames category={root} locale={locale} />
                     </p>
                   </div>
                 </div>
-                <div className="z-row" style={{ gap: 'var(--z-space-1)' }}>
+                <div className="z-row" style={{ gap: 'var(--z-space-1)', flexWrap: 'wrap' }}>
                   <Button size="sm" variant="secondary" onClick={() => setEditing(root)}>
-                    Modifier
+                    {m.common.edit}
                   </Button>
-                  <ToggleForm category={root} />
+                  <ToggleForm category={root} m={m} />
                 </div>
               </div>
 
@@ -177,23 +284,24 @@ export function CategoryManager({ categories }: { categories: Category[] }) {
                   {children.map((child) => (
                     <li key={child.id}>
                       <span>
-                        <strong>{child.name}</strong>
+                        <strong>{localizedName(child, locale)}</strong>
                         <span className="z-help">
                           {' '}
-                          · {child.slug} · {child.services} prestations
+                          · <bdi dir="ltr">{child.slug}</bdi> ·{' '}
+                          {formatCount(m.admin.common.servicesCount, child.services, locale)}
                         </span>
                         {!child.isActive ? (
                           <>
                             {' '}
-                            <Badge tone="neutral">Désactivée</Badge>
+                            <Badge tone="neutral">{k.inactive}</Badge>
                           </>
                         ) : null}
                       </span>
-                      <span className="z-row" style={{ gap: 'var(--z-space-1)' }}>
+                      <span className="z-row" style={{ gap: 'var(--z-space-1)', flexWrap: 'wrap' }}>
                         <Button size="sm" variant="ghost" onClick={() => setEditing(child)}>
-                          Modifier
+                          {m.common.edit}
                         </Button>
-                        <ToggleForm category={child} />
+                        <ToggleForm category={child} m={m} />
                       </span>
                     </li>
                   ))}

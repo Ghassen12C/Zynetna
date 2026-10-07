@@ -1,16 +1,18 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { Fragment } from 'react';
 import { notFound } from 'next/navigation';
 import QRCode from 'qrcode';
 import { db } from '@/lib/db';
 import { env } from '@/lib/env';
 import { Panel } from '@/components/ui/Primitives';
 import { DownloadQr } from '@/components/business/DownloadQr';
+import { translate } from '@/i18n/server';
 
-export const metadata: Metadata = {
-  title: 'Code QR',
-  robots: { index: false, follow: false },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const { m } = await translate();
+  return { title: m.business.qrCode, robots: { index: false, follow: false } };
+}
 
 export const revalidate = 3600;
 
@@ -26,7 +28,7 @@ export default async function BusinessQrPage({
 }: {
   params: Promise<{ slug: string }>;
 }) {
-  const { slug } = await params;
+  const [{ slug }, { m, path }] = await Promise.all([params, translate()]);
 
   const business = await db.business.findUnique({
     where: { slug },
@@ -48,7 +50,7 @@ export default async function BusinessQrPage({
     <div className="z-section">
       <div className="z-container z-qr">
         <Panel className="z-qr__card">
-          <p className="z-eyebrow">Réservez en ligne</p>
+          <p className="z-eyebrow">{m.business.qrBookOnline}</p>
           <h1>{business.name}</h1>
           {business.tagline ? <p className="z-qr__tagline">{business.tagline}</p> : null}
 
@@ -58,23 +60,40 @@ export default async function BusinessQrPage({
             dangerouslySetInnerHTML={{ __html: svg }}
           />
 
-          <p className="z-qr__url">{url}</p>
+          <p className="z-qr__url" dir="ltr">
+            {url}
+          </p>
           <p className="z-qr__brand">
             <strong>ZYNETNA</strong>
-            <span>Barber &amp; Beauty · Tunisie</span>
+            <span>{m.brand.descriptor}</span>
           </p>
         </Panel>
 
         <div className="z-qr__aside">
-          <h2 className="z-profile__h3">Votre code QR</h2>
-          <p className="z-policy">
-            Imprimez-le sur votre vitrine, votre carte de visite ou votre miroir. Vos clients
-            scannent et réservent sans vous appeler.
-          </p>
-          <DownloadQr svg={svg} slug={business.slug} name={business.name} />
+          <h2 className="z-profile__h3">{m.business.qrYourCode}</h2>
+          <p className="z-policy">{m.business.qrBody}</p>
+          <DownloadQr
+            svg={svg}
+            slug={business.slug}
+            name={business.name}
+            shareUrl={path(`/business/${business.slug}`)}
+            labels={{
+              downloadSvg: m.business.qrDownloadSvg,
+              downloadPng: m.business.qrDownloadPng,
+              shareLink: m.business.qrShareLink,
+              print: m.business.qrPrint,
+            }}
+          />
           <p className="z-help">
-            Le code pointe vers <Link href={`/business/${business.slug}`}>votre page publique</Link>.
-            Il reste valable tant que votre établissement est en ligne.
+            {m.business.qrPointsTo.split(/(\{link\})/).map((part, i) =>
+              part === '{link}' ? (
+                <Link key={i} href={path(`/business/${business.slug}`)}>
+                  {m.business.qrPublicPage}
+                </Link>
+              ) : (
+                <Fragment key={i}>{part}</Fragment>
+              ),
+            )}
           </p>
         </div>
       </div>

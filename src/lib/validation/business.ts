@@ -12,16 +12,17 @@ import {
   richTextSchema,
   urlSchema,
 } from './common';
+import { v } from './keys';
 
 export const businessProfileSchema = z.object({
-  name: z.string().trim().min(2, 'Nom trop court.').max(120),
+  name: z.string().trim().min(2, v('nameTooShort')).max(120),
   tagline: richTextSchema(140).optional().or(z.literal('')),
   description: richTextSchema(2000).optional().or(z.literal('')),
   story: richTextSchema(2000).optional().or(z.literal('')),
   servedGender: z.enum(['WOMEN', 'MEN', 'EVERYONE']),
   phone: phoneSchema.optional().or(z.literal('')),
   whatsapp: phoneSchema.optional().or(z.literal('')),
-  email: z.string().trim().email('E-mail invalide.').optional().or(z.literal('')),
+  email: z.string().trim().email(v('emailInvalid')).optional().or(z.literal('')),
   website: urlSchema.optional().or(z.literal('')),
   instagram: handleSchema.optional().or(z.literal('')),
   facebook: urlSchema.optional().or(z.literal('')),
@@ -30,7 +31,7 @@ export const businessProfileSchema = z.object({
 
 export const businessLocationSchema = z.object({
   cityId: cuidSchema.optional().or(z.literal('')),
-  addressLine1: z.string().trim().min(3, 'Adresse requise.').max(200),
+  addressLine1: z.string().trim().min(3, v('addressRequired')).max(200),
   addressLine2: z.string().trim().max(200).optional().or(z.literal('')),
   postalCode: z.string().trim().max(10).optional().or(z.literal('')),
   latitude: latitudeSchema,
@@ -53,7 +54,7 @@ export const businessPolicySchema = z.object({
 
 export const serviceSchema = z.object({
   id: cuidSchema.optional(),
-  name: z.string().trim().min(2, 'Nom trop court.').max(120),
+  name: z.string().trim().min(2, v('nameTooShort')).max(120),
   description: richTextSchema(800).optional().or(z.literal('')),
   categoryId: cuidSchema.optional().or(z.literal('')),
   priceAmount: priceSchema,
@@ -66,7 +67,7 @@ export const serviceSchema = z.object({
   staffIds: z
     .union([z.string(), z.array(z.string())])
     .optional()
-    .transform((v) => (v === undefined ? [] : Array.isArray(v) ? v : [v])),
+    .transform((value) => (value === undefined ? [] : Array.isArray(value) ? value : [value])),
 });
 
 export const staffSchema = z.object({
@@ -80,20 +81,24 @@ export const staffSchema = z.object({
   serviceIds: z
     .union([z.string(), z.array(z.string())])
     .optional()
-    .transform((v) => (v === undefined ? [] : Array.isArray(v) ? v : [v])),
+    .transform((value) => (value === undefined ? [] : Array.isArray(value) ? value : [value])),
 });
 
 /** One weekday's periods, posted as parallel arrays from the hours editor. */
 export const hoursSchema = z.object({
   weekday: z.coerce.number().int().min(0).max(6),
-  starts: z.union([z.string(), z.array(z.string())]).transform((v) => (Array.isArray(v) ? v : [v])),
-  ends: z.union([z.string(), z.array(z.string())]).transform((v) => (Array.isArray(v) ? v : [v])),
+  starts: z
+    .union([z.string(), z.array(z.string())])
+    .transform((value) => (Array.isArray(value) ? value : [value])),
+  ends: z
+    .union([z.string(), z.array(z.string())])
+    .transform((value) => (Array.isArray(value) ? value : [value])),
   staffMemberId: cuidSchema.optional().or(z.literal('')),
 });
 
 export const exceptionSchema = z.object({
   kind: z.enum(['CLOSED', 'HOLIDAY', 'VACATION', 'BREAK', 'SPECIAL_HOURS']),
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date invalide.'),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, v('dateInvalid')),
   endDate: z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/)

@@ -9,7 +9,13 @@ import { Badge, EmptyState } from '@/components/ui/Primitives';
 import { moderateUserAction } from '@/server/actions/admin';
 import { idle } from '@/lib/formState';
 import { RelativeTime } from '@/components/ui/RelativeTime';
-import { formatDate, formatPhone } from '@/i18n/format';
+import { Arrow } from '@/components/ui/Arrow';
+import type { Messages } from '@/i18n';
+import { interpolate } from '@/i18n/interpolate';
+import { type Locale, localePath } from '@/i18n/config';
+import { formatCount, formatDate, formatNumber, formatPhone } from '@/i18n/format';
+
+type AdminMessages = Pick<Messages, 'admin' | 'labels' | 'common'>;
 
 type Row = {
   id: string;
@@ -25,13 +31,6 @@ type Row = {
   reviews: number;
 };
 
-const ROLE_LABEL: Record<string, string> = {
-  CUSTOMER: 'Client',
-  BUSINESS_OWNER: 'Propriétaire',
-  BUSINESS_EMPLOYEE: 'Employé',
-  SUPER_ADMIN: 'Admin',
-};
-
 function Submit({ label, variant }: { label: string; variant: 'primary' | 'secondary' | 'ghost' | 'danger' }) {
   const { pending } = useFormStatus();
   return (
@@ -41,14 +40,15 @@ function Submit({ label, variant }: { label: string; variant: 'primary' | 'secon
   );
 }
 
-function UserActions({ row, isSelf }: { row: Row; isSelf: boolean }) {
+function UserActions({ row, isSelf, m }: { row: Row; isSelf: boolean; m: AdminMessages }) {
+  const u = m.admin.users;
   const router = useRouter();
   const [state, formAction] = useActionState(moderateUserAction, idle);
   const [confirming, setConfirming] = useState(false);
   if (state.status === 'success') router.refresh();
 
   // An admin cannot act on their own account from this table.
-  if (isSelf) return <span className="z-help">Vous</span>;
+  if (isSelf) return <span className="z-help">{u.you}</span>;
 
   const isAdmin = row.roles.includes('SUPER_ADMIN');
 
@@ -60,11 +60,17 @@ function UserActions({ row, isSelf }: { row: Row; isSelf: boolean }) {
         <form action={formAction} className="z-stack" style={{ gap: 'var(--z-space-2)' }}>
           <input type="hidden" name="userId" value={row.id} />
           <input type="hidden" name="decision" value="suspend" />
-          <textarea name="note" className="z-textarea" rows={2} placeholder="Motif (interne)" aria-label="Motif" />
-          <div className="z-row" style={{ gap: 'var(--z-space-2)' }}>
-            <Submit label="Suspendre" variant="danger" />
+          <textarea
+            name="note"
+            className="z-textarea"
+            rows={2}
+            placeholder={u.notePlaceholder}
+            aria-label={m.admin.common.reason}
+          />
+          <div className="z-row" style={{ gap: 'var(--z-space-2)', flexWrap: 'wrap' }}>
+            <Submit label={u.suspend} variant="danger" />
             <Button type="button" variant="ghost" size="sm" onClick={() => setConfirming(false)}>
-              Annuler
+              {m.common.cancel}
             </Button>
           </div>
         </form>
@@ -72,20 +78,20 @@ function UserActions({ row, isSelf }: { row: Row; isSelf: boolean }) {
         <div className="z-row" style={{ gap: 'var(--z-space-1)', flexWrap: 'wrap' }}>
           {row.status === 'ACTIVE' ? (
             <Button size="sm" variant="ghost" onClick={() => setConfirming(true)}>
-              Suspendre
+              {u.suspend}
             </Button>
           ) : (
             <form action={formAction}>
               <input type="hidden" name="userId" value={row.id} />
               <input type="hidden" name="decision" value="reactivate" />
-              <Submit label="Réactiver" variant="primary" />
+              <Submit label={u.reactivate} variant="primary" />
             </form>
           )}
 
           <form action={formAction}>
             <input type="hidden" name="userId" value={row.id} />
             <input type="hidden" name="decision" value={isAdmin ? 'revokeAdmin' : 'grantAdmin'} />
-            <Submit label={isAdmin ? 'Retirer admin' : 'Nommer admin'} variant="secondary" />
+            <Submit label={isAdmin ? u.revokeAdmin : u.grantAdmin} variant="secondary" />
           </form>
         </div>
       )}
@@ -100,6 +106,8 @@ export function AdminUserTable({
   page,
   pageCount,
   filters,
+  m,
+  locale,
 }: {
   currentUserId: string;
   rows: Row[];
@@ -107,7 +115,11 @@ export function AdminUserTable({
   page: number;
   pageCount: number;
   filters: Record<string, string | undefined>;
+  m: AdminMessages;
+  locale: Locale;
 }) {
+  const c = m.admin.common;
+  const u = m.admin.users;
   const router = useRouter();
   const params = useSearchParams();
   const [, startTransition] = useTransition();
@@ -118,12 +130,14 @@ export function AdminUserTable({
     if (value) next.set(key, value);
     else next.delete(key);
     if (key !== 'page') next.delete('page');
-    startTransition(() => router.push(`/admin/users?${next.toString()}`));
+    startTransition(() => router.push(localePath(locale, `/admin/users?${next.toString()}`)));
   }
 
   return (
     <div className="z-stack" style={{ gap: 'var(--z-space-5)' }}>
-      <h1 className="z-search__title">Utilisateurs ({total})</h1>
+      <h1 className="z-search__title">
+        {interpolate(c.headingCount, { title: m.admin.nav.users, count: formatNumber(total, locale) })}
+      </h1>
 
       <form
         className="z-row"
@@ -138,11 +152,11 @@ export function AdminUserTable({
           style={{ width: 'auto', minWidth: 220 }}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Nom, e-mail ou téléphone"
-          aria-label="Rechercher"
+          placeholder={u.searchPlaceholder}
+          aria-label={c.search}
         />
         <Button type="submit" variant="secondary">
-          Rechercher
+          {c.search}
         </Button>
 
         <select
@@ -150,10 +164,10 @@ export function AdminUserTable({
           style={{ width: 'auto' }}
           value={filters.role ?? ''}
           onChange={(e) => setParam('role', e.target.value || null)}
-          aria-label="Rôle"
+          aria-label={u.role}
         >
-          <option value="">Tous les rôles</option>
-          {Object.entries(ROLE_LABEL).map(([value, label]) => (
+          <option value="">{u.allRoles}</option>
+          {Object.entries(m.labels.role).map(([value, label]) => (
             <option key={value} value={value}>
               {label}
             </option>
@@ -165,28 +179,28 @@ export function AdminUserTable({
           style={{ width: 'auto' }}
           value={filters.status ?? ''}
           onChange={(e) => setParam('status', e.target.value || null)}
-          aria-label="Statut"
+          aria-label={c.status}
         >
-          <option value="">Tous les statuts</option>
-          <option value="ACTIVE">Actif</option>
-          <option value="SUSPENDED">Suspendu</option>
+          <option value="">{c.allStatuses}</option>
+          <option value="ACTIVE">{m.labels.userStatus.ACTIVE}</option>
+          <option value="SUSPENDED">{m.labels.userStatus.SUSPENDED}</option>
         </select>
       </form>
 
       {rows.length === 0 ? (
-        <EmptyState title="Aucun utilisateur" body="Aucun résultat pour ces filtres." />
+        <EmptyState title={u.empty} body={c.noResults} />
       ) : (
         <>
           <div className="z-table--scroll">
             <table className="z-table">
               <thead>
                 <tr>
-                  <th>Utilisateur</th>
-                  <th>Rôles</th>
-                  <th>Statut</th>
-                  <th>Activité</th>
-                  <th>Dernière connexion</th>
-                  <th>Actions</th>
+                  <th>{u.user}</th>
+                  <th>{u.roles}</th>
+                  <th>{c.status}</th>
+                  <th>{c.activity}</th>
+                  <th>{u.lastLogin}</th>
+                  <th>{c.actions}</th>
                 </tr>
               </thead>
               <tbody>
@@ -195,11 +209,15 @@ export function AdminUserTable({
                     <td>
                       <strong>{row.name}</strong>
                       <br />
-                      <span className="z-help">{row.email}</span>
+                      <span className="z-help" dir="ltr">
+                        {row.email}
+                      </span>
                       {row.phone ? (
                         <>
                           <br />
-                          <span className="z-help">{formatPhone(row.phone)}</span>
+                          <span className="z-help" dir="ltr">
+                            {formatPhone(row.phone)}
+                          </span>
                         </>
                       ) : null}
                     </td>
@@ -207,30 +225,32 @@ export function AdminUserTable({
                       <div className="z-row" style={{ gap: 4, flexWrap: 'wrap' }}>
                         {row.roles.map((role) => (
                           <Badge key={role} tone={role === 'SUPER_ADMIN' ? 'gold' : 'neutral'}>
-                            {ROLE_LABEL[role] ?? role}
+                            {m.labels.role[role as keyof typeof m.labels.role] ?? role}
                           </Badge>
                         ))}
                       </div>
                     </td>
                     <td>
                       <Badge tone={row.status === 'ACTIVE' ? 'success' : 'danger'}>
-                        {row.status === 'ACTIVE' ? 'Actif' : 'Suspendu'}
+                        {m.labels.userStatus[row.status as keyof typeof m.labels.userStatus] ??
+                          row.status}
                       </Badge>
                     </td>
                     <td>
                       <span className="z-help">
-                        {row.reservations} RDV · {row.reviews} avis
+                        {formatCount(c.reservationsCount, row.reservations, locale)} ·{' '}
+                        {formatCount(c.reviewsCount, row.reviews, locale)}
                         <br />
-                        inscrit le {formatDate(new Date(row.createdAt))}
+                        {interpolate(u.joinedOn, { date: formatDate(new Date(row.createdAt), locale) })}
                       </span>
                     </td>
                     <td>
                       <span className="z-help">
-                        <RelativeTime value={row.lastLoginAt} fallback="jamais" />
+                        <RelativeTime value={row.lastLoginAt} locale={locale} fallback={u.never} />
                       </span>
                     </td>
                     <td>
-                      <UserActions row={row} isSelf={row.id === currentUserId} />
+                      <UserActions row={row} isSelf={row.id === currentUserId} m={m} />
                     </td>
                   </tr>
                 ))}
@@ -239,18 +259,21 @@ export function AdminUserTable({
           </div>
 
           {pageCount > 1 ? (
-            <nav className="z-pagination" aria-label="Pagination">
+            <nav className="z-pagination" aria-label={c.pagination}>
               {page > 1 ? (
                 <button type="button" className="z-btn z-btn--secondary z-btn--sm" onClick={() => setParam('page', String(page - 1))}>
-                  ← Précédent
+                  <Arrow to="back" /> {m.common.previous}
                 </button>
               ) : null}
               <span className="z-pagination__state">
-                Page {page} sur {pageCount}
+                {interpolate(c.pageState, {
+                  page: formatNumber(page, locale),
+                  total: formatNumber(pageCount, locale),
+                })}
               </span>
               {page < pageCount ? (
                 <button type="button" className="z-btn z-btn--secondary z-btn--sm" onClick={() => setParam('page', String(page + 1))}>
-                  Suivant →
+                  {m.common.next} <Arrow />
                 </button>
               ) : null}
             </nav>

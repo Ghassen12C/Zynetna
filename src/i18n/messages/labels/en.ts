@@ -86,4 +86,11 @@ export const labelsEn: typeof labelsFr = {
     TEAM: 'Team',
     GALLERY: 'Gallery',
   },
+  ui: {
+    optional: 'optional',
+    ratingOutOf: '{value} out of 5',
+    ratingWithReviews: '{value} out of 5, {reviews}',
+    reviews: { one: '{count} review', other: '{count} reviews' },
+    chartEmpty: 'No data yet.',
+  },
 };

@@ -1,10 +1,11 @@
 import { z } from 'zod';
 import { passwordSchema } from '@/domain/identity/password';
 import { emailSchema, localeSchema, nameSchema, phoneSchema } from './common';
+import { v } from './keys';
 
 export const loginSchema = z.object({
   email: emailSchema,
-  password: z.string().min(1, 'Mot de passe requis.'),
+  password: z.string().min(1, v('passwordRequired')),
   redirectTo: z.string().optional(),
 });
 
@@ -17,7 +18,7 @@ export const registerSchema = z.object({
   locale: localeSchema.default('fr'),
   acceptTerms: z
     .union([z.literal('on'), z.literal('true'), z.boolean()])
-    .refine((v) => v === 'on' || v === 'true' || v === true, 'Vous devez accepter les conditions.'),
+    .refine((value) => value === 'on' || value === 'true' || value === true, v('acceptTerms')),
 });
 
 export const requestResetSchema = z.object({ email: emailSchema });
@@ -28,19 +29,19 @@ export const resetPasswordSchema = z
     password: passwordSchema,
     confirm: z.string(),
   })
-  .refine((v) => v.password === v.confirm, {
-    message: 'Les mots de passe ne correspondent pas.',
+  .refine((value) => value.password === value.confirm, {
+    message: v('passwordMismatch'),
     path: ['confirm'],
   });
 
 export const changePasswordSchema = z
   .object({
-    current: z.string().min(1, 'Mot de passe actuel requis.'),
+    current: z.string().min(1, v('currentPasswordRequired')),
     password: passwordSchema,
     confirm: z.string(),
   })
-  .refine((v) => v.password === v.confirm, {
-    message: 'Les mots de passe ne correspondent pas.',
+  .refine((value) => value.password === value.confirm, {
+    message: v('passwordMismatch'),
     path: ['confirm'],
   });
 

@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { db } from '@/lib/db';
 import { getActor } from '@/server/auth/session';
 import type { FormState } from '@/lib/formState';
-import { toFormState } from './formState';
+import { feedbackFor, toFormState } from './formState';
 
 /** Toggle a favourite. Returns an error state (not a redirect) so the client
  *  can send an anonymous visitor to sign in without losing their place. */
@@ -28,7 +28,9 @@ export async function toggleFavoriteAction(businessId: string): Promise<FormStat
         where: { id: businessId },
         select: { id: true },
       });
-      if (!business) return { status: 'error', message: 'Établissement introuvable.' };
+      if (!business) {
+        return { status: 'error', message: (await feedbackFor()).errors.businessNotFound };
+      }
       await db.favorite.create({ data: { userId: actor.userId, businessId } });
     }
 

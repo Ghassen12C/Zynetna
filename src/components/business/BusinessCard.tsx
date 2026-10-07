@@ -1,6 +1,8 @@
 import Link from 'next/link';
 import { Badge, Rating } from '@/components/ui/Primitives';
+import { LOCALE_META } from '@/i18n/config';
 import { formatPrice } from '@/i18n/format';
+import { translate } from '@/i18n/server';
 import { coverStyle } from '@/lib/brand';
 
 export type BusinessCardData = {
@@ -17,9 +19,18 @@ export type BusinessCardData = {
   distanceKm?: number | null;
 };
 
-export function BusinessCard({ business }: { business: BusinessCardData }) {
+export async function BusinessCard({ business }: { business: BusinessCardData }) {
+  const { m, t, locale, path } = await translate();
+  const distance =
+    business.distanceKm != null
+      ? new Intl.NumberFormat(LOCALE_META[locale].intl, {
+          minimumFractionDigits: 1,
+          maximumFractionDigits: 1,
+        }).format(business.distanceKm)
+      : null;
+
   return (
-    <Link href={`/business/${business.slug}`} className="z-bcard">
+    <Link href={path(`/business/${business.slug}`)} className="z-bcard">
       <div className="z-bcard__media">
         {business.coverUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -43,7 +54,7 @@ export function BusinessCard({ business }: { business: BusinessCardData }) {
         )}
         {business.verified ? (
           <span className="z-bcard__verified">
-            <Badge tone="accent">✓ Vérifié</Badge>
+            <Badge tone="accent">✓ {m.business.verified}</Badge>
           </span>
         ) : null}
       </div>
@@ -55,14 +66,17 @@ export function BusinessCard({ business }: { business: BusinessCardData }) {
         <p className="z-bcard__meta">
           {business.categoryName ? <>{business.categoryName} · </> : null}
           {business.cityName}
-          {business.distanceKm != null ? (
-            <span className="z-bcard__distance"> · {business.distanceKm.toFixed(1)} km</span>
+          {distance != null ? (
+            <span className="z-bcard__distance">
+              {' · '}
+              <bdi>{t(m.business.distanceKm, { distance })}</bdi>
+            </span>
           ) : null}
         </p>
 
         {business.fromPrice != null ? (
           <p className="z-bcard__price">
-            <span>à partir de</span> {formatPrice(business.fromPrice)}
+            <span>{m.business.from}</span> {formatPrice(business.fromPrice, locale)}
           </p>
         ) : null}
       </div>

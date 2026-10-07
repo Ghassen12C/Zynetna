@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState, useTransition } from 'react';
 import { Alert } from '@/components/ui/Alert';
 import { Button } from '@/components/ui/Button';
+import { Arrow } from '@/components/ui/Arrow';
 import { Badge } from '@/components/ui/Primitives';
 import { Skeleton } from '@/components/ui/Primitives';
 import {
@@ -239,7 +240,7 @@ export function BookingFlow({
       <div className="z-container">
         <header className="z-booking__head">
           <Link href={`${localePrefix}/business/${business.slug}`} className="z-booking__back">
-            ← {business.name}
+            <Arrow to="back" /> {business.name}
           </Link>
           <ol className="z-steps" aria-label={m.booking.stepsLabel}>
             {steps.map((label, i) => (

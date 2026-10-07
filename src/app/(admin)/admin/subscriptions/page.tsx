@@ -10,17 +10,19 @@ import {
   resolveStatus,
   trialDaysRemaining,
 } from '@/domain/monetization/lifecycle';
-import { formatDate, formatPrice } from '@/i18n/format';
+import { translate } from '@/i18n/server';
+import { formatCount, formatDate, formatNumber, formatPrice } from '@/i18n/format';
 
-export const metadata: Metadata = { title: 'Abonnements', robots: { index: false } };
+export async function generateMetadata(): Promise<Metadata> {
+  const { m } = await translate();
+  return { title: m.admin.nav.subscriptions, robots: { index: false } };
+}
 
-const STATUS_LABEL: Record<string, string> = {
-  TRIALING: 'Essai',
-  ACTIVE: 'Actif',
-  PAST_DUE: 'En retard',
-  GRACE: 'Grâce',
-  EXPIRED: 'Expiré',
-  CANCELLED: 'Résilié',
+const PAYMENT_TONE: Record<string, 'success' | 'warning' | 'danger' | 'neutral'> = {
+  PENDING: 'warning',
+  SUCCEEDED: 'success',
+  FAILED: 'danger',
+  REFUNDED: 'neutral',
 };
 
 const STATUS_TONE: Record<string, 'success' | 'warning' | 'danger' | 'neutral' | 'accent'> = {
@@ -34,6 +36,9 @@ const STATUS_TONE: Record<string, 'success' | 'warning' | 'danger' | 'neutral' |
 
 export default async function AdminSubscriptionsPage() {
   await requireSuperAdmin();
+  const { m, locale, t, path } = await translate();
+  const c = m.admin.common;
+  const s = m.admin.subscriptions;
   const now = new Date();
 
   const [subscriptions, plans, recentPayments] = await Promise.all([
@@ -61,14 +66,14 @@ export default async function AdminSubscriptionsPage() {
 
   // Effective status, not the stored one: a lapsed row the sweep has not yet
   // touched must not read as active here.
-  const rows = subscriptions.map((s) => ({
-    ...s,
-    effective: resolveStatus(s, {
-      trialDays: s.plan.trialDays,
-      gracePeriodDays: s.plan.gracePeriodDays,
-      intervalDays: intervalDaysFor(s.plan.interval),
+  const rows = subscriptions.map((sub) => ({
+    ...sub,
+    effective: resolveStatus(sub, {
+      trialDays: sub.plan.trialDays,
+      gracePeriodDays: sub.plan.gracePeriodDays,
+      intervalDays: intervalDaysFor(sub.plan.interval),
     }, now),
-    trialLeft: trialDaysRemaining(s, now),
+    trialLeft: trialDaysRemaining(sub, now),
   }));
 
   const grouped = {
@@ -80,78 +85,90 @@ export default async function AdminSubscriptionsPage() {
 
   return (
     <div className="z-stack" style={{ gap: 'var(--z-space-6)' }}>
-      <h1 className="z-search__title">Abonnements</h1>
+      <div>
+        <h1 className="z-search__title">{m.admin.nav.subscriptions}</h1>
+        <p className="z-policy">{s.manualNote}</p>
+      </div>
 
       <div className="z-stats">
         <div className="z-stat">
-          <span className="z-stat__value">{grouped.TRIALING.length}</span>
-          <span className="z-stat__label">En essai</span>
+          <span className="z-stat__value">{formatNumber(grouped.TRIALING.length, locale)}</span>
+          <span className="z-stat__label">{s.trialing}</span>
         </div>
         <div className="z-stat">
-          <span className="z-stat__value">{grouped.ACTIVE.length}</span>
-          <span className="z-stat__label">Payants</span>
+          <span className="z-stat__value">{formatNumber(grouped.ACTIVE.length, locale)}</span>
+          <span className="z-stat__label">{s.paying}</span>
         </div>
         <div className="z-stat">
-          <span className="z-stat__value">{grouped.GRACE.length}</span>
-          <span className="z-stat__label">À relancer</span>
+          <span className="z-stat__value">{formatNumber(grouped.GRACE.length, locale)}</span>
+          <span className="z-stat__label">{s.toChase}</span>
         </div>
         <div className="z-stat">
-          <span className="z-stat__value">{grouped.EXPIRED.length}</span>
-          <span className="z-stat__label">Expirés / résiliés</span>
+          <span className="z-stat__value">{formatNumber(grouped.EXPIRED.length, locale)}</span>
+          <span className="z-stat__label">{s.ended}</span>
         </div>
       </div>
 
       {rows.length === 0 ? (
-        <EmptyState title="Aucun abonnement" body="Les abonnements apparaîtront ici." />
+        <EmptyState title={s.empty} body={s.emptyBody} />
       ) : (
         <Panel className="z-dash__panel">
-          <h2 className="z-profile__h3">Tous les abonnements</h2>
+          <h2 className="z-profile__h3">{s.all}</h2>
           <div className="z-table--scroll">
             <table className="z-table">
               <thead>
                 <tr>
-                  <th>Établissement</th>
-                  <th>Formule</th>
-                  <th>Statut</th>
-                  <th>Échéance</th>
-                  <th>Enregistrer un paiement</th>
+                  <th>{c.business}</th>
+                  <th>{s.plan}</th>
+                  <th>{c.status}</th>
+                  <th>{s.due}</th>
+                  <th>{s.recordPayment}</th>
                 </tr>
               </thead>
               <tbody>
                 {rows.map((row) => (
                   <tr key={row.id}>
                     <td>
-                      <Link href={`/business/${row.business.slug}`} className="z-ranklist__name">
+                      <Link
+                        href={path(`/business/${row.business.slug}`)}
+                        className="z-ranklist__name"
+                      >
                         {row.business.name}
                       </Link>
                       <br />
-                      <span className="z-help">{row.business.owner.email}</span>
+                      <span className="z-help" dir="ltr">
+                        {row.business.owner.email}
+                      </span>
                     </td>
                     <td>
                       {row.plan.name}
                       <br />
                       <span className="z-help">
-                        {formatPrice(Number(row.plan.priceAmount), 'fr', row.plan.currency)} /{' '}
-                        {row.plan.interval === 'MONTH' ? 'mois' : 'an'}
+                        {t(s.pricePer, {
+                          price: formatPrice(Number(row.plan.priceAmount), locale, row.plan.currency),
+                          interval: m.labels.interval[row.plan.interval],
+                        })}
                       </span>
                     </td>
                     <td>
                       <Badge tone={STATUS_TONE[row.effective] ?? 'neutral'}>
-                        {STATUS_LABEL[row.effective] ?? row.effective}
+                        {m.labels.subscriptionStatus[row.effective] ?? row.effective}
                       </Badge>
                       {row.trialLeft !== null ? (
                         <>
                           <br />
-                          <span className="z-help">{row.trialLeft} j restants</span>
+                          <span className="z-help">
+                            {formatCount(s.daysLeft, row.trialLeft, locale)}
+                          </span>
                         </>
                       ) : null}
                     </td>
                     <td>
                       <span className="z-help">
                         {row.currentEndAt
-                          ? formatDate(row.currentEndAt)
+                          ? formatDate(row.currentEndAt, locale)
                           : row.trialEndAt
-                            ? formatDate(row.trialEndAt)
+                            ? formatDate(row.trialEndAt, locale)
                             : '—'}
                       </span>
                     </td>
@@ -160,6 +177,7 @@ export default async function AdminSubscriptionsPage() {
                         businessId={row.businessId}
                         defaultAmount={Number(row.plan.priceAmount)}
                         currency={row.plan.currency}
+                        m={{ admin: m.admin, common: m.common }}
                       />
                     </td>
                   </tr>
@@ -171,36 +189,53 @@ export default async function AdminSubscriptionsPage() {
       )}
 
       <Panel className="z-dash__panel">
-        <h2 className="z-profile__h3">Derniers paiements</h2>
+        <h2 className="z-profile__h3">{s.recentPayments}</h2>
         {recentPayments.length === 0 ? (
-          <p className="z-help">Aucun paiement enregistré.</p>
+          <p className="z-help">{s.noPayments}</p>
         ) : (
           <div className="z-table--scroll">
             <table className="z-table">
               <thead>
                 <tr>
-                  <th>Date</th>
-                  <th>Établissement</th>
-                  <th>Montant</th>
-                  <th>Période</th>
-                  <th>Moyen</th>
+                  <th>{c.date}</th>
+                  <th>{c.business}</th>
+                  <th>{c.amount}</th>
+                  <th>{s.period}</th>
+                  <th>{c.status}</th>
+                  <th>{s.method}</th>
                 </tr>
               </thead>
               <tbody>
                 {recentPayments.map((payment) => (
                   <tr key={payment.id}>
-                    <td>{payment.paidAt ? formatDate(payment.paidAt) : '—'}</td>
+                    <td>{payment.paidAt ? formatDate(payment.paidAt, locale) : '—'}</td>
                     <td>{payment.subscription.business.name}</td>
-                    <td>{formatPrice(Number(payment.amount), 'fr', payment.currency)}</td>
+                    <td>{formatPrice(Number(payment.amount), locale, payment.currency)}</td>
                     <td>
                       <span className="z-help">
                         {payment.periodStart && payment.periodEnd
-                          ? `${formatDate(payment.periodStart)} → ${formatDate(payment.periodEnd)}`
+                          ? t(s.periodRange, {
+                              start: formatDate(payment.periodStart, locale),
+                              end: formatDate(payment.periodEnd, locale),
+                            })
                           : '—'}
                       </span>
                     </td>
                     <td>
-                      <span className="z-help">{payment.provider}</span>
+                      <Badge tone={PAYMENT_TONE[payment.status] ?? 'neutral'}>
+                        {m.labels.paymentStatus[payment.status]}
+                      </Badge>
+                    </td>
+                    <td>
+                      <span className="z-help">
+                        {s.providers[payment.provider] ?? payment.provider}
+                        {payment.providerRef ? (
+                          <>
+                            <br />
+                            <bdi>{payment.providerRef}</bdi>
+                          </>
+                        ) : null}
+                      </span>
                     </td>
                   </tr>
                 ))}
@@ -224,6 +259,8 @@ export default async function AdminSubscriptionsPage() {
           isActive: p.isActive,
           isDefault: p.isDefault,
         }))}
+        m={{ admin: m.admin, labels: m.labels, common: m.common }}
+        locale={locale}
       />
     </div>
   );

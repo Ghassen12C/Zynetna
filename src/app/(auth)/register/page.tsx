@@ -4,36 +4,38 @@ import { redirect } from 'next/navigation';
 import { Logo } from '@/components/brand/Mark';
 import { RegisterForm } from './RegisterForm';
 import { getActor } from '@/server/auth/session';
+import { translate } from '@/i18n/server';
 
-export const metadata: Metadata = {
-  title: 'Créer un compte',
-  robots: { index: false, follow: false },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const { m } = await translate();
+  return { title: m.auth.registerTitle, robots: { index: false, follow: false } };
+}
 
 export default async function RegisterPage() {
-  if (await getActor()) redirect('/account');
+  const { m, locale, path } = await translate();
+  if (await getActor()) redirect(path('/account'));
 
   return (
     <>
       <div className="z-auth__mobile-logo">
-        <Link href="/" aria-label="Zynetna — accueil">
+        <Link href={path('/')} aria-label={m.nav.homeLabel}>
           <Logo size={36} />
         </Link>
       </div>
 
       <div>
-        <h1 className="z-auth__title">Créer un compte</h1>
-        <p className="z-auth__subtitle">Réservez en quelques secondes, partout en Tunisie.</p>
+        <h1 className="z-auth__title">{m.auth.registerTitle}</h1>
+        <p className="z-auth__subtitle">{m.auth.registerSubtitle}</p>
       </div>
 
-      <RegisterForm />
+      <RegisterForm m={m.auth} locale={locale} />
 
       <p className="z-auth__foot">
-        Déjà inscrit ? <Link href="/login">Se connecter</Link>
+        {m.auth.hasAccount} <Link href={path('/login')}>{m.nav.login}</Link>
       </p>
 
       <p className="z-auth__foot">
-        Vous êtes professionnel ? <Link href="/register/pro">Créer un établissement</Link>
+        {m.home.proCtaTitle} <Link href={path('/register/pro')}>{m.footer.createBusiness}</Link>
       </p>
     </>
   );

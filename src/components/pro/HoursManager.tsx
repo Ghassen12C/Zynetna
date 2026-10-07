@@ -14,24 +14,36 @@ import {
 } from '@/server/actions/business';
 import { idle } from '@/lib/formState';
 import { minutesToHHMM } from '@/domain/scheduling/time';
+import { formatDate, weekdayNames } from '@/i18n/format';
+import { LOCALE_META, type Locale } from '@/i18n/config';
+import { interpolate } from '@/i18n/interpolate';
+import type { Messages } from '@/i18n';
 
-const WEEKDAYS = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
-
-const KIND_LABEL: Record<string, string> = {
-  CLOSED: 'Fermeture',
-  HOLIDAY: 'Jour férié',
-  VACATION: 'Congés',
-  BREAK: 'Pause',
-  SPECIAL_HOURS: 'Horaires exceptionnels',
+type M = {
+  dashSetup: Messages['dashSetup'];
+  common: Messages['common'];
+  labels: Messages['labels'];
 };
+
+const EXCEPTION_KINDS = ['CLOSED', 'HOLIDAY', 'VACATION', 'BREAK', 'SPECIAL_HOURS'] as const;
+
+/** A stored calendar day ("2026-10-12") in the reader's language, never shifted by time zone. */
+function formatDay(isoDate: string, locale: Locale): string {
+  return formatDate(
+    new Date(`${isoDate}T00:00:00Z`),
+    locale,
+    { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' },
+    'UTC',
+  );
+}
 
 type Period = { startMin: number; endMin: number };
 
-function DaySubmit() {
+function DaySubmit({ label }: { label: string }) {
   const { pending } = useFormStatus();
   return (
     <Button type="submit" size="sm" loading={pending}>
-      Enregistrer
+      {label}
     </Button>
   );
 }
@@ -41,10 +53,14 @@ function DaySubmit() {
  * Tunisian salon actually works: 09:00–13:00, then 14:00–19:00.
  */
 function DayRow({
+  m,
+  dayName,
   businessId,
   weekday,
   periods,
 }: {
+  m: M;
+  dayName: string;
   businessId: string;
   weekday: number;
   periods: Period[];
@@ -58,6 +74,7 @@ function DayRow({
   );
 
   if (state.status === 'success') router.refresh();
+  const t = m.dashSetup.hours;
 
   return (
     <form action={formAction} className="z-dayrow">
@@ -65,45 +82,48 @@ function DayRow({
       <input type="hidden" name="weekday" value={weekday} />
 
       <div className="z-dayrow__name">
-        <strong>{WEEKDAYS[weekday]}</strong>
-        {rows.length === 0 ? <span className="z-help">Fermé</span> : null}
+        <strong>{dayName}</strong>
+        {rows.length === 0 ? <span className="z-help">{t.closed}</span> : null}
       </div>
 
       <div className="z-dayrow__periods">
         {rows.map((row, index) => (
           <div key={index} className="z-dayrow__period">
-            <input
-              type="time"
-              name="starts"
-              className="z-input"
-              value={row.start}
-              required
-              aria-label={`Ouverture ${index + 1}`}
-              onChange={(e) =>
-                setRows((prev) =>
-                  prev.map((r, i) => (i === index ? { ...r, start: e.target.value } : r)),
-                )
-              }
-            />
-            <span aria-hidden="true">–</span>
-            <input
-              type="time"
-              name="ends"
-              className="z-input"
-              value={row.end}
-              required
-              aria-label={`Fermeture ${index + 1}`}
-              onChange={(e) =>
-                setRows((prev) =>
-                  prev.map((r, i) => (i === index ? { ...r, end: e.target.value } : r)),
-                )
-              }
-            />
+            {/* A time range reads left to right in every language: 09:00 – 13:00. */}
+            <span className="z-dayrow__range" dir="ltr">
+              <input
+                type="time"
+                name="starts"
+                className="z-input"
+                value={row.start}
+                required
+                aria-label={interpolate(t.opening, { n: index + 1 })}
+                onChange={(e) =>
+                  setRows((prev) =>
+                    prev.map((r, i) => (i === index ? { ...r, start: e.target.value } : r)),
+                  )
+                }
+              />
+              <span aria-hidden="true">–</span>
+              <input
+                type="time"
+                name="ends"
+                className="z-input"
+                value={row.end}
+                required
+                aria-label={interpolate(t.closing, { n: index + 1 })}
+                onChange={(e) =>
+                  setRows((prev) =>
+                    prev.map((r, i) => (i === index ? { ...r, end: e.target.value } : r)),
+                  )
+                }
+              />
+            </span>
             <button
               type="button"
               className="z-iconbtn"
               onClick={() => setRows((prev) => prev.filter((_, i) => i !== index))}
-              aria-label="Retirer ce créneau"
+              aria-label={t.removeSlot}
             >
               ×
             </button>
@@ -120,12 +140,12 @@ function DayRow({
             ])
           }
         >
-          + Créneau
+          + {t.addSlot}
         </button>
       </div>
 
       <div className="z-dayrow__actions">
-        <DaySubmit />
+        <DaySubmit label={m.common.save} />
       </div>
 
       {state.status === 'error' ? (
@@ -136,9 +156,11 @@ function DayRow({
 }
 
 function ExceptionForm({
+  m,
   businessId,
   staff,
 }: {
+  m: M;
   businessId: string;
   staff: { id: string; displayName: string }[];
 }) {
@@ -148,35 +170,36 @@ function ExceptionForm({
   if (state.status === 'success') router.refresh();
 
   const needsTimes = kind === 'BREAK' || kind === 'SPECIAL_HOURS';
+  const t = m.dashSetup.hours;
 
   return (
     <form action={formAction} className="z-auth__form">
       <input type="hidden" name="businessId" value={businessId} />
       {state.status === 'error' ? <Alert tone="error">{state.message}</Alert> : null}
 
-      <Select label="Type" name="kind" value={kind} onChange={(e) => setKind(e.target.value)}>
-        <option value="CLOSED">Fermeture exceptionnelle</option>
-        <option value="HOLIDAY">Jour férié</option>
-        <option value="VACATION">Congés</option>
-        <option value="BREAK">Pause</option>
-        <option value="SPECIAL_HOURS">Horaires exceptionnels</option>
+      <Select label={t.type} name="kind" value={kind} onChange={(e) => setKind(e.target.value)}>
+        {EXCEPTION_KINDS.map((value) => (
+          <option key={value} value={value}>
+            {m.labels.exceptionKind[value]}
+          </option>
+        ))}
       </Select>
 
       <div className="z-auth__row">
-        <Input label="Du" name="date" type="date" required />
-        <Input label="Au" name="endDate" type="date" optional hint="Laissez vide pour un seul jour." />
+        <Input label={t.from} name="date" type="date" required />
+        <Input label={t.to} name="endDate" type="date" optional hint={t.toHint} />
       </div>
 
       {needsTimes ? (
         <div className="z-auth__row">
-          <Input label="De" name="startMin" type="time" required />
-          <Input label="À" name="endMin" type="time" required />
+          <Input label={t.timeFrom} name="startMin" type="time" required dir="ltr" />
+          <Input label={t.timeTo} name="endMin" type="time" required dir="ltr" />
         </div>
       ) : null}
 
       {staff.length > 0 ? (
-        <Select label="Concerne" name="staffMemberId" optional>
-          <option value="">Tout l’établissement</option>
+        <Select label={t.appliesTo} name="staffMemberId" optional>
+          <option value="">{t.wholeBusiness}</option>
           {staff.map((member) => (
             <option key={member.id} value={member.id}>
               {member.displayName}
@@ -185,21 +208,29 @@ function ExceptionForm({
         </Select>
       ) : null}
 
-      <Input label="Motif" name="reason" optional placeholder="Aïd, inventaire, formation…" />
+      <Input label={t.reason} name="reason" optional placeholder={t.reasonPlaceholder} />
 
-      <Button type="submit">Ajouter</Button>
+      <Button type="submit">{m.common.add}</Button>
     </form>
   );
 }
 
-function DeleteException({ businessId, exceptionId }: { businessId: string; exceptionId: string }) {
+function DeleteException({
+  label,
+  businessId,
+  exceptionId,
+}: {
+  label: string;
+  businessId: string;
+  exceptionId: string;
+}) {
   const router = useRouter();
   const [, formAction] = useActionState(deleteExceptionAction, idle);
   return (
     <form action={formAction} onSubmit={() => setTimeout(() => router.refresh(), 400)}>
       <input type="hidden" name="businessId" value={businessId} />
       <input type="hidden" name="exceptionId" value={exceptionId} />
-      <button type="submit" className="z-iconbtn" aria-label="Supprimer">
+      <button type="submit" className="z-iconbtn" aria-label={label} title={label}>
         ×
       </button>
     </form>
@@ -207,11 +238,15 @@ function DeleteException({ businessId, exceptionId }: { businessId: string; exce
 }
 
 export function HoursManager({
+  m,
+  locale,
   businessId,
   hours,
   exceptions,
   staff,
 }: {
+  m: M;
+  locale: Locale;
   businessId: string;
   hours: { weekday: number; startMin: number; endMin: number }[];
   exceptions: {
@@ -226,15 +261,19 @@ export function HoursManager({
   }[];
   staff: { id: string; displayName: string }[];
 }) {
+  const t = m.dashSetup.hours;
+  const intl = LOCALE_META[locale].intl;
+  // Intl writes French weekdays in lower case; a row heading wants a capital.
+  const days = weekdayNames(locale).map(
+    (name) => name.charAt(0).toLocaleUpperCase(intl) + name.slice(1),
+  );
+
   return (
     <div className="z-dash__grid">
       <Panel className="z-dash__panel">
         <div>
-          <h2 className="z-profile__h3">Horaires d’ouverture</h2>
-          <p className="z-policy">
-            Ajoutez plusieurs créneaux pour une coupure déjeuner. Vos disponibilités de
-            réservation en découlent directement.
-          </p>
+          <h2 className="z-profile__h3">{t.heading}</h2>
+          <p className="z-policy">{t.intro}</p>
         </div>
 
         <div className="z-days">
@@ -242,6 +281,8 @@ export function HoursManager({
           {[1, 2, 3, 4, 5, 6, 0].map((weekday) => (
             <DayRow
               key={weekday}
+              m={m}
+              dayName={days[weekday] ?? ''}
               businessId={businessId}
               weekday={weekday}
               periods={hours.filter((h) => h.weekday === weekday)}
@@ -252,37 +293,53 @@ export function HoursManager({
 
       <div className="z-stack" style={{ gap: 'var(--z-space-5)' }}>
         <Panel className="z-dash__panel">
-          <h2 className="z-profile__h3">Fermeture ou congés</h2>
-          <ExceptionForm businessId={businessId} staff={staff} />
+          <h2 className="z-profile__h3">{t.exceptionsHeading}</h2>
+          <ExceptionForm m={m} businessId={businessId} staff={staff} />
         </Panel>
 
         <Panel className="z-dash__panel">
-          <h2 className="z-profile__h3">À venir</h2>
+          <h2 className="z-profile__h3">{t.upcoming}</h2>
           {exceptions.length === 0 ? (
-            <p className="z-help">Aucune fermeture programmée.</p>
+            <p className="z-help">{t.noUpcoming}</p>
           ) : (
             <ul className="z-exceptions">
               {exceptions.map((exception) => (
                 <li key={exception.id}>
                   <div>
                     <Badge tone={exception.kind === 'SPECIAL_HOURS' ? 'accent' : 'warning'}>
-                      {KIND_LABEL[exception.kind] ?? exception.kind}
+                      {m.labels.exceptionKind[
+                        exception.kind as keyof Messages['labels']['exceptionKind']
+                      ] ?? exception.kind}
                     </Badge>
                     <p>
-                      {exception.date}
                       {exception.endDate && exception.endDate !== exception.date
-                        ? ` → ${exception.endDate}`
-                        : ''}
-                      {exception.startMin !== null
-                        ? ` · ${minutesToHHMM(exception.startMin)}–${minutesToHHMM(exception.endMin ?? 0)}`
-                        : ''}
+                        ? interpolate(t.dateRange, {
+                            start: formatDay(exception.date, locale),
+                            end: formatDay(exception.endDate, locale),
+                          })
+                        : formatDay(exception.date, locale)}
+                      {exception.startMin !== null ? (
+                        <>
+                          {' · '}
+                          <bdi dir="ltr">
+                            {minutesToHHMM(exception.startMin)}–
+                            {minutesToHHMM(exception.endMin ?? 0)}
+                          </bdi>
+                        </>
+                      ) : null}
                     </p>
                     {exception.reason ? <p className="z-help">{exception.reason}</p> : null}
                     {exception.staffName ? (
-                      <p className="z-help">Concerne {exception.staffName}</p>
+                      <p className="z-help">
+                        {interpolate(t.appliesToName, { name: exception.staffName })}
+                      </p>
                     ) : null}
                   </div>
-                  <DeleteException businessId={businessId} exceptionId={exception.id} />
+                  <DeleteException
+                    label={t.deleteException}
+                    businessId={businessId}
+                    exceptionId={exception.id}
+                  />
                 </li>
               ))}
             </ul>

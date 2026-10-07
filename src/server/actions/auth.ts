@@ -25,7 +25,7 @@ import {
   resetPasswordSchema,
   updateProfileSchema,
 } from '@/lib/validation/auth';
-import { type FormState, parseForm, toFormState } from './formState';
+import { type FormState, done, feedbackFor, parseForm, toFormState } from './formState';
 
 async function clientIp(): Promise<string> {
   const headerList = await headers();
@@ -47,7 +47,7 @@ export async function loginAction(
   _prev: FormState,
   formData: FormData,
 ): Promise<FormState> {
-  const parsed = parseForm(loginSchema, formData);
+  const parsed = await parseForm(loginSchema, formData);
   if (!parsed.ok) return parsed.state;
 
   let destination = '/account';
@@ -67,18 +67,15 @@ export async function loginAction(
       // Same work as a real verification, so timing does not reveal whether
       // the account exists.
       await burnTime(parsed.data.password);
-      return { status: 'error', message: 'E-mail ou mot de passe incorrect.' };
+      return { status: 'error', message: (await feedbackFor()).errors.badCredentials };
     }
 
     const valid = await verifyPassword(parsed.data.password, user.passwordHash);
     if (!valid) {
-      return { status: 'error', message: 'E-mail ou mot de passe incorrect.' };
+      return { status: 'error', message: (await feedbackFor()).errors.badCredentials };
     }
     if (user.status !== 'ACTIVE') {
-      return {
-        status: 'error',
-        message: 'Ce compte est suspendu. Contactez le support Zynetna.',
-      };
+      return { status: 'error', message: (await feedbackFor()).errors.accountSuspended };
     }
 
     await createSession(user.id);
@@ -109,7 +106,7 @@ export async function registerAction(
   _prev: FormState,
   formData: FormData,
 ): Promise<FormState> {
-  const parsed = parseForm(registerSchema, formData);
+  const parsed = await parseForm(registerSchema, formData);
   if (!parsed.ok) return parsed.state;
 
   try {
@@ -121,10 +118,11 @@ export async function registerAction(
       select: { id: true },
     });
     if (existing) {
+      const f = await feedbackFor();
       return {
         status: 'error',
-        message: 'Un compte existe déjà avec cet e-mail.',
-        fieldErrors: { email: 'Déjà utilisé.' },
+        message: f.errors.emailTaken,
+        fieldErrors: { email: f.validation.alreadyUsed },
       };
     }
 
@@ -169,7 +167,7 @@ export async function changePasswordAction(
   _prev: FormState,
   formData: FormData,
 ): Promise<FormState> {
-  const parsed = parseForm(changePasswordSchema, formData);
+  const parsed = await parseForm(changePasswordSchema, formData);
   if (!parsed.ok) return parsed.state;
 
   try {
@@ -180,10 +178,11 @@ export async function changePasswordAction(
     });
 
     if (!(await verifyPassword(parsed.data.current, user.passwordHash))) {
+      const f = await feedbackFor();
       return {
         status: 'error',
-        message: 'Mot de passe actuel incorrect.',
-        fieldErrors: { current: 'Incorrect.' },
+        message: f.errors.currentPasswordWrong,
+        fieldErrors: { current: f.validation.incorrect },
       };
     }
 
@@ -203,7 +202,7 @@ export async function changePasswordAction(
       targetId: actor.userId,
     });
 
-    return { status: 'success', message: 'Mot de passe mis à jour. Vos autres sessions ont été déconnectées.' };
+    return { status: 'success', message: await done('passwordChanged') };
   } catch (error) {
     return toFormState(error, 'changePasswordAction');
   }
@@ -213,7 +212,7 @@ export async function updateProfileAction(
   _prev: FormState,
   formData: FormData,
 ): Promise<FormState> {
-  const parsed = parseForm(updateProfileSchema, formData);
+  const parsed = await parseForm(updateProfileSchema, formData);
   if (!parsed.ok) return parsed.state;
 
   try {
@@ -224,7 +223,7 @@ export async function updateProfileAction(
         where: { phone: parsed.data.phone, id: { not: actor.userId } },
         select: { id: true },
       });
-      if (taken) throw invalid('Ce numéro est déjà associé à un autre compte.');
+      if (taken) throw invalid('phoneTaken');
     }
 
     await db.user.update({
@@ -237,7 +236,7 @@ export async function updateProfileAction(
       },
     });
 
-    return { status: 'success', message: 'Profil enregistré.' };
+    return { status: 'success', message: await done('profileSaved') };
   } catch (error) {
     return toFormState(error, 'updateProfileAction');
   }
@@ -254,14 +253,10 @@ export async function requestPasswordResetAction(
   _prev: FormState,
   formData: FormData,
 ): Promise<FormState> {
-  const parsed = parseForm(requestResetSchema, formData);
+  const parsed = await parseForm(requestResetSchema, formData);
   if (!parsed.ok) return parsed.state;
 
-  const generic = {
-    status: 'success' as const,
-    message:
-      'Si un compte existe avec cette adresse, un lien de réinitialisation vient d’être envoyé.',
-  };
+  const generic = { status: 'success' as const, message: await done('resetLinkSent') };
 
   try {
     const ip = await clientIp();
@@ -270,7 +265,7 @@ export async function requestPasswordResetAction(
 
     const user = await db.user.findUnique({
       where: { email: parsed.data.email },
-      select: { id: true, email: true, firstName: true, status: true },
+      select: { id: true, email: true, firstName: true, status: true, locale: true },
     });
     if (!user || user.status !== 'ACTIVE') return generic;
 
@@ -293,6 +288,7 @@ export async function requestPasswordResetAction(
       email: user.email,
       firstName: user.firstName,
       token,
+      locale: user.locale,
     });
 
     return generic;
@@ -311,7 +307,7 @@ export async function resetPasswordAction(
   _prev: FormState,
   formData: FormData,
 ): Promise<FormState> {
-  const parsed = parseForm(resetPasswordSchema, formData);
+  const parsed = await parseForm(resetPasswordSchema, formData);
   if (!parsed.ok) return parsed.state;
 
   try {
@@ -322,7 +318,7 @@ export async function resetPasswordAction(
 
     const invalidLink = {
       status: 'error' as const,
-      message: 'Ce lien est invalide ou a expiré. Demandez-en un nouveau.',
+      message: (await feedbackFor()).errors.resetLinkInvalid,
     };
     if (!record || record.usedAt || record.expiresAt.getTime() <= Date.now()) {
       return invalidLink;
@@ -349,10 +345,7 @@ export async function resetPasswordAction(
       ipAddress: await clientIp(),
     });
 
-    return {
-      status: 'success',
-      message: 'Mot de passe réinitialisé. Vous pouvez vous connecter.',
-    };
+    return { status: 'success', message: await done('passwordReset') };
   } catch (error) {
     return toFormState(error, 'resetPasswordAction');
   }

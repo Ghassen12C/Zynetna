@@ -1,3 +1,5 @@
+import type { PluralForms } from '@/i18n/config';
+
 /**
  * Labels for the values the database stores as codes: statuses, roles,
  * channels. Shared by the professional dashboard and the admin, so a status
@@ -88,5 +90,12 @@ export const labelsFr = {
     PORTFOLIO: 'Réalisations',
     TEAM: 'Équipe',
     GALLERY: 'Galerie',
+  },
+  ui: {
+    optional: 'optionnel',
+    ratingOutOf: '{value} sur 5',
+    ratingWithReviews: '{value} sur 5, {reviews}',
+    reviews: { one: '{count} avis', other: '{count} avis' } as PluralForms,
+    chartEmpty: 'Pas encore de données.',
   },
 };

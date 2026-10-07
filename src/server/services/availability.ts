@@ -40,7 +40,7 @@ async function loadSnapshot(q: AvailabilityQuery) {
       subscription: { select: { status: true } },
     },
   });
-  if (!business) throw notFound('Business not found.');
+  if (!business) throw notFound('businessNotFound');
 
   const service = await db.service.findFirst({
     where: { id: q.serviceId, businessId: q.businessId, isActive: true },
@@ -52,7 +52,7 @@ async function loadSnapshot(q: AvailabilityQuery) {
       minNoticeMinutes: true,
     },
   });
-  if (!service) throw notFound('Service not found.');
+  if (!service) throw notFound('serviceNotFound');
 
   // Only professionals who actually perform this service — the booking engine
   // must honour the professional↔service relationship.

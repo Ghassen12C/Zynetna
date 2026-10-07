@@ -9,8 +9,9 @@ import { recordAudit } from '@/server/audit';
 import { createReservation } from '@/server/services/booking';
 import { getDayAvailability } from '@/server/services/availability';
 import { cuidSchema, dayKeySchema, nameSchema, phoneSchema } from '@/lib/validation/common';
+import { v } from '@/lib/validation/keys';
 import type { FormState } from '@/lib/formState';
-import { parseForm, toFormState } from './formState';
+import { feedbackFor, parseForm, toFormState } from './formState';
 
 /**
  * Walk-in and telephone bookings.
@@ -39,8 +40,8 @@ const schema = z
     guestPhone: phoneSchema.optional().or(z.literal('')),
     internalNote: z.string().trim().max(500).optional().or(z.literal('')),
   })
-  .refine((v) => Boolean(v.customerId) || Boolean(v.guestName), {
-    message: 'Indiquez un client existant ou le nom de la personne.',
+  .refine((value) => Boolean(value.customerId) || Boolean(value.guestName), {
+    message: v('walkInCustomer'),
     path: ['guestName'],
   });
 
@@ -48,7 +49,7 @@ export async function createWalkInAction(
   _prev: FormState<{ reference: string }>,
   formData: FormData,
 ): Promise<FormState<{ reference: string }>> {
-  const parsed = parseForm(schema, formData);
+  const parsed = await parseForm(schema, formData);
   if (!parsed.ok) return parsed.state;
 
   try {
@@ -65,7 +66,7 @@ export async function createWalkInAction(
         where: { businessId, customerId: parsed.data.customerId },
         select: { customerId: true },
       });
-      if (!known) throw invalid('Ce client n’a pas encore de rendez-vous chez vous.');
+      if (!known) throw invalid('customerUnknown');
       customerId = parsed.data.customerId;
     }
 
@@ -153,7 +154,7 @@ export async function proAvailabilityAction(input: {
       closedReason: availability.closedReason,
     };
   } catch {
-    return { ok: false, message: 'Impossible de charger les disponibilités.' };
+    return { ok: false, message: (await feedbackFor()).errors.availabilityFailed };
   }
 }
 
@@ -223,7 +224,7 @@ export async function walkInOptionsAction(businessId: string) {
       select: { currency: true, timezone: true },
     }),
   ]);
-  if (!business) throw notFound();
+  if (!business) throw notFound('businessNotFound');
 
   return {
     services: services.map((s) => ({

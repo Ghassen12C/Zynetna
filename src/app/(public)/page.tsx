@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { Fragment } from 'react';
 import { ButtonLink } from '@/components/ui/Button';
+import { Arrow } from '@/components/ui/Arrow';
 import { Eyebrow } from '@/components/ui/Primitives';
 import { BusinessCard } from '@/components/business/BusinessCard';
 import { Rail } from '@/components/ui/Rail';
@@ -148,7 +149,7 @@ export default async function HomePage() {
                 <h2 className="z-section__title">{m.home.popularCategories}</h2>
               </div>
               <Link href={path('/categories')} className="z-header__link">
-                {m.common.seeAll} →
+                {m.common.seeAll} <Arrow />
               </Link>
             </div>
 
@@ -184,7 +185,7 @@ export default async function HomePage() {
                 <p className="z-section__lead">{m.home.featuredLead}</p>
               </div>
               <Link href={path('/search?verified=1')} className="z-header__link">
-                {m.common.seeAll} →
+                {m.common.seeAll} <Arrow />
               </Link>
             </div>
 

@@ -34,7 +34,7 @@ export async function defaultPlan() {
       where: { isActive: true },
       orderBy: { position: 'asc' },
     }));
-  if (!plan) throw notFound('No subscription plan is configured.');
+  if (!plan) throw notFound('planNotConfigured');
   return plan;
 }
 
@@ -147,7 +147,7 @@ export async function recordPayment(opts: {
     where: { businessId: opts.businessId },
     include: { plan: true },
   });
-  if (!subscription) throw notFound('No subscription for this business.');
+  if (!subscription) throw notFound('subscriptionNotFound');
 
   const terms = termsOf(subscription.plan);
   const now = new Date();
@@ -200,7 +200,7 @@ export async function recordPayment(opts: {
 
 export async function cancelSubscription(businessId: string, reason?: string) {
   const subscription = await db.subscription.findUnique({ where: { businessId } });
-  if (!subscription) throw notFound('No subscription for this business.');
+  if (!subscription) throw notFound('subscriptionNotFound');
 
   return db.$transaction(async (tx) => {
     const updated = await tx.subscription.update({

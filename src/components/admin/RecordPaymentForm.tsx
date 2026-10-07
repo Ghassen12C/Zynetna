@@ -6,12 +6,14 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 import { recordPaymentAction } from '@/server/actions/admin';
 import { idle } from '@/lib/formState';
+import type { Messages } from '@/i18n';
+import { interpolate } from '@/i18n/interpolate';
 
-function Submit() {
+function Submit({ label }: { label: string }) {
   const { pending } = useFormStatus();
   return (
     <Button type="submit" size="sm" loading={pending}>
-      Enregistrer
+      {label}
     </Button>
   );
 }
@@ -27,11 +29,14 @@ export function RecordPaymentForm({
   businessId,
   defaultAmount,
   currency,
+  m,
 }: {
   businessId: string;
   defaultAmount: number;
   currency: string;
+  m: Pick<Messages, 'admin' | 'common'>;
 }) {
+  const p = m.admin.payment;
   const router = useRouter();
   const [state, formAction] = useActionState(recordPaymentAction, idle);
   const [open, setOpen] = useState(false);
@@ -40,7 +45,7 @@ export function RecordPaymentForm({
   if (!open) {
     return (
       <Button size="sm" variant="ghost" onClick={() => setOpen(true)}>
-        + Paiement
+        {p.open}
       </Button>
     );
   }
@@ -56,21 +61,29 @@ export function RecordPaymentForm({
         min="0"
         defaultValue={defaultAmount}
         required
-        aria-label={`Montant en ${currency}`}
+        aria-label={interpolate(p.amount, { currency })}
+        dir="ltr"
         style={{ minHeight: 36, padding: '6px 10px' }}
       />
       <input
         type="text"
         name="providerRef"
         className="z-input"
-        placeholder="Référence (virement, reçu…)"
-        aria-label="Référence"
+        placeholder={p.referencePlaceholder}
+        aria-label={p.reference}
         style={{ minHeight: 36, padding: '6px 10px' }}
       />
       {state.status === 'error' ? <span className="z-error">{state.message}</span> : null}
       <div className="z-row" style={{ gap: 'var(--z-space-1)' }}>
-        <Submit />
-        <Button type="button" size="sm" variant="ghost" onClick={() => setOpen(false)}>
+        <Submit label={m.common.save} />
+        <Button
+          type="button"
+          size="sm"
+          variant="ghost"
+          onClick={() => setOpen(false)}
+          aria-label={p.close}
+          title={p.close}
+        >
           ×
         </Button>
       </div>

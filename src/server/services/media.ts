@@ -1,7 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import sharp from 'sharp';
 import { db } from '@/lib/db';
-import { AppError, invalid } from '@/lib/errors';
+import { invalid, localized } from '@/lib/errors';
 import { logger } from '@/lib/logger';
 import { checksumOf, storage } from '../providers/storage';
 
@@ -66,21 +66,17 @@ export type UploadInput = {
 };
 
 export async function ingestImage(input: UploadInput): Promise<UploadResult> {
-  if (input.buffer.length === 0) throw invalid('The uploaded file is empty.');
+  if (input.buffer.length === 0) throw invalid('fileEmpty');
   if (input.buffer.length > MAX_UPLOAD_BYTES) {
-    throw new AppError(
-      'PAYLOAD_TOO_LARGE',
-      `Images must be under ${Math.floor(MAX_UPLOAD_BYTES / 1024 / 1024)} MB.`,
-    );
+    throw localized('PAYLOAD_TOO_LARGE', 'fileTooLarge', {
+      size: Math.floor(MAX_UPLOAD_BYTES / 1024 / 1024),
+    });
   }
 
   // The real content type, from the bytes themselves.
   const actualType = sniff(input.buffer);
   if (!actualType || !ACCEPTED.has(actualType)) {
-    throw new AppError(
-      'UNSUPPORTED_MEDIA',
-      'Upload a JPEG, PNG, WebP or AVIF image.',
-    );
+    throw localized('UNSUPPORTED_MEDIA', 'unsupportedImage');
   }
   // A mismatch between the declared and actual type is a red flag worth logging.
   if (input.declaredType && input.declaredType !== actualType) {
@@ -95,16 +91,16 @@ export async function ingestImage(input: UploadInput): Promise<UploadResult> {
   try {
     metadata = await sharp(input.buffer, { limitInputPixels: MAX_PIXELS }).metadata();
   } catch {
-    throw new AppError('UNSUPPORTED_MEDIA', 'That file is not a readable image.');
+    throw localized('UNSUPPORTED_MEDIA', 'unreadableImage');
   }
 
   const width = metadata.width ?? 0;
   const height = metadata.height ?? 0;
   if (width < MIN_DIMENSION || height < MIN_DIMENSION) {
-    throw invalid(`Images must be at least ${MIN_DIMENSION}×${MIN_DIMENSION} pixels.`);
+    throw invalid('imageTooSmall', { size: MIN_DIMENSION });
   }
   if (width * height > MAX_PIXELS) {
-    throw new AppError('PAYLOAD_TOO_LARGE', 'That image is too large to process.');
+    throw localized('PAYLOAD_TOO_LARGE', 'imageTooLargeToProcess');
   }
 
   const id = randomBytes(12).toString('hex');

@@ -7,20 +7,27 @@ import { Button } from '@/components/ui/Button';
 import { Input, Select } from '@/components/ui/Field';
 import { updateProfileAction } from '@/server/actions/auth';
 import { idle } from '@/lib/formState';
+import { LOCALES, LOCALE_META } from '@/i18n/config';
+import type { Messages } from '@/i18n';
 
-function Submit() {
+function Submit({ label }: { label: string }) {
   const { pending } = useFormStatus();
   return (
     <Button type="submit" loading={pending}>
-      Enregistrer
+      {label}
     </Button>
   );
 }
 
 export function ProfileForm({
   user,
+  m,
+  emailNote,
 }: {
   user: { firstName: string; lastName: string; email: string; phone: string | null; locale: string };
+  m: { auth: Messages['auth']; account: Messages['account']; common: Messages['common'] };
+  /** The "email cannot be changed" sentence, already filled with the address. */
+  emailNote: React.ReactNode;
 }) {
   const [state, formAction] = useActionState(updateProfileAction, idle);
   const errors = state.status === 'error' ? state.fieldErrors : undefined;
@@ -31,12 +38,12 @@ export function ProfileForm({
       {state.status === 'success' ? <Alert tone="success">{state.message}</Alert> : null}
 
       <div className="z-auth__row">
-        <Input label="Prénom" name="firstName" defaultValue={user.firstName} required error={errors?.firstName} />
-        <Input label="Nom" name="lastName" defaultValue={user.lastName} required error={errors?.lastName} />
+        <Input label={m.auth.firstName} name="firstName" defaultValue={user.firstName} required error={errors?.firstName} />
+        <Input label={m.auth.lastName} name="lastName" defaultValue={user.lastName} required error={errors?.lastName} />
       </div>
 
       <Input
-        label="Téléphone"
+        label={m.auth.phone}
         name="phone"
         type="tel"
         inputMode="tel"
@@ -46,17 +53,18 @@ export function ProfileForm({
         error={errors?.phone}
       />
 
-      <Select label="Langue" name="locale" defaultValue={user.locale}>
-        <option value="fr">Français</option>
-        <option value="ar">العربية</option>
-        <option value="en">English</option>
+      <Select label={m.account.language} name="locale" defaultValue={user.locale}>
+        {/* Each language is named in itself, so anyone can find their own. */}
+        {LOCALES.map((code) => (
+          <option key={code} value={code} lang={code}>
+            {LOCALE_META[code].nativeLabel}
+          </option>
+        ))}
       </Select>
 
-      <p className="z-help">
-        L’adresse e-mail ({user.email}) ne peut pas être modifiée pour l’instant.
-      </p>
+      <p className="z-help">{emailNote}</p>
 
-      <Submit />
+      <Submit label={m.common.save} />
     </form>
   );
 }

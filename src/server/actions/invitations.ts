@@ -12,7 +12,8 @@ import {
 } from '@/server/services/invitations';
 import { cuidSchema, emailSchema } from '@/lib/validation/common';
 import type { FormState } from '@/lib/formState';
-import { parseForm, toFormState } from './formState';
+import { done, parseForm, toFormState } from './formState';
+import { getLocale } from '@/i18n/server';
 
 const inviteSchema = z.object({
   businessId: cuidSchema,
@@ -25,7 +26,7 @@ export async function inviteTeamMemberAction(
   _prev: FormState,
   formData: FormData,
 ): Promise<FormState> {
-  const parsed = parseForm(inviteSchema, formData);
+  const parsed = await parseForm(inviteSchema, formData);
   if (!parsed.ok) return parsed.state;
 
   try {
@@ -41,6 +42,7 @@ export async function inviteTeamMemberAction(
       role: parsed.data.role,
       staffMemberId: parsed.data.staffMemberId || null,
       invitedBy: actor,
+      locale: await getLocale(),
     });
 
     await recordAudit({
@@ -53,7 +55,7 @@ export async function inviteTeamMemberAction(
     });
 
     revalidatePath('/pro/dashboard/team');
-    return { status: 'success', message: 'Invitation envoyée.' };
+    return { status: 'success', message: await done('invitationSent') };
   } catch (error) {
     return toFormState(error, 'inviteTeamMemberAction');
   }
@@ -68,7 +70,7 @@ export async function revokeInvitationAction(
   _prev: FormState,
   formData: FormData,
 ): Promise<FormState> {
-  const parsed = parseForm(revokeSchema, formData);
+  const parsed = await parseForm(revokeSchema, formData);
   if (!parsed.ok) return parsed.state;
 
   try {
@@ -87,7 +89,7 @@ export async function revokeInvitationAction(
     });
 
     revalidatePath('/pro/dashboard/team');
-    return { status: 'success', message: 'Invitation annulée.' };
+    return { status: 'success', message: await done('invitationRevoked') };
   } catch (error) {
     return toFormState(error, 'revokeInvitationAction');
   }
@@ -99,7 +101,7 @@ export async function acceptInvitationAction(
   _prev: FormState,
   formData: FormData,
 ): Promise<FormState> {
-  const parsed = parseForm(acceptSchema, formData);
+  const parsed = await parseForm(acceptSchema, formData);
   if (!parsed.ok) return parsed.state;
 
   try {

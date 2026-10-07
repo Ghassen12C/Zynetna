@@ -22,6 +22,7 @@ export default async function AccountLayout({ children }: { children: React.Reac
         </header>
 
         <SectionNav
+          label={m.nav.account}
           items={[
             { href: path('/account'), label: m.account.upcoming },
             { href: path('/account/history'), label: m.account.history },

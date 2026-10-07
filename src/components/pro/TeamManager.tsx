@@ -10,6 +10,12 @@ import { Badge, EmptyState, Panel } from '@/components/ui/Primitives';
 import { deleteStaffAction, saveStaffAction } from '@/server/actions/business';
 import { uploadStaffAvatarAction } from '@/server/actions/media';
 import { idle } from '@/lib/formState';
+import { formatCount, formatNumber } from '@/i18n/format';
+import type { Locale } from '@/i18n/config';
+import { interpolate } from '@/i18n/interpolate';
+import type { Messages } from '@/i18n';
+
+type M = { dashSetup: Messages['dashSetup']; common: Messages['common'] };
 
 type Member = {
   id: string;
@@ -24,21 +30,23 @@ type Member = {
   reservationCount: number;
 };
 
-function SaveButton() {
+function SaveButton({ label }: { label: string }) {
   const { pending } = useFormStatus();
   return (
     <Button type="submit" loading={pending}>
-      Enregistrer
+      {label}
     </Button>
   );
 }
 
 function MemberForm({
+  m,
   businessId,
   member,
   services,
   onDone,
 }: {
+  m: M;
   businessId: string;
   member: Member | null;
   services: { id: string; name: string; isActive: boolean }[];
@@ -52,6 +60,7 @@ function MemberForm({
     onDone();
   }
   const errors = state.status === 'error' ? state.fieldErrors : undefined;
+  const t = m.dashSetup.team;
 
   return (
     <Panel>
@@ -59,51 +68,51 @@ function MemberForm({
         <input type="hidden" name="businessId" value={businessId} />
         {member ? <input type="hidden" name="id" value={member.id} /> : null}
 
-        <h3 className="z-profile__h3">{member ? 'Modifier le profil' : 'Nouveau membre'}</h3>
+        <h3 className="z-profile__h3">{member ? t.editTitle : t.newTitle}</h3>
         {state.status === 'error' ? <Alert tone="error">{state.message}</Alert> : null}
 
         <div className="z-auth__row">
           <Input
-            label="Nom affiché"
+            label={t.displayName}
             name="displayName"
             defaultValue={member?.displayName ?? ''}
             required
-            placeholder="Sarah Ben Amor"
+            placeholder={t.displayNamePlaceholder}
             error={errors?.displayName}
           />
           <Input
-            label="Fonction"
+            label={t.title}
             name="title"
             defaultValue={member?.title ?? ''}
             optional
-            placeholder="Coloriste"
+            placeholder={t.titlePlaceholder}
             error={errors?.title}
           />
         </div>
 
         <Textarea
-          label="Présentation"
+          label={t.bio}
           name="bio"
           defaultValue={member?.bio ?? ''}
           optional
-          placeholder="Quelques mots visibles sur la page publique."
+          placeholder={t.bioPlaceholder}
           error={errors?.bio}
         />
 
         <Input
-          label="Spécialités"
+          label={t.specialties}
           name="specialties"
           defaultValue={member?.specialties.join(', ') ?? ''}
           optional
-          hint="Séparées par des virgules."
-          placeholder="Coloration, Balayage"
+          hint={t.specialtiesHint}
+          placeholder={t.specialtiesPlaceholder}
           error={errors?.specialties}
         />
 
         <fieldset className="z-fieldset">
-          <legend className="z-label">Prestations réalisées</legend>
+          <legend className="z-label">{t.servicesPerformed}</legend>
           {services.length === 0 ? (
-            <p className="z-help">Ajoutez d’abord des prestations.</p>
+            <p className="z-help">{t.addServicesFirst}</p>
           ) : (
             <div className="z-checkgrid">
               {services.map((service) => (
@@ -123,17 +132,17 @@ function MemberForm({
 
         <label className="z-check">
           <input type="checkbox" name="isBookable" defaultChecked={member?.isBookable ?? true} />
-          <span>Réservable en ligne par les clients</span>
+          <span>{t.bookable}</span>
         </label>
         <label className="z-check">
           <input type="checkbox" name="isActive" defaultChecked={member?.isActive ?? true} />
-          <span>Profil actif et visible sur la page publique</span>
+          <span>{t.active}</span>
         </label>
 
         <div className="z-row" style={{ gap: 'var(--z-space-2)' }}>
-          <SaveButton />
+          <SaveButton label={m.common.save} />
           <Button type="button" variant="ghost" onClick={onDone}>
-            Annuler
+            {m.common.cancel}
           </Button>
         </div>
       </form>
@@ -141,7 +150,7 @@ function MemberForm({
   );
 }
 
-function AvatarForm({ businessId, staffId }: { businessId: string; staffId: string }) {
+function AvatarForm({ m, businessId, staffId }: { m: M; businessId: string; staffId: string }) {
   const router = useRouter();
   const [state, formAction] = useActionState(uploadStaffAvatarAction, idle);
   if (state.status === 'success') router.refresh();
@@ -151,7 +160,7 @@ function AvatarForm({ businessId, staffId }: { businessId: string; staffId: stri
       <input type="hidden" name="businessId" value={businessId} />
       <input type="hidden" name="staffId" value={staffId} />
       <label className="z-btn z-btn--ghost z-btn--sm">
-        Photo
+        {m.dashSetup.shared.photo}
         <input
           type="file"
           name="file"
@@ -165,7 +174,15 @@ function AvatarForm({ businessId, staffId }: { businessId: string; staffId: stri
   );
 }
 
-function DeleteMemberForm({ businessId, staffId }: { businessId: string; staffId: string }) {
+function DeleteMemberForm({
+  m,
+  businessId,
+  staffId,
+}: {
+  m: M;
+  businessId: string;
+  staffId: string;
+}) {
   const router = useRouter();
   const [state, formAction] = useActionState(deleteStaffAction, idle);
   const [confirming, setConfirming] = useState(false);
@@ -179,15 +196,15 @@ function DeleteMemberForm({ businessId, staffId }: { businessId: string; staffId
           <input type="hidden" name="businessId" value={businessId} />
           <input type="hidden" name="staffId" value={staffId} />
           <Button type="submit" variant="danger" size="sm">
-            Confirmer
+            {m.common.confirm}
           </Button>
           <Button type="button" variant="ghost" size="sm" onClick={() => setConfirming(false)}>
-            Non
+            {m.common.cancel}
           </Button>
         </form>
       ) : (
         <Button variant="ghost" size="sm" onClick={() => setConfirming(true)}>
-          Supprimer
+          {m.common.delete}
         </Button>
       )}
     </>
@@ -195,33 +212,39 @@ function DeleteMemberForm({ businessId, staffId }: { businessId: string; staffId
 }
 
 export function TeamManager({
+  m,
+  locale,
   businessId,
   staff,
   services,
 }: {
+  m: M;
+  locale: Locale;
   businessId: string;
   staff: Member[];
   services: { id: string; name: string; isActive: boolean }[];
 }) {
   const [editing, setEditing] = useState<Member | null>(null);
   const [creating, setCreating] = useState(false);
+  const t = m.dashSetup.team;
 
   return (
     <div className="z-stack" style={{ gap: 'var(--z-space-6)' }}>
       <div className="z-dash__panel-head">
         <div>
-          <h2 className="z-profile__h3">Équipe ({staff.length})</h2>
-          <p className="z-policy">
-            Chaque professionnel ne propose que les prestations que vous lui attribuez.
-          </p>
+          <h2 className="z-profile__h3">
+            {interpolate(t.heading, { count: formatNumber(staff.length, locale) })}
+          </h2>
+          <p className="z-policy">{t.intro}</p>
         </div>
         {!creating && !editing ? (
-          <Button onClick={() => setCreating(true)}>+ Ajouter un membre</Button>
+          <Button onClick={() => setCreating(true)}>+ {t.add}</Button>
         ) : null}
       </div>
 
       {creating ? (
         <MemberForm
+          m={m}
           businessId={businessId}
           member={null}
           services={services}
@@ -230,6 +253,7 @@ export function TeamManager({
       ) : null}
       {editing ? (
         <MemberForm
+          m={m}
           businessId={businessId}
           member={editing}
           services={services}
@@ -239,9 +263,9 @@ export function TeamManager({
 
       {staff.length === 0 && !creating ? (
         <EmptyState
-          title="Aucun membre d’équipe"
-          body="Ajoutez les personnes qui réalisent vos prestations — les clients choisissent avec qui réserver."
-          action={<Button onClick={() => setCreating(true)}>Ajouter un membre</Button>}
+          title={t.emptyTitle}
+          body={t.emptyBody}
+          action={<Button onClick={() => setCreating(true)}>{t.add}</Button>}
         />
       ) : (
         <div className="z-grid z-grid--3">
@@ -269,15 +293,17 @@ export function TeamManager({
               </div>
 
               <div className="z-member__badges">
-                {!member.isActive ? <Badge tone="neutral">Désactivé</Badge> : null}
+                {!member.isActive ? <Badge tone="neutral">{t.inactive}</Badge> : null}
                 {member.isActive && !member.isBookable ? (
-                  <Badge tone="warning">Non réservable</Badge>
+                  <Badge tone="warning">{t.notBookable}</Badge>
                 ) : null}
                 <Badge tone="accent">
-                  {member.serviceIds.length} prestation{member.serviceIds.length > 1 ? 's' : ''}
+                  {formatCount(t.serviceCount, member.serviceIds.length, locale)}
                 </Badge>
                 {member.reservationCount > 0 ? (
-                  <Badge tone="neutral">{member.reservationCount} RDV</Badge>
+                  <Badge tone="neutral">
+                    {formatCount(t.appointmentCount, member.reservationCount, locale)}
+                  </Badge>
                 ) : null}
               </div>
 
@@ -286,11 +312,11 @@ export function TeamManager({
               ) : null}
 
               <div className="z-member__actions">
-                <AvatarForm businessId={businessId} staffId={member.id} />
+                <AvatarForm m={m} businessId={businessId} staffId={member.id} />
                 <Button variant="secondary" size="sm" onClick={() => setEditing(member)}>
-                  Modifier
+                  {m.common.edit}
                 </Button>
-                <DeleteMemberForm businessId={businessId} staffId={member.id} />
+                <DeleteMemberForm m={m} businessId={businessId} staffId={member.id} />
               </div>
             </article>
           ))}

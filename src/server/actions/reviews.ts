@@ -10,8 +10,9 @@ import { recordAudit } from '@/server/audit';
 import { notify } from '@/server/services/notifications';
 import { canReview } from '@/domain/booking/policy';
 import { cuidSchema, ratingSchema, richTextSchema } from '@/lib/validation/common';
+import { v } from '@/lib/validation/keys';
 import type { FormState } from '@/lib/formState';
-import { parseForm, toFormState } from './formState';
+import { done, parseForm, toFormState } from './formState';
 
 /**
  * Reviews are verified by construction: a review row requires a reservation id,
@@ -22,7 +23,7 @@ export async function submitReviewAction(
   _prev: FormState,
   formData: FormData,
 ): Promise<FormState> {
-  const parsed = parseForm(
+  const parsed = await parseForm(
     z.object({
       reservationId: cuidSchema,
       rating: ratingSchema,
@@ -46,7 +47,7 @@ export async function submitReviewAction(
         business: { select: { ownerId: true, name: true, slug: true } },
       },
     });
-    if (!reservation) throw notFound('Rendez-vous introuvable.');
+    if (!reservation) throw notFound('reservationNotFound');
 
     const check = canReview(reservation, actor.userId);
     if (!check.allowed) throw policyViolation(check.reason);
@@ -94,7 +95,7 @@ export async function submitReviewAction(
 
     revalidatePath(`/business/${reservation.business.slug}`);
     revalidatePath('/account/reviews');
-    return { status: 'success', message: 'Merci pour votre avis.' };
+    return { status: 'success', message: await done('reviewThanks') };
   } catch (error) {
     return toFormState(error, 'submitReviewAction');
   }
@@ -105,8 +106,8 @@ export async function respondToReviewAction(
   _prev: FormState,
   formData: FormData,
 ): Promise<FormState> {
-  const parsed = parseForm(
-    z.object({ reviewId: cuidSchema, body: richTextSchema(1000).min(2, 'Réponse trop courte.') }),
+  const parsed = await parseForm(
+    z.object({ reviewId: cuidSchema, body: richTextSchema(1000).min(2, v('replyTooShort')) }),
     formData,
   );
   if (!parsed.ok) return parsed.state;
@@ -116,7 +117,7 @@ export async function respondToReviewAction(
       where: { id: parsed.data.reviewId },
       select: { id: true, businessId: true, business: { select: { slug: true } } },
     });
-    if (!review) throw notFound('Avis introuvable.');
+    if (!review) throw notFound('reviewNotFound');
 
     // Tenant check: the actor must hold the permission in *this* business.
     const { actor } = await requireBusinessAccess(review.businessId, 'business.review.respond');
@@ -134,7 +135,7 @@ export async function respondToReviewAction(
 
     revalidatePath(`/business/${review.business.slug}`);
     revalidatePath('/pro/dashboard/reviews');
-    return { status: 'success', message: 'Réponse publiée.' };
+    return { status: 'success', message: await done('replyPublished') };
   } catch (error) {
     return toFormState(error, 'respondToReviewAction');
   }
@@ -159,7 +160,7 @@ export async function reportContentAction(
   _prev: FormState,
   formData: FormData,
 ): Promise<FormState> {
-  const parsed = parseForm(
+  const parsed = await parseForm(
     z.object({
       targetType: z.enum(['BUSINESS', 'REVIEW', 'MEDIA']),
       businessId: cuidSchema.optional(),
@@ -194,7 +195,7 @@ export async function reportContentAction(
       metadata: { event: 'reported', reason: parsed.data.reason },
     });
 
-    return { status: 'success', message: 'Signalement envoyé. Merci.' };
+    return { status: 'success', message: await done('reportSent') };
   } catch (error) {
     return toFormState(error, 'reportContentAction');
   }

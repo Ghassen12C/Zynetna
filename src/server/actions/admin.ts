@@ -11,7 +11,7 @@ import { notify } from '@/server/services/notifications';
 import { recordPayment } from '@/server/services/subscriptions';
 import { cuidSchema, priceSchema, richTextSchema, slugSchema } from '@/lib/validation/common';
 import type { FormState } from '@/lib/formState';
-import { parseForm, toFormState } from './formState';
+import { done, parseForm, toFormState } from './formState';
 
 /**
  * Platform administration.
@@ -29,7 +29,7 @@ export async function moderateBusinessAction(
   _prev: FormState,
   formData: FormData,
 ): Promise<FormState> {
-  const parsed = parseForm(
+  const parsed = await parseForm(
     z.object({
       businessId: cuidSchema,
       decision: z.enum(['approve', 'reject', 'verify', 'unverify', 'suspend', 'reactivate']),
@@ -46,7 +46,7 @@ export async function moderateBusinessAction(
       where: { id: parsed.data.businessId },
       select: { id: true, name: true, slug: true, ownerId: true, status: true },
     });
-    if (!business) throw notFound('Établissement introuvable.');
+    if (!business) throw notFound('businessNotFound');
 
     const now = new Date();
     const data: Record<string, unknown> = {};
@@ -65,7 +65,7 @@ export async function moderateBusinessAction(
         outcome = 'APPROVED';
         break;
       case 'reject':
-        if (!parsed.data.note) throw invalid('Indiquez le motif du refus.');
+        if (!parsed.data.note) throw invalid('rejectReasonRequired');
         data.status = 'REJECTED';
         data.verification = 'REJECTED';
         auditAction = 'business.rejected';
@@ -80,7 +80,7 @@ export async function moderateBusinessAction(
         auditAction = 'business.verified';
         break;
       case 'suspend':
-        if (!parsed.data.note) throw invalid('Indiquez le motif de la suspension.');
+        if (!parsed.data.note) throw invalid('suspendReasonRequired');
         data.status = 'SUSPENDED';
         data.suspendedAt = now;
         data.suspendedReason = parsed.data.note;
@@ -117,7 +117,7 @@ export async function moderateBusinessAction(
 
     refreshAdmin();
     revalidatePath(`/business/${business.slug}`);
-    return { status: 'success', message: 'Établissement mis à jour.' };
+    return { status: 'success', message: await done('businessUpdated') };
   } catch (error) {
     return toFormState(error, 'moderateBusinessAction');
   }
@@ -127,7 +127,7 @@ export async function moderateUserAction(
   _prev: FormState,
   formData: FormData,
 ): Promise<FormState> {
-  const parsed = parseForm(
+  const parsed = await parseForm(
     z.object({
       userId: cuidSchema,
       decision: z.enum(['suspend', 'reactivate', 'grantAdmin', 'revokeAdmin']),
@@ -142,14 +142,14 @@ export async function moderateUserAction(
 
     // An admin must not be able to lock themselves out, or demote the last one.
     if (parsed.data.userId === actor.userId) {
-      throw invalid('Vous ne pouvez pas modifier votre propre compte ici.');
+      throw invalid('cannotEditSelf');
     }
 
     const user = await db.user.findUnique({
       where: { id: parsed.data.userId },
       select: { id: true, email: true, status: true },
     });
-    if (!user) throw notFound('Utilisateur introuvable.');
+    if (!user) throw notFound('userNotFound');
 
     if (parsed.data.decision === 'suspend') {
       await db.user.update({ where: { id: user.id }, data: { status: 'SUSPENDED' } });
@@ -182,7 +182,7 @@ export async function moderateUserAction(
       const adminCount = await db.roleAssignment.count({
         where: { role: 'SUPER_ADMIN', businessId: null },
       });
-      if (adminCount <= 1) throw invalid('Il doit rester au moins un administrateur.');
+      if (adminCount <= 1) throw invalid('lastAdmin');
 
       await db.roleAssignment.deleteMany({
         where: { userId: user.id, role: 'SUPER_ADMIN', businessId: null },
@@ -194,7 +194,7 @@ export async function moderateUserAction(
     }
 
     refreshAdmin();
-    return { status: 'success', message: 'Utilisateur mis à jour.' };
+    return { status: 'success', message: await done('userUpdated') };
   } catch (error) {
     return toFormState(error, 'moderateUserAction');
   }
@@ -204,7 +204,7 @@ export async function moderateReviewAction(
   _prev: FormState,
   formData: FormData,
 ): Promise<FormState> {
-  const parsed = parseForm(
+  const parsed = await parseForm(
     z.object({
       reviewId: cuidSchema,
       decision: z.enum(['publish', 'hide', 'remove']),
@@ -221,7 +221,7 @@ export async function moderateReviewAction(
       where: { id: parsed.data.reviewId },
       select: { id: true, businessId: true, business: { select: { slug: true } } },
     });
-    if (!review) throw notFound('Avis introuvable.');
+    if (!review) throw notFound('reviewNotFound');
 
     const status =
       parsed.data.decision === 'publish'
@@ -260,7 +260,7 @@ export async function moderateReviewAction(
 
     refreshAdmin();
     revalidatePath(`/business/${review.business.slug}`);
-    return { status: 'success', message: 'Avis modéré.' };
+    return { status: 'success', message: await done('reviewModerated') };
   } catch (error) {
     return toFormState(error, 'moderateReviewAction');
   }
@@ -270,7 +270,7 @@ export async function resolveReportAction(
   _prev: FormState,
   formData: FormData,
 ): Promise<FormState> {
-  const parsed = parseForm(
+  const parsed = await parseForm(
     z.object({
       reportId: cuidSchema,
       status: z.enum(['REVIEWING', 'RESOLVED', 'DISMISSED']),
@@ -298,7 +298,7 @@ export async function resolveReportAction(
     });
 
     refreshAdmin();
-    return { status: 'success', message: 'Signalement traité.' };
+    return { status: 'success', message: await done('reportResolved') };
   } catch (error) {
     return toFormState(error, 'resolveReportAction');
   }
@@ -310,7 +310,7 @@ export async function saveCategoryAction(
   _prev: FormState,
   formData: FormData,
 ): Promise<FormState> {
-  const parsed = parseForm(
+  const parsed = await parseForm(
     z.object({
       id: cuidSchema.optional().or(z.literal('')),
       parentId: cuidSchema.optional().or(z.literal('')),
@@ -332,15 +332,15 @@ export async function saveCategoryAction(
 
     // A category cannot be its own parent, nor nest more than two levels.
     if (data.id && data.parentId === data.id) {
-      throw invalid('Une catégorie ne peut pas être sa propre parente.');
+      throw invalid('categoryOwnParent');
     }
     if (data.parentId) {
       const parent = await db.category.findUnique({
         where: { id: data.parentId },
         select: { parentId: true },
       });
-      if (!parent) throw invalid('Catégorie parente introuvable.');
-      if (parent.parentId) throw invalid('Deux niveaux de catégories au maximum.');
+      if (!parent) throw invalid('parentCategoryNotFound');
+      if (parent.parentId) throw invalid('categoryDepth');
     }
 
     const payload = {
@@ -364,7 +364,7 @@ export async function saveCategoryAction(
 
     refreshAdmin();
     revalidatePath('/');
-    return { status: 'success', message: 'Catégorie enregistrée.' };
+    return { status: 'success', message: await done('categorySaved') };
   } catch (error) {
     return toFormState(error, 'saveCategoryAction');
   }
@@ -374,7 +374,7 @@ export async function toggleCategoryAction(
   _prev: FormState,
   formData: FormData,
 ): Promise<FormState> {
-  const parsed = parseForm(
+  const parsed = await parseForm(
     z.object({ categoryId: cuidSchema, isActive: z.enum(['true', 'false']) }),
     formData,
   );
@@ -403,7 +403,7 @@ export async function recordPaymentAction(
   _prev: FormState,
   formData: FormData,
 ): Promise<FormState> {
-  const parsed = parseForm(
+  const parsed = await parseForm(
     z.object({
       businessId: cuidSchema,
       amount: priceSchema,
@@ -430,7 +430,7 @@ export async function recordPaymentAction(
     });
 
     refreshAdmin();
-    return { status: 'success', message: 'Paiement enregistré, abonnement réactivé.' };
+    return { status: 'success', message: await done('paymentRecorded') };
   } catch (error) {
     return toFormState(error, 'recordPaymentAction');
   }
@@ -440,7 +440,7 @@ export async function savePlanAction(
   _prev: FormState,
   formData: FormData,
 ): Promise<FormState> {
-  const parsed = parseForm(
+  const parsed = await parseForm(
     z.object({
       id: cuidSchema.optional().or(z.literal('')),
       code: slugSchema,
@@ -487,7 +487,7 @@ export async function savePlanAction(
 
     refreshAdmin();
     revalidatePath('/pro');
-    return { status: 'success', message: 'Formule enregistrée.' };
+    return { status: 'success', message: await done('planSaved') };
   } catch (error) {
     return toFormState(error, 'savePlanAction');
   }
@@ -499,7 +499,7 @@ export async function updateSettingAction(
   _prev: FormState,
   formData: FormData,
 ): Promise<FormState> {
-  const parsed = parseForm(
+  const parsed = await parseForm(
     z.object({ key: z.string().trim().min(1).max(120), value: z.string().max(2000) }),
     formData,
   );
@@ -528,7 +528,7 @@ export async function updateSettingAction(
     });
 
     refreshAdmin();
-    return { status: 'success', message: 'Réglage enregistré.' };
+    return { status: 'success', message: await done('settingSaved') };
   } catch (error) {
     return toFormState(error, 'updateSettingAction');
   }
@@ -538,7 +538,7 @@ export async function updateFlagAction(
   _prev: FormState,
   formData: FormData,
 ): Promise<FormState> {
-  const parsed = parseForm(
+  const parsed = await parseForm(
     z.object({
       key: z.string().trim().min(1).max(120),
       isEnabled: z.enum(['true', 'false']),
@@ -570,7 +570,7 @@ export async function updateFlagAction(
     });
 
     refreshAdmin();
-    return { status: 'success', message: 'Fonctionnalité mise à jour.' };
+    return { status: 'success', message: await done('flagUpdated') };
   } catch (error) {
     return toFormState(error, 'updateFlagAction');
   }

@@ -4,8 +4,12 @@ import { CalendarView } from '@/components/pro/CalendarView';
 import { proContext } from '@/components/pro/ProGuard';
 import { reservationsFor } from '@/server/services/proDashboard';
 import { addDays, dayKeyOf, instantAt } from '@/domain/scheduling/time';
+import { translate } from '@/i18n/server';
 
-export const metadata: Metadata = { title: 'Agenda', robots: { index: false } };
+export async function generateMetadata(): Promise<Metadata> {
+  const { m } = await translate();
+  return { title: m.dash.nav.calendar, robots: { index: false } };
+}
 
 export default async function CalendarPage({
   searchParams,
@@ -13,7 +17,7 @@ export default async function CalendarPage({
   searchParams: Promise<{ from?: string; view?: string; staff?: string }>;
 }) {
   const { businessId } = await proContext('business.reservation.read', '/pro/dashboard/calendar');
-  const params = await searchParams;
+  const [params, { m, locale }] = await Promise.all([searchParams, translate()]);
 
   const business = await db.business.findUniqueOrThrow({
     where: { id: businessId },
@@ -50,6 +54,8 @@ export default async function CalendarPage({
 
   return (
     <CalendarView
+      m={{ calendar: m.dash.calendar, shared: m.dash.shared }}
+      locale={locale}
       timezone={business.timezone}
       from={from}
       today={today}
@@ -67,7 +73,7 @@ export default async function CalendarPage({
         endAt: r.endAt.toISOString(),
         customerName: r.customer
           ? `${r.customer.firstName} ${r.customer.lastName}`
-          : (r.guestName ?? 'Client'),
+          : (r.guestName ?? m.dash.shared.guest),
         staffName: r.staffMember.displayName,
         serviceName: r.items[0]?.serviceName ?? '—',
       }))}

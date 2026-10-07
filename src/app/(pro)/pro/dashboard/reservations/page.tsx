@@ -3,8 +3,12 @@ import { db } from '@/lib/db';
 import { ReservationsTable } from '@/components/pro/ReservationsTable';
 import { proContext } from '@/components/pro/ProGuard';
 import { reservationsFor } from '@/server/services/proDashboard';
+import { translate } from '@/i18n/server';
 
-export const metadata: Metadata = { title: 'Réservations', robots: { index: false } };
+export async function generateMetadata(): Promise<Metadata> {
+  const { m } = await translate();
+  return { title: m.dash.nav.reservations, robots: { index: false } };
+}
 
 export default async function ProReservationsPage({
   searchParams,
@@ -12,7 +16,7 @@ export default async function ProReservationsPage({
   searchParams: Promise<{ status?: string; staff?: string; page?: string; created?: string }>;
 }) {
   const { businessId } = await proContext('business.reservation.read', '/pro/dashboard/reservations');
-  const params = await searchParams;
+  const [params, { m, locale }] = await Promise.all([searchParams, translate()]);
   const page = Math.max(1, Number(params.page ?? 1) || 1);
   const perPage = 25;
 
@@ -36,6 +40,13 @@ export default async function ProReservationsPage({
 
   return (
     <ReservationsTable
+      m={{
+        reservations: m.dash.reservations,
+        shared: m.dash.shared,
+        status: m.status,
+        common: m.common,
+      }}
+      locale={locale}
       businessId={businessId}
       timezone={business.timezone}
       currency={business.currency}
@@ -46,7 +57,7 @@ export default async function ProReservationsPage({
         startAt: r.startAt.toISOString(),
         customerName: r.customer
           ? `${r.customer.firstName} ${r.customer.lastName}`
-          : (r.guestName ?? 'Client'),
+          : (r.guestName ?? m.dash.shared.guest),
         customerPhone: r.customer?.phone ?? r.guestPhone ?? null,
         staffName: r.staffMember.displayName,
         serviceName: r.items[0]?.serviceName ?? '—',

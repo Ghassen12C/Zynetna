@@ -4,39 +4,27 @@ import { Panel } from '@/components/ui/Primitives';
 import { requireSuperAdmin } from '@/server/auth/guard';
 import { SettingsEditor } from '@/components/admin/SettingsEditor';
 import { FlagsEditor } from '@/components/admin/FlagsEditor';
+import { translate } from '@/i18n/server';
 
-export const metadata: Metadata = { title: 'Réglages', robots: { index: false } };
+export async function generateMetadata(): Promise<Metadata> {
+  const { m } = await translate();
+  return { title: m.admin.nav.settings, robots: { index: false } };
+}
 
-const KNOWN_SETTINGS: { key: string; label: string; hint: string }[] = [
-  {
-    key: 'marketplace.requireApproval',
-    label: 'Validation des nouveaux établissements',
-    hint: 'true : un établissement publié passe en attente de validation. false : il est en ligne immédiatement.',
-  },
-  {
-    key: 'reviews.autoPublish',
-    label: 'Publication automatique des avis',
-    hint: 'true : les avis sont visibles dès leur envoi. false : ils attendent la modération.',
-  },
-  {
-    key: 'notifications.reminderOffsetsHours',
-    label: 'Rappels avant rendez-vous',
-    hint: 'Heures avant le rendez-vous, en JSON. Exemple : [24, 2]',
-  },
-  {
-    key: 'marketplace.defaultRadiusKm',
-    label: 'Rayon « près de moi » (km)',
-    hint: 'Nombre. Exemple : 25',
-  },
-  {
-    key: 'subscription.currency',
-    label: 'Devise de facturation',
-    hint: 'Code ISO entre guillemets. Exemple : "TND"',
-  },
-];
+/** Settings the code reads, in display order; their labels live in the dictionary. */
+const KNOWN_SETTINGS = [
+  'marketplace.requireApproval',
+  'reviews.autoPublish',
+  'notifications.reminderOffsetsHours',
+  'marketplace.defaultRadiusKm',
+  'subscription.currency',
+] as const;
 
 export default async function AdminSettingsPage() {
   await requireSuperAdmin();
+  const { m, locale } = await translate();
+  const st = m.admin.settings;
+  const known: readonly string[] = KNOWN_SETTINGS;
 
   const [settings, flags] = await Promise.all([
     db.platformSetting.findMany({ orderBy: { key: 'asc' } }),
@@ -47,22 +35,20 @@ export default async function AdminSettingsPage() {
 
   return (
     <div className="z-stack" style={{ gap: 'var(--z-space-6)' }}>
-      <h1 className="z-search__title">Réglages de la plateforme</h1>
+      <h1 className="z-search__title">{m.admin.nav.settings}</h1>
 
       <Panel className="z-dash__panel">
-        <h2 className="z-profile__h3">Paramètres</h2>
-        <p className="z-policy">
-          Les valeurs sont au format JSON. Elles prennent effet immédiatement, sans
-          redéploiement.
-        </p>
+        <h2 className="z-profile__h3">{st.parameters}</h2>
+        <p className="z-policy">{st.parametersLead}</p>
         <SettingsEditor
-          settings={KNOWN_SETTINGS.map((known) => ({
-            ...known,
-            value: JSON.stringify(byKey.get(known.key)?.value ?? null),
-            updatedAt: byKey.get(known.key)?.updatedAt?.toISOString() ?? null,
+          settings={KNOWN_SETTINGS.map((key) => ({
+            key,
+            ...st.known[key],
+            value: JSON.stringify(byKey.get(key)?.value ?? null),
+            updatedAt: byKey.get(key)?.updatedAt?.toISOString() ?? null,
           }))}
           extra={settings
-            .filter((s) => !KNOWN_SETTINGS.some((k) => k.key === s.key))
+            .filter((s) => !known.includes(s.key))
             .map((s) => ({
               key: s.key,
               label: s.key,
@@ -70,19 +56,21 @@ export default async function AdminSettingsPage() {
               value: JSON.stringify(s.value),
               updatedAt: s.updatedAt.toISOString(),
             }))}
+          m={m.admin}
+          saveLabel={m.common.save}
+          locale={locale}
         />
       </Panel>
 
       <Panel className="z-dash__panel">
-        <h2 className="z-profile__h3">Fonctionnalités</h2>
-        <p className="z-policy">
-          Activez ou désactivez une fonctionnalité pour toute la plateforme, sans toucher au
-          code.
-        </p>
+        <h2 className="z-profile__h3">{st.features}</h2>
+        <p className="z-policy">{st.featuresLead}</p>
         <FlagsEditor
+          m={m.admin}
           flags={flags.map((f) => ({
             key: f.key,
-            description: f.description,
+            // A known flag reads in the page language; others keep their stored text.
+            description: st.flags[f.key] ?? f.description,
             isEnabled: f.isEnabled,
             rolloutPct: f.rolloutPct,
           }))}

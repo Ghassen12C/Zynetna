@@ -1,6 +1,7 @@
 'use client';
 
 import { type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes, useId } from 'react';
+import { useUiText } from './UiText';
 
 type Shared = {
   label: string;
@@ -23,7 +24,7 @@ function Wrapper({
     <div className={`z-field ${className ?? ''}`}>
       <label className="z-label" htmlFor={id}>
         {label}
-        {optional ? <span className="z-label__optional"> · optionnel</span> : null}
+        {optional ? <OptionalMark /> : null}
       </label>
       {children}
       {hint && !error ? (
@@ -110,4 +111,10 @@ export function Select({
       </select>
     </Wrapper>
   );
+}
+
+/** The "· optional" marker, in the page's language. */
+function OptionalMark() {
+  const { ui } = useUiText();
+  return <span className="z-label__optional"> · {ui.optional}</span>;
 }

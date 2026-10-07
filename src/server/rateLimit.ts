@@ -46,11 +46,9 @@ export async function consume(
 
   if (bucket.count > rule.limit) {
     const seconds = Math.ceil((expiresAt.getTime() - now) / 1000);
-    throw rateLimited(
-      `Too many attempts. Please try again in ${
-        seconds > 60 ? `${Math.ceil(seconds / 60)} minutes` : `${seconds} seconds`
-      }.`,
-    );
+    throw seconds > 60
+      ? rateLimited('retryInMinutes', { count: Math.ceil(seconds / 60) })
+      : rateLimited('retryInSeconds', { count: seconds });
   }
 
   return { remaining: Math.max(0, rule.limit - bucket.count), resetAt: expiresAt };

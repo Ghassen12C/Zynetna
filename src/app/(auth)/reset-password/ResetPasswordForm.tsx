@@ -9,17 +9,28 @@ import { Input } from '@/components/ui/Field';
 import { resetPasswordAction } from '@/server/actions/auth';
 import { idle } from '@/lib/formState';
 import { MIN_PASSWORD_LENGTH } from '@/domain/identity/password';
+import { localePath, type Locale } from '@/i18n/config';
+import { interpolate } from '@/i18n/interpolate';
+import type { Messages } from '@/i18n';
 
-function Submit() {
+function Submit({ label }: { label: string }) {
   const { pending } = useFormStatus();
   return (
     <Button type="submit" size="lg" block loading={pending}>
-      Enregistrer le mot de passe
+      {label}
     </Button>
   );
 }
 
-export function ResetPasswordForm({ token }: { token: string }) {
+export function ResetPasswordForm({
+  token,
+  m,
+  locale,
+}: {
+  token: string;
+  m: Messages['auth'];
+  locale: Locale;
+}) {
   const [state, formAction] = useActionState(resetPasswordAction, idle);
   const errors = state.status === 'error' ? state.fieldErrors : undefined;
 
@@ -27,8 +38,8 @@ export function ResetPasswordForm({ token }: { token: string }) {
     return (
       <>
         <Alert tone="success">{state.message}</Alert>
-        <ButtonLink href="/login" size="lg" block>
-          Se connecter
+        <ButtonLink href={localePath(locale, '/login')} size="lg" block>
+          {m.submitLogin}
         </ButtonLink>
       </>
     );
@@ -41,16 +52,16 @@ export function ResetPasswordForm({ token }: { token: string }) {
       {state.status === 'error' ? <Alert tone="error">{state.message}</Alert> : null}
 
       <Input
-        label="Nouveau mot de passe"
+        label={m.newPassword}
         name="password"
         type="password"
         autoComplete="new-password"
         required
-        hint={`${MIN_PASSWORD_LENGTH} caractères minimum, avec un chiffre ou un symbole.`}
+        hint={interpolate(m.passwordHint, { min: MIN_PASSWORD_LENGTH })}
         error={errors?.password}
       />
       <Input
-        label="Confirmer"
+        label={m.confirmPassword}
         name="confirm"
         type="password"
         autoComplete="new-password"
@@ -58,10 +69,10 @@ export function ResetPasswordForm({ token }: { token: string }) {
         error={errors?.confirm}
       />
 
-      <Submit />
+      <Submit label={m.savePassword} />
 
       <p className="z-auth__foot">
-        <Link href="/forgot-password">Demander un nouveau lien</Link>
+        <Link href={localePath(locale, '/forgot-password')}>{m.requestNewLink}</Link>
       </p>
     </form>
   );

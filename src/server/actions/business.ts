@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { db } from '@/lib/db';
-import { AppError, invalid, notFound } from '@/lib/errors';
+import { type FeedbackPartKey, invalid, localized, notFound } from '@/lib/errors';
 import { requireBusinessAccess } from '@/server/auth/guard';
 import { recordAudit } from '@/server/audit';
 import { entitlementsFor } from '@/server/services/subscriptions';
@@ -19,7 +19,7 @@ import {
   staffSchema,
 } from '@/lib/validation/business';
 import type { FormState } from '@/lib/formState';
-import { parseForm, toFormState } from './formState';
+import { done, parseForm, toFormState } from './formState';
 
 /**
  * Business management.
@@ -41,7 +41,7 @@ export async function updateBusinessProfileAction(
   formData: FormData,
 ): Promise<FormState> {
   const businessId = String(formData.get('businessId') ?? '');
-  const parsed = parseForm(businessProfileSchema, formData);
+  const parsed = await parseForm(businessProfileSchema, formData);
   if (!parsed.ok) return parsed.state;
 
   try {
@@ -74,7 +74,7 @@ export async function updateBusinessProfileAction(
       businessId,
     });
     refresh(updated.slug);
-    return { status: 'success', message: 'Établissement enregistré.' };
+    return { status: 'success', message: await done('businessSaved') };
   } catch (error) {
     return toFormState(error, 'updateBusinessProfileAction');
   }
@@ -85,7 +85,7 @@ export async function updateLocationAction(
   formData: FormData,
 ): Promise<FormState> {
   const businessId = String(formData.get('businessId') ?? '');
-  const parsed = parseForm(businessLocationSchema, formData);
+  const parsed = await parseForm(businessLocationSchema, formData);
   if (!parsed.ok) return parsed.state;
 
   try {
@@ -119,7 +119,7 @@ export async function updateLocationAction(
       targetId: businessId, businessId, metadata: { section: 'location' },
     });
     refresh();
-    return { status: 'success', message: 'Adresse enregistrée.' };
+    return { status: 'success', message: await done('addressSaved') };
   } catch (error) {
     return toFormState(error, 'updateLocationAction');
   }
@@ -138,7 +138,7 @@ export async function updatePolicyAction(
     else raw.set(flag, 'true');
   }
 
-  const parsed = parseForm(businessPolicySchema, raw);
+  const parsed = await parseForm(businessPolicySchema, raw);
   if (!parsed.ok) return parsed.state;
 
   try {
@@ -165,7 +165,7 @@ export async function updatePolicyAction(
       targetId: businessId, businessId, metadata: { section: 'policy' },
     });
     refresh();
-    return { status: 'success', message: 'Règles de réservation enregistrées.' };
+    return { status: 'success', message: await done('policySaved') };
   } catch (error) {
     return toFormState(error, 'updatePolicyAction');
   }
@@ -182,7 +182,7 @@ export async function saveServiceAction(
   for (const [k, v] of formData.entries()) raw.append(k, v);
   raw.set('isActive', formData.has('isActive') ? 'true' : 'false');
 
-  const parsed = parseForm(serviceSchema, raw);
+  const parsed = await parseForm(serviceSchema, raw);
   if (!parsed.ok) return parsed.state;
 
   try {
@@ -195,10 +195,9 @@ export async function saveServiceAction(
       if (entitlements.maxServices !== null) {
         const count = await db.service.count({ where: { businessId } });
         if (count >= entitlements.maxServices) {
-          throw new AppError(
-            'SUBSCRIPTION_INACTIVE',
-            `Votre formule est limitée à ${entitlements.maxServices} prestations.`,
-          );
+          throw localized('SUBSCRIPTION_INACTIVE', 'serviceLimit', {
+            count: entitlements.maxServices,
+          });
         }
       }
     }
@@ -216,7 +215,7 @@ export async function saveServiceAction(
         where: { id: serviceId, businessId },
         select: { id: true },
       });
-      if (!existing) throw notFound('Prestation introuvable.');
+      if (!existing) throw notFound('serviceNotFound');
 
       await db.service.update({
         where: { id: serviceId },
@@ -265,7 +264,7 @@ export async function saveServiceAction(
       targetId: serviceId, businessId, metadata: { name: data.name },
     });
     refresh();
-    return { status: 'success', message: 'Prestation enregistrée.' };
+    return { status: 'success', message: await done('serviceSaved') };
   } catch (error) {
     return toFormState(error, 'saveServiceAction');
   }
@@ -275,7 +274,7 @@ export async function deleteServiceAction(
   _prev: FormState,
   formData: FormData,
 ): Promise<FormState> {
-  const parsed = parseForm(
+  const parsed = await parseForm(
     z.object({ businessId: cuidSchema, serviceId: cuidSchema }),
     formData,
   );
@@ -291,18 +290,14 @@ export async function deleteServiceAction(
       where: { id: parsed.data.serviceId, businessId },
       select: { id: true, name: true, _count: { select: { items: true } } },
     });
-    if (!service) throw notFound('Prestation introuvable.');
+    if (!service) throw notFound('serviceNotFound');
 
     // A service with history is deactivated, not deleted: removing it would
     // break the reservations that reference it.
     if (service._count.items > 0) {
       await db.service.update({ where: { id: service.id }, data: { isActive: false } });
       refresh();
-      return {
-        status: 'success',
-        message:
-          'Cette prestation a déjà été réservée : elle est désactivée plutôt que supprimée, pour préserver l’historique.',
-      };
+      return { status: 'success', message: await done('serviceDeactivated') };
     }
 
     await db.service.delete({ where: { id: service.id } });
@@ -311,7 +306,7 @@ export async function deleteServiceAction(
       targetId: service.id, businessId, metadata: { event: 'deleted', name: service.name },
     });
     refresh();
-    return { status: 'success', message: 'Prestation supprimée.' };
+    return { status: 'success', message: await done('serviceDeleted') };
   } catch (error) {
     return toFormState(error, 'deleteServiceAction');
   }
@@ -329,7 +324,7 @@ export async function saveStaffAction(
   raw.set('isBookable', formData.has('isBookable') ? 'true' : 'false');
   raw.set('isActive', formData.has('isActive') ? 'true' : 'false');
 
-  const parsed = parseForm(staffSchema, raw);
+  const parsed = await parseForm(staffSchema, raw);
   if (!parsed.ok) return parsed.state;
 
   try {
@@ -341,10 +336,9 @@ export async function saveStaffAction(
       if (entitlements.maxStaff !== null) {
         const count = await db.staffMember.count({ where: { businessId } });
         if (count >= entitlements.maxStaff) {
-          throw new AppError(
-            'SUBSCRIPTION_INACTIVE',
-            `Votre formule est limitée à ${entitlements.maxStaff} membres d’équipe.`,
-          );
+          throw localized('SUBSCRIPTION_INACTIVE', 'staffLimit', {
+            count: entitlements.maxStaff,
+          });
         }
       }
     }
@@ -366,7 +360,7 @@ export async function saveStaffAction(
         where: { id: staffId, businessId },
         select: { id: true },
       });
-      if (!existing) throw notFound('Membre introuvable.');
+      if (!existing) throw notFound('staffNotFound');
 
       await db.staffMember.update({
         where: { id: staffId },
@@ -409,7 +403,7 @@ export async function saveStaffAction(
       targetId: staffId, businessId, metadata: { name: data.displayName },
     });
     refresh();
-    return { status: 'success', message: 'Membre de l’équipe enregistré.' };
+    return { status: 'success', message: await done('staffSaved') };
   } catch (error) {
     return toFormState(error, 'saveStaffAction');
   }
@@ -419,7 +413,7 @@ export async function deleteStaffAction(
   _prev: FormState,
   formData: FormData,
 ): Promise<FormState> {
-  const parsed = parseForm(
+  const parsed = await parseForm(
     z.object({ businessId: cuidSchema, staffId: cuidSchema }),
     formData,
   );
@@ -435,7 +429,7 @@ export async function deleteStaffAction(
       where: { id: parsed.data.staffId, businessId },
       select: { id: true, displayName: true },
     });
-    if (!member) throw notFound('Membre introuvable.');
+    if (!member) throw notFound('staffNotFound');
 
     // Refuse while future appointments exist — deleting would orphan them.
     const upcoming = await db.reservation.count({
@@ -446,9 +440,7 @@ export async function deleteStaffAction(
       },
     });
     if (upcoming > 0) {
-      throw invalid(
-        `${member.displayName} a encore ${upcoming} rendez-vous à venir. Réaffectez-les ou désactivez le profil.`,
-      );
+      throw invalid('staffHasUpcoming', { name: member.displayName, count: upcoming });
     }
 
     const past = await db.reservation.count({ where: { staffMemberId: member.id } });
@@ -458,10 +450,7 @@ export async function deleteStaffAction(
         data: { isActive: false, isBookable: false },
       });
       refresh();
-      return {
-        status: 'success',
-        message: 'Profil désactivé — l’historique des rendez-vous est conservé.',
-      };
+      return { status: 'success', message: await done('staffDeactivated') };
     }
 
     await db.staffMember.delete({ where: { id: member.id } });
@@ -470,7 +459,7 @@ export async function deleteStaffAction(
       targetId: member.id, businessId, metadata: { event: 'deleted' },
     });
     refresh();
-    return { status: 'success', message: 'Membre supprimé.' };
+    return { status: 'success', message: await done('staffDeleted') };
   } catch (error) {
     return toFormState(error, 'deleteStaffAction');
   }
@@ -483,7 +472,7 @@ export async function saveHoursAction(
   formData: FormData,
 ): Promise<FormState> {
   const businessId = String(formData.get('businessId') ?? '');
-  const parsed = parseForm(hoursSchema, formData);
+  const parsed = await parseForm(hoursSchema, formData);
   if (!parsed.ok) return parsed.state;
 
   try {
@@ -498,7 +487,7 @@ export async function saveHoursAction(
       const startMin = hhmmToMinutes(start);
       const endMin = hhmmToMinutes(end);
       if (endMin <= startMin) {
-        throw invalid(`La fin (${end}) doit être après le début (${start}).`);
+        throw invalid('hoursEndBeforeStart', { start, end });
       }
       periods.push({ startMin, endMin });
     }
@@ -508,7 +497,7 @@ export async function saveHoursAction(
     periods.sort((a, b) => a.startMin - b.startMin);
     for (let i = 1; i < periods.length; i += 1) {
       if (periods[i]!.startMin < periods[i - 1]!.endMin) {
-        throw invalid('Deux créneaux se chevauchent sur cette journée.');
+        throw invalid('hoursOverlap');
       }
     }
 
@@ -517,7 +506,7 @@ export async function saveHoursAction(
         where: { id: staffMemberId, businessId },
         select: { id: true },
       });
-      if (!member) throw notFound('Membre introuvable.');
+      if (!member) throw notFound('staffNotFound');
 
       await db.$transaction([
         db.staffHours.deleteMany({ where: { staffMemberId, weekday } }),
@@ -539,7 +528,7 @@ export async function saveHoursAction(
       targetId: businessId, businessId, metadata: { weekday, periods: periods.length },
     });
     refresh();
-    return { status: 'success', message: 'Horaires enregistrés.' };
+    return { status: 'success', message: await done('hoursSaved') };
   } catch (error) {
     return toFormState(error, 'saveHoursAction');
   }
@@ -550,7 +539,7 @@ export async function addExceptionAction(
   formData: FormData,
 ): Promise<FormState> {
   const businessId = String(formData.get('businessId') ?? '');
-  const parsed = parseForm(exceptionSchema, formData);
+  const parsed = await parseForm(exceptionSchema, formData);
   if (!parsed.ok) return parsed.state;
 
   try {
@@ -558,7 +547,7 @@ export async function addExceptionAction(
     const data = parsed.data;
 
     if (data.endDate && data.endDate < data.date) {
-      throw invalid('La date de fin doit être après la date de début.');
+      throw invalid('endDateBeforeStart');
     }
 
     await db.scheduleException.create({
@@ -579,7 +568,7 @@ export async function addExceptionAction(
       businessId, metadata: { kind: data.kind, date: data.date },
     });
     refresh();
-    return { status: 'success', message: 'Fermeture enregistrée.' };
+    return { status: 'success', message: await done('closureSaved') };
   } catch (error) {
     return toFormState(error, 'addExceptionAction');
   }
@@ -589,7 +578,7 @@ export async function deleteExceptionAction(
   _prev: FormState,
   formData: FormData,
 ): Promise<FormState> {
-  const parsed = parseForm(
+  const parsed = await parseForm(
     z.object({ businessId: cuidSchema, exceptionId: cuidSchema }),
     formData,
   );
@@ -606,7 +595,7 @@ export async function deleteExceptionAction(
       where: { id: parsed.data.exceptionId, businessId },
     });
     refresh();
-    return { status: 'success', message: 'Fermeture supprimée.' };
+    return { status: 'success', message: await done('closureDeleted') };
   } catch (error) {
     return toFormState(error, 'deleteExceptionAction');
   }
@@ -619,7 +608,7 @@ export async function publishBusinessAction(
   _prev: FormState,
   formData: FormData,
 ): Promise<FormState> {
-  const parsed = parseForm(z.object({ businessId: cuidSchema }), formData);
+  const parsed = await parseForm(z.object({ businessId: cuidSchema }), formData);
   if (!parsed.ok) return parsed.state;
 
   try {
@@ -637,13 +626,13 @@ export async function publishBusinessAction(
       },
     });
 
-    const missing: string[] = [];
-    if (!business.location) missing.push('une adresse');
-    if (business._count.services === 0) missing.push('au moins une prestation');
-    if (business._count.staff === 0) missing.push('au moins un membre d’équipe');
-    if (business._count.hours === 0) missing.push('vos horaires d’ouverture');
+    const missing: FeedbackPartKey[] = [];
+    if (!business.location) missing.push('missingAddress');
+    if (business._count.services === 0) missing.push('missingService');
+    if (business._count.staff === 0) missing.push('missingStaff');
+    if (business._count.hours === 0) missing.push('missingHours');
     if (missing.length > 0) {
-      throw invalid(`Il manque encore ${missing.join(', ')}.`);
+      throw invalid('publishMissing', { items: missing });
     }
 
     const setting = await db.platformSetting.findUnique({
@@ -668,9 +657,7 @@ export async function publishBusinessAction(
 
     return {
       status: 'success',
-      message: requiresApproval
-        ? 'Votre établissement est envoyé pour validation. Vous serez notifié dès qu’il est en ligne.'
-        : 'Votre établissement est en ligne.',
+      message: await done(requiresApproval ? 'submittedForReview' : 'published'),
     };
   } catch (error) {
     return toFormState(error, 'publishBusinessAction');

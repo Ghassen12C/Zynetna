@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { v } from '@/lib/validation/keys';
 
 /**
  * Password policy. Deliberately length-first rather than symbol-soup: a long
@@ -14,12 +15,12 @@ const COMMON = new Set([
 
 export const passwordSchema = z
   .string()
-  .min(MIN_PASSWORD_LENGTH, `Use at least ${MIN_PASSWORD_LENGTH} characters.`)
-  .max(200, 'That password is too long.')
-  .refine((v) => !COMMON.has(v.toLowerCase()), 'That password is too common.')
+  .min(MIN_PASSWORD_LENGTH, v('minChars'))
+  .max(200, v('passwordTooLong'))
+  .refine((value) => !COMMON.has(value.toLowerCase()), v('passwordCommon'))
   .refine(
-    (v) => /[a-zA-Z؀-ۿ]/.test(v) && /[0-9\W_]/.test(v),
-    'Mix letters with at least one number or symbol.',
+    (value) => /[a-zA-Z؀-ۿ]/.test(value) && /[0-9\W_]/.test(value),
+    v('passwordMix'),
   );
 
 export type PasswordStrength = 'weak' | 'fair' | 'good' | 'strong';

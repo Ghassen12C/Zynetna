@@ -3,7 +3,7 @@ import { db } from '@/lib/db';
 import { env } from '@/lib/env';
 import { logger } from '@/lib/logger';
 import { emailProvider, smsProvider } from '../providers/notifications';
-import { DEFAULT_LOCALE, LOCALE_META, type Locale, isLocale } from '@/i18n/config';
+import { DEFAULT_LOCALE, LOCALE_META, type Locale, isLocale, localePath } from '@/i18n/config';
 import { interpolate } from '@/i18n/interpolate';
 import { type Messages, messagesFor } from '@/i18n';
 
@@ -413,24 +413,28 @@ export async function sendPasswordResetEmail(input: {
   email: string;
   firstName: string;
   token: string;
+  /** The account's saved language; absent falls back to the default. */
+  locale?: string | null;
 }) {
-  const url = `${env.APP_URL}/reset-password?token=${encodeURIComponent(input.token)}`;
+  const locale: Locale = input.locale && isLocale(input.locale) ? input.locale : DEFAULT_LOCALE;
+  const path = localePath(locale, `/reset-password?token=${encodeURIComponent(input.token)}`);
+  const url = `${env.APP_URL}${path}`;
+  const { email } = messagesFor(locale).feedback;
 
   const result = await emailProvider.send({
     to: input.email,
-    subject: 'Réinitialiser votre mot de passe Zynetna',
+    subject: email.passwordReset.subject,
     text: [
-      `Bonjour ${input.firstName},`,
+      interpolate(email.passwordReset.greeting, { name: input.firstName }),
       '',
-      'Vous avez demandé à réinitialiser votre mot de passe Zynetna.',
-      'Ce lien est valable une heure et ne peut servir qu’une seule fois :',
+      email.passwordReset.intro,
+      email.passwordReset.validity,
       '',
       url,
       '',
-      'Si vous n’êtes pas à l’origine de cette demande, ignorez ce message —',
-      'votre mot de passe actuel reste valable.',
+      email.passwordReset.ignore,
       '',
-      'Zynetna — Réserve ta chaise. Réserve ton éclat.',
+      email.signature,
     ].join('\n'),
   });
 

@@ -4,7 +4,10 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useMemo } from 'react';
 import { EmptyState } from '@/components/ui/Primitives';
+import { Arrow } from '@/components/ui/Arrow';
 import { addDays } from '@/domain/scheduling/time';
+import type { Messages } from '@/i18n';
+import { LOCALE_META, localePath, type Locale } from '@/i18n/config';
 
 type Event = {
   id: string;
@@ -28,6 +31,8 @@ const ACTIVE = new Set(['PENDING', 'CONFIRMED', 'COMPLETED']);
  * scrollable agenda list, which is readable where a 7-column grid is not.
  */
 export function CalendarView({
+  m,
+  locale,
   timezone,
   from,
   today,
@@ -39,6 +44,8 @@ export function CalendarView({
   selectedStaff,
   events,
 }: {
+  m: { calendar: Messages['dash']['calendar']; shared: Messages['dash']['shared'] };
+  locale: Locale;
   timezone: string;
   from: string;
   today: string;
@@ -61,22 +68,28 @@ export function CalendarView({
       if (next.staff) query.set('staff', next.staff);
       else query.delete('staff');
     }
-    router.push(`/pro/dashboard/calendar?${query.toString()}`);
+    router.push(localePath(locale, `/pro/dashboard/calendar?${query.toString()}`));
   }
 
-  const days = useMemo(
-    () =>
-      Array.from({ length: span }, (_, i) => {
-        const key = addDays(from, i);
-        const date = new Date(`${key}T12:00:00Z`);
-        return {
-          key,
-          label: new Intl.DateTimeFormat('fr-TN', { weekday: 'short', day: 'numeric', month: 'short' }).format(date),
-          isToday: key === today,
-        };
-      }),
-    [from, span, today],
-  );
+  const days = useMemo(() => {
+    // Day keys are calendar dates, so format them at noon UTC: no zone can
+    // push them onto the neighbouring day.
+    const format = new Intl.DateTimeFormat(LOCALE_META[locale].intl, {
+      weekday: 'short',
+      day: 'numeric',
+      month: 'short',
+      timeZone: 'UTC',
+    });
+    return Array.from({ length: span }, (_, i) => {
+      const key = addDays(from, i);
+      return {
+        key,
+        label: format.format(new Date(`${key}T12:00:00Z`)),
+        isToday: key === today,
+      };
+    });
+  }, [from, span, today, locale]);
+  const c = m.calendar;
 
   const totalMinutes = Math.max(60, dayEndMin - dayStartMin);
   const hourMarks = useMemo(() => {
@@ -107,37 +120,56 @@ export function CalendarView({
     <div className="z-stack" style={{ gap: 'var(--z-space-4)' }}>
       <div className="z-cal__toolbar">
         <div className="z-row" style={{ gap: 'var(--z-space-2)' }}>
-          <button type="button" className="z-btn z-btn--secondary z-btn--sm" onClick={() => go({ from: addDays(from, -span) })}>
-            ←
+          <button
+            type="button"
+            className="z-btn z-btn--secondary z-btn--sm"
+            onClick={() => go({ from: addDays(from, -span) })}
+            aria-label={c.previous}
+            title={c.previous}
+          >
+            <Arrow to="back" />
           </button>
-          <button type="button" className="z-btn z-btn--secondary z-btn--sm" onClick={() => go({ from: today })}>
-            Aujourd’hui
+          <button
+            type="button"
+            className="z-btn z-btn--secondary z-btn--sm"
+            onClick={() => go({ from: today })}
+          >
+            {c.today}
           </button>
-          <button type="button" className="z-btn z-btn--secondary z-btn--sm" onClick={() => go({ from: addDays(from, span) })}>
-            →
+          <button
+            type="button"
+            className="z-btn z-btn--secondary z-btn--sm"
+            onClick={() => go({ from: addDays(from, span) })}
+            aria-label={c.next}
+            title={c.next}
+          >
+            <Arrow />
           </button>
         </div>
 
         <div className="z-row" style={{ gap: 'var(--z-space-2)', flexWrap: 'wrap' }}>
           {/* Taking a booking at the counter starts here, where the staff
               already are when someone walks in. */}
-          <Link className="z-btn z-btn--primary z-btn--sm" href="/pro/dashboard/reservations/new">
-            + Rendez-vous
+          <Link
+            className="z-btn z-btn--primary z-btn--sm"
+            href={localePath(locale, '/pro/dashboard/reservations/new')}
+          >
+            + {m.shared.newAppointment}
           </Link>
-          <div className="z-segmented" role="group" aria-label="Vue">
+          <div className="z-segmented" role="group" aria-label={c.viewLabel}>
             <button
               type="button"
               className={view === 'day' ? 'is-active' : ''}
               onClick={() => go({ view: 'day' })}
             >
-              Jour
+              {c.day}
             </button>
             <button
               type="button"
               className={view === 'week' ? 'is-active' : ''}
               onClick={() => go({ view: 'week' })}
             >
-              Semaine
+              {c.week}
             </button>
           </div>
 
@@ -146,9 +178,9 @@ export function CalendarView({
             style={{ width: 'auto' }}
             value={selectedStaff ?? ''}
             onChange={(e) => go({ staff: e.target.value || null })}
-            aria-label="Filtrer par professionnel"
+            aria-label={m.shared.staffFilter}
           >
-            <option value="">Toute l’équipe</option>
+            <option value="">{m.shared.allTeam}</option>
             {staff.map((member) => (
               <option key={member.id} value={member.id}>
                 {member.displayName}
@@ -160,8 +192,8 @@ export function CalendarView({
 
       {visible.length === 0 ? (
         <EmptyState
-          title="Aucun rendez-vous sur cette période"
-          body="Changez de semaine, ou attendez vos prochaines réservations."
+          title={c.emptyTitle}
+          body={view === 'day' ? c.emptyBodyDay : c.emptyBodyWeek}
         />
       ) : null}
 
@@ -187,7 +219,7 @@ export function CalendarView({
 
             return (
               <div key={day.key} className={`z-cal__day ${day.isToday ? 'is-today' : ''}`}>
-                <header>{day.label}</header>
+                <header aria-current={day.isToday ? 'date' : undefined}>{day.label}</header>
                 <div className="z-cal__canvas">
                   {hourMarks.map((mark) => (
                     <span
@@ -218,7 +250,7 @@ export function CalendarView({
                     return (
                       <Link
                         key={event.id}
-                        href={`/reservations/${event.reference}`}
+                        href={localePath(locale, `/reservations/${event.reference}`)}
                         className={`z-cal__event is-${event.status.toLowerCase()} is-${density}`}
                         style={{
                           top: `${top}%`,
@@ -252,11 +284,13 @@ export function CalendarView({
 
           return (
             <section key={day.key}>
-              <h3>{day.label}</h3>
+              <h3 aria-current={day.isToday ? 'date' : undefined}>
+                {day.isToday ? `${day.label} · ${c.today}` : day.label}
+              </h3>
               <ul>
                 {dayEvents.map(({ event, start }) => (
                   <li key={event.id}>
-                    <Link href={`/reservations/${event.reference}`}>
+                    <Link href={localePath(locale, `/reservations/${event.reference}`)}>
                       <span className="z-cal-list__time">
                         {String(Math.floor(start.minutes / 60)).padStart(2, '0')}:
                         {String(start.minutes % 60).padStart(2, '0')}

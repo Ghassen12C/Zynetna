@@ -7,17 +7,18 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Field';
 import { requestPasswordResetAction } from '@/server/actions/auth';
 import { idle } from '@/lib/formState';
+import type { Messages } from '@/i18n';
 
-function Submit() {
+function Submit({ label }: { label: string }) {
   const { pending } = useFormStatus();
   return (
     <Button type="submit" size="lg" block loading={pending}>
-      Envoyer le lien
+      {label}
     </Button>
   );
 }
 
-export function ForgotPasswordForm() {
+export function ForgotPasswordForm({ m }: { m: Messages['auth'] }) {
   const [state, formAction] = useActionState(requestPasswordResetAction, idle);
 
   // The success message is deliberately the same whether or not the address
@@ -30,7 +31,7 @@ export function ForgotPasswordForm() {
     <form action={formAction} className="z-auth__form" noValidate>
       {state.status === 'error' ? <Alert tone="error">{state.message}</Alert> : null}
       <Input
-        label="E-mail"
+        label={m.email}
         name="email"
         type="email"
         autoComplete="email"
@@ -38,7 +39,7 @@ export function ForgotPasswordForm() {
         required
         error={state.status === 'error' ? state.fieldErrors?.email : null}
       />
-      <Submit />
+      <Submit label={m.sendLink} />
     </form>
   );
 }

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { interpolate } from '@/i18n/interpolate';
 
 /**
  * Sharing — the mechanism a Tunisian salon actually uses to advertise.
@@ -11,18 +12,19 @@ export function ShareButton({
   slug,
   name,
   tagline,
-  labels = { share: 'Partager', copy: 'Copier le lien', copied: '✓ Lien copié' },
+  labels,
 }: {
   slug: string;
   name: string;
   tagline?: string;
-  labels?: { share: string; copy: string; copied: string };
+  /** `text` carries a `{title}` placeholder for the shared message. */
+  labels: { share: string; copy: string; copied: string; text: string; qr: string; qrHref: string };
 }) {
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
 
   const url = typeof window === 'undefined' ? '' : `${window.location.origin}/business/${slug}`;
-  const text = `${name}${tagline ? ` — ${tagline}` : ''} · Réserve sur Zynetna`;
+  const text = interpolate(labels.text, { title: `${name}${tagline ? ` — ${tagline}` : ''}` });
 
   async function share() {
     if (typeof navigator !== 'undefined' && 'share' in navigator) {
@@ -80,8 +82,8 @@ export function ShareButton({
           >
             Facebook
           </a>
-          <a href={`/business/${slug}/qr`} role="menuitem">
-            Code QR
+          <a href={labels.qrHref} role="menuitem">
+            {labels.qr}
           </a>
         </div>
       ) : null}

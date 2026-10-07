@@ -13,10 +13,15 @@ export function DownloadQr({
   svg,
   slug,
   name,
+  shareUrl,
+  labels,
 }: {
   svg: string;
   slug: string;
   name: string;
+  /** The public page the QR points to, in the visitor's language. */
+  shareUrl: string;
+  labels: { downloadSvg: string; downloadPng: string; shareLink: string; print: string };
 }) {
   const [busy, setBusy] = useState(false);
 
@@ -67,7 +72,7 @@ export function DownloadQr({
   }
 
   async function share() {
-    const url = `${window.location.origin}/business/${slug}`;
+    const url = `${window.location.origin}${shareUrl}`;
     // The DOM types declare navigator.share as always present, so the runtime
     // check has to be made without narrowing navigator itself.
     const canShare = typeof navigator.share === 'function';
@@ -80,15 +85,15 @@ export function DownloadQr({
 
   return (
     <div className="z-row" style={{ gap: 'var(--z-space-2)', flexWrap: 'wrap' }}>
-      <Button onClick={downloadSvg}>Télécharger (SVG)</Button>
+      <Button onClick={downloadSvg}>{labels.downloadSvg}</Button>
       <Button variant="secondary" onClick={downloadPng} loading={busy}>
-        Télécharger (PNG)
+        {labels.downloadPng}
       </Button>
       <Button variant="ghost" onClick={share}>
-        Partager le lien
+        {labels.shareLink}
       </Button>
       <Button variant="ghost" onClick={() => window.print()}>
-        Imprimer
+        {labels.print}
       </Button>
     </div>
   );

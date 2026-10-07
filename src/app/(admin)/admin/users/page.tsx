@@ -2,8 +2,12 @@ import type { Metadata } from 'next';
 import { requireSuperAdmin } from '@/server/auth/guard';
 import { adminUsers } from '@/server/services/adminDashboard';
 import { AdminUserTable } from '@/components/admin/AdminUserTable';
+import { translate } from '@/i18n/server';
 
-export const metadata: Metadata = { title: 'Utilisateurs', robots: { index: false } };
+export async function generateMetadata(): Promise<Metadata> {
+  const { m } = await translate();
+  return { title: m.admin.nav.users, robots: { index: false } };
+}
 
 export default async function AdminUsersPage({
   searchParams,
@@ -11,6 +15,7 @@ export default async function AdminUsersPage({
   searchParams: Promise<{ q?: string; role?: string; status?: string; page?: string }>;
 }) {
   const actor = await requireSuperAdmin();
+  const { m, locale } = await translate();
   const params = await searchParams;
 
   const result = await adminUsers({
@@ -40,6 +45,8 @@ export default async function AdminUsersPage({
       page={result.page}
       pageCount={result.pageCount}
       filters={params}
+      m={{ admin: m.admin, labels: m.labels, common: m.common }}
+      locale={locale}
     />
   );
 }

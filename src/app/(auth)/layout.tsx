@@ -1,24 +1,24 @@
 import Link from 'next/link';
 import { Logo } from '@/components/brand/Mark';
+import { translate } from '@/i18n/server';
 
-export default function AuthLayout({ children }: { children: React.ReactNode }) {
+export default async function AuthLayout({ children }: { children: React.ReactNode }) {
+  const { m, path } = await translate();
+
   return (
     <div className="z-auth">
       <aside className="z-auth__aside">
-        <Link href="/" aria-label="Zynetna — accueil">
+        <Link href={path('/')} aria-label={m.nav.homeLabel}>
           <Logo size={38} tone="var(--z-chaux)" knockout="var(--z-medina)" />
         </Link>
 
         <div className="z-auth__pitch">
-          <h2>Réserve ta chaise. Réserve ton éclat.</h2>
-          <p>
-            Des centaines de coiffeurs, barbiers, instituts et spas en Tunisie — et un
-            rendez-vous confirmé en quelques secondes.
-          </p>
+          <h2>{m.brand.tagline}</h2>
+          <p>{m.auth.pitchBody}</p>
           <ul className="z-procta__list">
-            <li>Réservation en ligne 24 h/24</li>
-            <li>Rappel avant chaque rendez-vous</li>
-            <li>Annulation et report en un clic</li>
+            <li>{m.home.benefitBooking}</li>
+            <li>{m.auth.pitchReminder}</li>
+            <li>{m.auth.pitchCancel}</li>
           </ul>
         </div>
 

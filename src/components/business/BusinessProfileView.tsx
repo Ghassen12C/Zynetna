@@ -135,6 +135,9 @@ export async function BusinessProfileView({
                 share: m.business.share,
                 copy: m.business.copyLink,
                 copied: m.business.linkCopied,
+                text: m.business.shareText,
+                qr: m.business.qrCode,
+                qrHref: path(`/business/${business.slug}/qr`),
               }}
             />
             {business.bookable ? (
@@ -257,7 +260,16 @@ export async function BusinessProfileView({
             {business.gallery.length > 0 ? (
               <section className="z-profile__section" id="gallery">
                 <h2 className="z-profile__h2">{m.business.gallery}</h2>
-                <Gallery images={business.gallery} />
+                <Gallery
+                  images={business.gallery}
+                  labels={{
+                    gallery: m.business.gallery,
+                    close: m.common.close,
+                    enlarge: m.business.enlargeImage,
+                    previous: m.business.previousImage,
+                    next: m.business.nextImage,
+                  }}
+                />
               </section>
             ) : null}
 

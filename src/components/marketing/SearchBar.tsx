@@ -68,7 +68,7 @@ export function SearchBar({
     >
       <div className="z-searchbar__field">
         <label className="z-sr-only" htmlFor="q">
-          Que cherchez-vous ?
+          {m.home.searchLabel}
         </label>
         <svg className="z-searchbar__icon" width="19" height="19" viewBox="0 0 20 20" aria-hidden="true">
           <circle cx="9" cy="9" r="6.2" stroke="currentColor" strokeWidth="2" fill="none" />
@@ -125,10 +125,10 @@ export function SearchBar({
         className="z-searchbar__locate"
         onClick={useMyLocation}
         disabled={locating}
-        title="Utiliser ma position"
+        title={m.home.useMyLocation}
       >
-        {locating ? <span className="z-spinner" aria-hidden="true" /> : '⌖'}
-        <span className="z-sr-only">Près de moi</span>
+        {locating ? <span className="z-spinner" aria-hidden="true" /> : <span aria-hidden="true">⌖</span>}
+        <span className="z-sr-only">{m.home.nearMe}</span>
       </button>
 
       <button type="submit" className="z-btn z-btn--primary z-btn--md z-searchbar__submit" disabled={pending}>
