@@ -98,8 +98,15 @@ jobs:
 
       - name: Summary
         if: always()
+        env:
+          OUTCOME: ${{ job.status }}
         run: |
           {
-            echo "### Deployed \`zynetna:$TAG\`"
-            echo "Rollback: run **Deploy** by hand with \`image_tag\` = the previous commit SHA."
+            if [ "$OUTCOME" = "success" ]; then
+              echo "### ✅ Deployed \`zynetna:$TAG\`"
+              echo "Rollback: run **Deploy** by hand with \`image_tag\` = the previous commit SHA."
+            else
+              echo "### ❌ Deploy of \`zynetna:$TAG\` did not complete ($OUTCOME)"
+              echo "Production was not switched to this version unless the release step ran; check the failed step above."
+            fi
           } >> "$GITHUB_STEP_SUMMARY"
