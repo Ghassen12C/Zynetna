@@ -530,10 +530,13 @@ export function BookingFlow({
               </Button>
 
               <p className="z-policy z-policy--muted">
-                {interpolate(m.booking.freeCancellation, {
-                  hours: business.cancellationWindowHours,
-                })}
-                {business.cancellationPolicy ? ` ${business.cancellationPolicy}` : ''}
+                {/* The business's own words when it wrote them; the generic
+                    sentence only otherwise. Printing both repeated the same
+                    rule twice in a row. */}
+                {business.cancellationPolicy ||
+                  interpolate(m.booking.freeCancellation, {
+                    hours: business.cancellationWindowHours,
+                  })}
               </p>
             </div>
           </aside>

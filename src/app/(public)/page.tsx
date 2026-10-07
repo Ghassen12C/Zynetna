@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { ButtonLink } from '@/components/ui/Button';
 import { Badge, Eyebrow } from '@/components/ui/Primitives';
 import { BusinessCard } from '@/components/business/BusinessCard';
+import { Rail } from '@/components/ui/Rail';
 import { WelcomeAvatar } from '@/components/marketing/Avatar';
 import { SearchBar } from '@/components/marketing/SearchBar';
 import { translate } from '@/i18n/server';
@@ -138,11 +139,17 @@ export default async function HomePage() {
               </Link>
             </div>
 
-            <div className="z-grid z-grid--3">
+            <Rail
+              labels={{
+                previous: m.home.previous,
+                next: m.home.nextItems,
+                region: m.home.featuredRegion,
+              }}
+            >
               {featured.map((business) => (
                 <BusinessCard key={business.slug} business={business} />
               ))}
-            </div>
+            </Rail>
           </div>
         </section>
       ) : null}

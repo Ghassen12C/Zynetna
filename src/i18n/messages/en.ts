@@ -18,6 +18,8 @@ export const en: Messages = {
     dashboard: 'Dashboard',
     logout: 'Sign out',
     admin: 'Administration',
+    openMenu: 'Open the menu',
+    closeMenu: 'Close the menu',
   },
   avatar: {
     ariaLabel: 'A Tunisian host wearing a chechia welcomes you',
@@ -75,6 +77,9 @@ export const en: Messages = {
     trialMonths: '{months} months free',
     thenPrice: 'then {price} / month · cancel anytime',
     learnMore: 'Learn more',
+    previous: 'Previous',
+    nextItems: 'Next',
+    featuredRegion: 'Featured places',
   },
   search: {
     title: 'Results',

@@ -18,6 +18,8 @@ export const fr = {
     dashboard: 'Tableau de bord',
     logout: 'Se déconnecter',
     admin: 'Administration',
+    openMenu: 'Ouvrir le menu',
+    closeMenu: 'Fermer le menu',
   },
   avatar: {
     ariaLabel: 'Un hôte tunisien, coiffé d’une chechia, vous accueille',
@@ -76,6 +78,9 @@ export const fr = {
     trialMonths: '{months} mois offerts',
     thenPrice: 'puis {price} / mois · sans engagement',
     learnMore: 'En savoir plus',
+    previous: 'Précédent',
+    nextItems: 'Suivants',
+    featuredRegion: 'Établissements à la une',
   },
   search: {
     title: 'Résultats',

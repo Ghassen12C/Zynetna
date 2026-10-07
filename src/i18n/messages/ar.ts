@@ -18,6 +18,8 @@ export const ar: Messages = {
     dashboard: 'لوحة التحكم',
     logout: 'تسجيل الخروج',
     admin: 'الإدارة',
+    openMenu: 'فتح القائمة',
+    closeMenu: 'إغلاق القائمة',
   },
   avatar: {
     ariaLabel: 'مضيف تونسي يعتمر الشاشية يرحّب بك',
@@ -78,6 +80,9 @@ export const ar: Messages = {
     trialMonths: '{months} شهران مجاناً',
     thenPrice: 'ثم {price} شهرياً · دون التزام',
     learnMore: 'اعرف المزيد',
+    previous: 'السابق',
+    nextItems: 'التالي',
+    featuredRegion: 'مؤسسات مختارة',
   },
   search: {
     title: 'النتائج',
