@@ -187,6 +187,8 @@ export const fr = {
     sections: 'Sections',
     addFavorite: 'Ajouter aux favoris',
     removeFavorite: 'Retirer des favoris',
+    copyLink: 'Copier le lien',
+    linkCopied: '✓ Lien copié',
   },
   booking: {
     title: 'Réservation',

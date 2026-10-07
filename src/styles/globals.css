@@ -926,7 +926,10 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .z-grid { display: grid; gap: var(--z-space-5); }
 .z-grid--2 { grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
 .z-grid--3 { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
-.z-grid--4 { grid-template-columns: repeat(auto-fill, minmax(min(150px, 100%), 1fr)); }
+/* auto-fit, not auto-fill: with fewer tiles than tracks, auto-fill leaves an
+   empty column at the end of the row; auto-fit collapses it and the tiles
+   share the full width. */
+.z-grid--4 { grid-template-columns: repeat(auto-fit, minmax(min(150px, 100%), 1fr)); }
 /* Two across on a phone: one tall tile per row turned five categories into
    more than a screen of scrolling. */
 @media (max-width: 560px) { .z-grid--4 .z-ctile { padding: var(--z-space-5) var(--z-space-3); } }

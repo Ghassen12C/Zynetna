@@ -206,6 +206,8 @@ export const ar: Messages = {
     sections: 'الأقسام',
     addFavorite: 'إضافة إلى المفضلة',
     removeFavorite: 'إزالة من المفضلة',
+    copyLink: 'نسخ الرابط',
+    linkCopied: '✓ تم نسخ الرابط',
   },
   booking: {
     title: 'الحجز',

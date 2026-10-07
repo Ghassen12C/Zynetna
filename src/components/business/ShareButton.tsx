@@ -11,10 +11,12 @@ export function ShareButton({
   slug,
   name,
   tagline,
+  labels = { share: 'Partager', copy: 'Copier le lien', copied: '✓ Lien copié' },
 }: {
   slug: string;
   name: string;
   tagline?: string;
+  labels?: { share: string; copy: string; copied: string };
 }) {
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -54,13 +56,13 @@ export function ShareButton({
             strokeWidth="1.5"
           />
         </svg>
-        Partager
+        {labels.share}
       </button>
 
       {open ? (
         <div className="z-share__menu" role="menu">
           <button type="button" onClick={copy} role="menuitem">
-            {copied ? '✓ Lien copié' : 'Copier le lien'}
+            {copied ? labels.copied : labels.copy}
           </button>
           <a
             href={`https://wa.me/?text=${encodeURIComponent(`${text}\n${url}`)}`}

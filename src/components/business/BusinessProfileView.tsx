@@ -134,6 +134,11 @@ export async function BusinessProfileView({
               slug={business.slug}
               name={business.name}
               tagline={business.tagline ?? undefined}
+              labels={{
+                share: m.business.share,
+                copy: m.business.copyLink,
+                copied: m.business.linkCopied,
+              }}
             />
             {business.bookable ? (
               <ButtonLink href={path(`/business/${business.slug}/book`)} size="lg">

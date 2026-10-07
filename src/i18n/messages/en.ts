@@ -186,6 +186,8 @@ export const en: Messages = {
     sections: 'Sections',
     addFavorite: 'Add to favourites',
     removeFavorite: 'Remove from favourites',
+    copyLink: 'Copy the link',
+    linkCopied: '✓ Link copied',
   },
   booking: {
     title: 'Booking',
