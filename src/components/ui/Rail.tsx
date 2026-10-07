@@ -1,6 +1,7 @@
 'use client';
 
 import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react';
+import { scrollEdges } from '@/lib/scrollEdges';
 
 /**
  * A horizontal row of cards that scrolls instead of wrapping.
@@ -26,9 +27,8 @@ export function Rail({
   const measure = useCallback(() => {
     const el = track.current;
     if (!el) return;
-    const left = Math.abs(el.scrollLeft);
-    const max = el.scrollWidth - el.clientWidth;
-    setEdges({ start: left <= 2, end: left >= max - 2 });
+    const { atStart, atEnd } = scrollEdges(el);
+    setEdges({ start: atStart, end: atEnd });
   }, []);
 
   useEffect(() => {

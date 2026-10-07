@@ -43,7 +43,9 @@ const TRANSITIONS: Record<AvatarState, readonly AvatarState[]> = {
   IDLE: ['GREETING', 'LISTENING', 'SPEAKING', 'THINKING', 'GOODBYE'],
   GREETING: ['IDLE', 'LISTENING', 'SPEAKING'],
   LISTENING: ['THINKING', 'IDLE', 'ERROR'],
-  THINKING: ['SPEAKING', 'SUCCESS', 'ERROR', 'IDLE'],
+  // Back to LISTENING when the visitor returns to the field after a search
+  // that did not navigate.
+  THINKING: ['SPEAKING', 'SUCCESS', 'ERROR', 'IDLE', 'LISTENING'],
   SPEAKING: ['IDLE', 'LISTENING', 'SUCCESS', 'ERROR', 'BOOKING_CONFIRMED', 'GOODBYE'],
   SUCCESS: ['IDLE', 'LISTENING', 'SPEAKING', 'BOOKING_CONFIRMED'],
   ERROR: ['IDLE', 'LISTENING', 'SPEAKING'],

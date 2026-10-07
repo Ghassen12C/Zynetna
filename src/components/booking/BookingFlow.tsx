@@ -118,6 +118,9 @@ export function BookingFlow({
   const [error, setError] = useState<string | null>(null);
 
   const service = services.find((s) => s.id === serviceId) ?? null;
+  const enforcedPolicy = interpolate(m.booking.freeCancellation, {
+    hours: business.cancellationWindowHours,
+  });
 
   /** Only professionals who perform the chosen service. */
   const eligibleStaff = useMemo(
@@ -532,15 +535,16 @@ export function BookingFlow({
                 {rescheduling ? m.booking.moveAppointment : m.booking.confirm}
               </Button>
 
-              <p className="z-policy z-policy--muted">
-                {/* The business's own words when it wrote them; the generic
-                    sentence only otherwise. Printing both repeated the same
-                    rule twice in a row. */}
-                {business.cancellationPolicy ||
-                  interpolate(m.booking.freeCancellation, {
-                    hours: business.cancellationWindowHours,
-                  })}
-              </p>
+              {/* The enforced rule always shows in the visitor's language: it
+                  is what the system will actually apply. The business's own
+                  wording sits beneath it, and only replaces it when it
+                  already opens with that exact rule. */}
+              {business.cancellationPolicy?.includes(enforcedPolicy) ? null : (
+                <p className="z-policy z-policy--muted">{enforcedPolicy}</p>
+              )}
+              {business.cancellationPolicy ? (
+                <p className="z-policy z-policy--quote">{business.cancellationPolicy}</p>
+              ) : null}
             </div>
           </aside>
         </div>

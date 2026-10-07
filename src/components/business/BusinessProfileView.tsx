@@ -16,7 +16,7 @@ import {
   weekdayNames,
 } from '@/i18n/format';
 import { translate } from '@/i18n/server';
-import { coverToneFor } from '@/lib/brand';
+import { coverStyle } from '@/lib/brand';
 
 function hhmm(minutes: number): string {
   return `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
@@ -74,10 +74,7 @@ export async function BusinessProfileView({
           <div
             className="z-profile__cover-fallback z-cover"
             aria-hidden="true"
-            style={{
-              ['--cover-from' as string]: coverToneFor(business.slug)[0],
-              ['--cover-to' as string]: coverToneFor(business.slug)[1],
-            }}
+            style={coverStyle(business.slug)}
           />
         )}
       </div>

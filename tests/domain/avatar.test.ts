@@ -37,6 +37,12 @@ describe('avatar state machine', () => {
     expect(canTransition('SUCCESS', 'BOOKING_CONFIRMED')).toBe(true);
   });
 
+  it('listens again when the visitor returns to the field after a search', () => {
+    // A search that does not navigate leaves him thinking; refocusing the
+    // field must bring him back to listening rather than be ignored.
+    expect(canTransition('THINKING', 'LISTENING')).toBe(true);
+  });
+
   it('holds its pose on an illegal transition rather than throwing', () => {
     expect(nextState('LISTENING', 'BOOKING_CONFIRMED')).toBe('LISTENING');
     expect(nextState('IDLE', 'GREETING')).toBe('GREETING');

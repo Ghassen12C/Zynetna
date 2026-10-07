@@ -7,6 +7,8 @@
  * tokens as everything else.
  */
 
+import { stableHash } from '@/lib/brand';
+
 export type Point = { label: string; value: number };
 
 function niceMax(value: number): number {
@@ -59,9 +61,7 @@ export function monotonePath(xs: number[], ys: number[]): string {
 
 /** A stable id for SVG defs, since this renders on the server without hooks. */
 function idFor(label: string): string {
-  let h = 0;
-  for (let i = 0; i < label.length; i += 1) h = (h * 31 + label.charCodeAt(i)) | 0;
-  return `zc${Math.abs(h).toString(36)}`;
+  return `zc${stableHash(label).toString(36)}`;
 }
 
 /** Area + line chart for a time series. */

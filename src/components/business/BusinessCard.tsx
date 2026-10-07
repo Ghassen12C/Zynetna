@@ -1,8 +1,7 @@
 import Link from 'next/link';
 import { Badge, Rating } from '@/components/ui/Primitives';
 import { formatPrice } from '@/i18n/format';
-import type { CSSProperties } from 'react';
-import { coverToneFor } from '@/lib/brand';
+import { coverStyle } from '@/lib/brand';
 
 export type BusinessCardData = {
   slug: string;
@@ -17,12 +16,6 @@ export type BusinessCardData = {
   fromPrice?: number | null;
   distanceKm?: number | null;
 };
-
-/** Each business keeps one stable tone, so its fallback never changes colour. */
-function coverStyle(key: string): CSSProperties {
-  const [from, to] = coverToneFor(key);
-  return { ['--cover-from' as string]: from, ['--cover-to' as string]: to };
-}
 
 export function BusinessCard({ business }: { business: BusinessCardData }) {
   return (

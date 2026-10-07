@@ -75,20 +75,26 @@ export function WelcomeAvatar({
 
   const active = controlled ?? state;
 
+  // Mirrors the state for the cue handler below, so the transition can be
+  // decided outside a state updater (updaters must stay pure: StrictMode runs
+  // them twice).
+  const stateRef = useRef<AvatarState>('IDLE');
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
+
   // The interface cues the host; the state machine decides whether the cue
   // is a legal move, so nothing outside can make it claim a booking.
   useEffect(() => {
     if (controlled) return;
     return onHostCue((cue) => {
-      setState((current) => {
-        const next = nextState(current, cue.state);
-        if (next === cue.state) {
-          // Settling returns him to his welcome; other cues carry their line.
-          if (cue.state === 'IDLE') setLine('greeting');
-          else if (cue.line) setLine(cue.line);
-        }
-        return next;
-      });
+      const next = nextState(stateRef.current, cue.state);
+      if (next !== cue.state) return;
+      stateRef.current = next;
+      setState(next);
+      // Settling returns him to his welcome; other cues carry their line.
+      if (cue.state === 'IDLE') setLine('greeting');
+      else if (cue.line) setLine(cue.line);
     });
   }, [controlled]);
 
@@ -113,9 +119,15 @@ export function WelcomeAvatar({
     let frame = 0;
     let px = 0;
     let py = 0;
+    // The figure's box only changes on scroll or resize, so it is measured
+    // once per change rather than on every frame.
+    let box: DOMRect | null = null;
+    const invalidate = () => {
+      box = null;
+    };
     const apply = () => {
       frame = 0;
-      const box = node.getBoundingClientRect();
+      box ??= node.getBoundingClientRect();
       // Eyes sit about a third of the way down the figure.
       const cx = box.left + box.width / 2;
       const cy = box.top + box.height * 0.36;
@@ -131,9 +143,23 @@ export function WelcomeAvatar({
       py = event.clientY;
       if (!frame) frame = window.requestAnimationFrame(apply);
     };
-    window.addEventListener('pointermove', onMove, { passive: true });
+
+    // Only listen while he is on screen: nobody sees his eyes otherwise.
+    let listening = false;
+    const listen = (on: boolean) => {
+      if (on === listening) return;
+      listening = on;
+      const method = on ? 'addEventListener' : 'removeEventListener';
+      window[method]('pointermove', onMove as EventListener, { passive: true });
+      window[method]('scroll', invalidate, { passive: true });
+      window[method]('resize', invalidate);
+      box = null;
+    };
+    const observer = new IntersectionObserver(([entry]) => listen(!!entry?.isIntersecting));
+    observer.observe(node);
     return () => {
-      window.removeEventListener('pointermove', onMove);
+      observer.disconnect();
+      listen(false);
       if (frame) window.cancelAnimationFrame(frame);
     };
   }, []);
@@ -189,9 +215,11 @@ export function WelcomeAvatar({
       className={`z-avatar ${visible ? 'is-visible' : ''} ${className ?? ''}`}
     >
       {/* The host's own words. Real text in the DOM, so a screen reader and a
-          search engine both get the greeting, and polite so it never
-          interrupts what the visitor is already doing. */}
-      <p className="z-avatar__bubble" aria-live="polite" data-shown={speaking}>
+          search engine both get the greeting. Not a live region: his
+          listening and thinking lines only echo what the visitor is doing in
+          the search field, and announcing them on every focus and blur would
+          talk over the field's own label. */}
+      <p className="z-avatar__bubble" data-shown={speaking}>
         {/* Keyed on the line, so the words replay whenever the host says
             something new. */}
         {shownLine === 'greeting' ? (
@@ -204,7 +232,7 @@ export function WelcomeAvatar({
             </span>
           </span>
         ) : (
-          <span key={shownLine} className="z-avatar__sub z-avatar__sub--solo">
+          <span key={shownLine} className="z-avatar__sub z-avatar__sub--solo" aria-hidden="true">
             <Words text={shownLine === 'listening' ? copy.listening : copy.thinking} />
           </span>
         )}

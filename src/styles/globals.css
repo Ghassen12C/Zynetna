@@ -3480,6 +3480,8 @@ a.z-notif:hover { border-color: var(--z-accent); }
    everything below the first screen at its starting frame. Print it settled. */
 @media print {
   [data-reveal], [data-reveal] > *, .z-journey::before { animation: none !important; opacity: 1 !important; translate: none !important; scale: none !important; }
+  /* Charts draw themselves in on screen; on paper they are simply there. */
+  .z-chart__line, .z-chart__area, .z-chart__now { animation: none !important; stroke-dasharray: none !important; stroke-dashoffset: 0 !important; opacity: 1 !important; }
 }
 
 /* The pro panel carries the brand tile too, fading in from its far corner,
@@ -3497,4 +3499,14 @@ a.z-notif:hover { border-color: var(--z-accent); }
 :root[dir='rtl'] .z-procta::before {
   -webkit-mask-image: radial-gradient(70% 90% at 0% 0%, #000 0%, transparent 70%);
   mask-image: radial-gradient(70% 90% at 0% 0%, #000 0%, transparent 70%);
+}
+
+/* The business's own policy, set apart from the rule the system enforces. */
+.z-policy--quote {
+  margin: 0;
+  padding-inline-start: var(--z-space-3);
+  border-inline-start: 2px solid var(--z-border-strong);
+  font-size: var(--z-text-xs);
+  color: var(--z-fg-muted);
+  font-style: italic;
 }

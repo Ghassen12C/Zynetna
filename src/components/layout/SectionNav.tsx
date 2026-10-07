@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { LOCALES } from '@/i18n/config';
+import { scrollEdges } from '@/lib/scrollEdges';
 
 export type NavItem = { href: string; label: string; badge?: number };
 
@@ -43,10 +44,9 @@ export function SectionNav({ items, label = 'Sections' }: { items: NavItem[]; la
   const measureEdges = useCallback(() => {
     const el = scroller.current;
     if (!el) return;
-    // scrollLeft runs negative in RTL; the magnitude is what matters.
-    const left = Math.abs(el.scrollLeft);
-    const max = el.scrollWidth - el.clientWidth;
-    setEdges({ start: left > 2, end: left < max - 2 });
+    // A fade marks the side that still has more tabs to scroll to.
+    const { atStart, atEnd } = scrollEdges(el);
+    setEdges({ start: !atStart, end: !atEnd });
   }, []);
 
   const measureBar = useCallback(() => {

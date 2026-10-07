@@ -19,10 +19,24 @@ export const COVER_TONES: readonly (readonly [string, string])[] = [
 ];
 
 /** A stable tone for a business, so its fallback cover never changes colour. */
-export function coverToneFor(key: string): readonly [string, string] {
+/** A small stable string hash (Java-style ×31), for picking from fixed lists. */
+export function stableHash(key: string): number {
   let hash = 0;
   for (let i = 0; i < key.length; i += 1) hash = (hash * 31 + key.charCodeAt(i)) | 0;
-  return COVER_TONES[Math.abs(hash) % COVER_TONES.length]!;
+  return Math.abs(hash);
+}
+
+export function coverToneFor(key: string): readonly [string, string] {
+  return COVER_TONES[stableHash(key) % COVER_TONES.length]!;
+}
+
+/**
+ * The CSS variables `.z-cover` reads. Each business keeps one stable tone, so
+ * its fallback never changes colour between the card and its profile.
+ */
+export function coverStyle(key: string): Record<string, string> {
+  const [from, to] = coverToneFor(key);
+  return { '--cover-from': from, '--cover-to': to };
 }
 
 /** Edge of one tile, in user units. */
