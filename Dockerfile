@@ -19,11 +19,12 @@ RUN apk add --no-cache libc6-compat
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
-# These are build-time placeholders: the real values are injected at runtime.
-# The schema validator must pass for the build to emit pages.
-ENV DATABASE_URL="postgresql://build:build@localhost:5432/build"
-ENV SESSION_SECRET="build-time-placeholder-secret-at-least-32-chars"
-RUN npx prisma generate && npm run build
+# Build-time placeholders, scoped to this one step so they never become image
+# environment: the real values are injected at runtime. The environment
+# validator must pass for the build to emit pages; no database is contacted.
+RUN export DATABASE_URL="postgresql://build:build@localhost:5432/build" \
+      SESSION_SECRET="build-time-placeholder-secret-at-least-32-chars" \
+ && npx prisma generate && npm run build
 # The production seed, compiled to one file so the runtime image needs neither
 # tsx nor the TypeScript sources.
 RUN npx esbuild prisma/seed-production.ts --bundle --platform=node --format=esm \
