@@ -1,155 +1,136 @@
-# Deploying Zynetna to Azure
+# Zynetna in production (Azure)
 
-## Target architecture
+Live at **https://www.zynetna.tn** since 2026-10-07. This page describes what
+actually runs, how to change it, and how to undo a change.
 
-```
-Azure Front Door ──▶ Container Apps (Next.js standalone, 2+ replicas)
-                         ├── PostgreSQL Flexible Server   data
-                         ├── Blob Storage (+ CDN)         media
-                         ├── Key Vault                    secrets, via managed identity
-                         ├── Application Insights         traces, metrics, latency
-                         └── Container Apps Job (cron)    subscriptions, reminders
-```
-
-## 1. Database
-
-PostgreSQL Flexible Server, version 16 or later.
-
-```sql
-CREATE EXTENSION IF NOT EXISTS btree_gist;  -- required: exclusion constraints
-CREATE EXTENSION IF NOT EXISTS pg_trgm;     -- required: fuzzy search
-CREATE EXTENSION IF NOT EXISTS citext;      -- required: case-insensitive email
-```
-
-`btree_gist` is not optional. The double-booking guarantee is an exclusion
-constraint, and the schema will not apply without it.
-
-Enable **Allow Azure services** or place the server on the Container Apps
-VNet. Require SSL and append `?sslmode=require` to `DATABASE_URL`.
-
-## 2. Storage
-
-Create a Blob container (default name `zynetna-media`) with **blob**-level
-public read — objects are public images, the container listing is not.
+## Architecture
 
 ```
-STORAGE_DRIVER=azure
-AZURE_STORAGE_CONNECTION_STRING=<from Key Vault>
-AZURE_STORAGE_CONTAINER=zynetna-media
+            OVH DNS (zynetna.tn)
+   www  CNAME → zynetna-web.azurewebsites.net
+   @    A     → 20.111.1.9   (App Service scale unit, francecentral)
+   asuid / asuid.www  TXT    (App Service domain verification)
+                  │
+                  ▼
+ ┌──────────── resource group kerkennah-rg (France Central) ───────────────┐
+ │                                                                        │
+ │  App Service plan kerkennah-plan (Linux B1)                            │
+ │   └─ zynetna-web  ← container kerkennahacr.azurecr.io/zynetna:<sha>    │
+ │        system identity ─┬─ AcrPull on kerkennahacr                     │
+ │                         └─ Key Vault Secrets User on zynetna-kv        │
+ │        HTTPS only · TLS ≥ 1.2 · FTP off · always on · /api/health      │
+ │        managed certificates: zynetna.tn, www.zynetna.tn                │
+ │                                                                        │
+ │  zynetna-kv (Key Vault, RBAC)   database-url, session-secret,          │
+ │                                 job-token, storage-connection-string,  │
+ │                                 resend-api-key                         │
+ │  kerkennah-db (PostgreSQL 16, B1ms, 7-day backups)                     │
+ │   └─ database zynetna, login zynetna_app (only that database),         │
+ │      extensions btree_gist · citext · pg_trgm, TLS required            │
+ │  zynetnamedia (Storage) └─ container zynetna-media, blob-level read,   │
+ │                            14-day soft delete                          │
+ │  id-zynetna-github (managed identity, OIDC from GitHub)                │
+ │   ├─ AcrPush on kerkennahacr                                           │
+ │   └─ Website Contributor on zynetna-web only                           │
+ └────────────────────────────────────────────────────────────────────────┘
+   E-mail: Resend (domain zynetna.tn verified), sender noreply@zynetna.tn
 ```
 
-Install `@azure/storage-blob` in the production image; the driver refuses to
-start without it rather than silently dropping uploads.
+The previous pilot app (`kerkennah-app`, its `kerkennah` database and the
+`kerkennahstorage` account) shares the resource group, plan and database
+server but is **stopped and isolated**: Zynetna never reads its database or
+its storage. See "Old pilot resources" below.
 
-Put CDN in front of the container. Objects are content-addressed, so they are
-served `immutable` with a one-year max-age.
+## Canonical origin
 
-## 3. Secrets
+`https://www.zynetna.tn` is the only origin. HTTP is redirected to HTTPS by
+App Service (`httpsOnly`); the bare domain answers 308 → `www` from the
+middleware (`src/middleware.ts`). `APP_URL=https://www.zynetna.tn` drives
+every absolute link (e-mails, QR codes, calendar files). Session cookies are
+host-only, `Secure`, `HttpOnly`, `SameSite=Lax`.
 
-Every secret lives in Key Vault and is referenced by the Container App through
-a managed identity. Nothing is baked into the image.
+## Configuration
 
-| Variable | Notes |
+App settings on `zynetna-web` (values in **bold** are Key Vault references,
+`@Microsoft.KeyVault(VaultName=zynetna-kv;SecretName=…)`, never plain text):
+
+| Setting | Value |
 |---|---|
-| `DATABASE_URL` | with `?sslmode=require` |
-| `SESSION_SECRET` | `openssl rand -base64 48`; rotating it signs everyone out |
-| `JOB_TOKEN` | bearer token for the job endpoints |
-| `AZURE_STORAGE_CONNECTION_STRING` | |
-| `APP_URL` | the public origin, e.g. `https://zynetna.tn` |
+| `APP_URL` | `https://www.zynetna.tn` |
+| `DATABASE_URL` | **database-url** (`…/zynetna?sslmode=require&connection_limit=5`) |
+| `SESSION_SECRET` | **session-secret** |
+| `JOB_TOKEN` | **job-token** |
+| `STORAGE_DRIVER` / `AZURE_STORAGE_CONTAINER` | `azure` / `zynetna-media` |
+| `AZURE_STORAGE_CONNECTION_STRING` | **storage-connection-string** |
+| `EMAIL_DRIVER` / `EMAIL_FROM` | `resend` / `Zynetna <noreply@zynetna.tn>` |
+| `RESEND_API_KEY` | **resend-api-key** |
+| `WEBSITES_PORT` | `3000` |
 
-`src/lib/env.ts` validates all of these at boot. A missing or placeholder
-secret stops the process — it never degrades into an insecure default.
+`connection_limit=5` keeps the app well inside the B1ms connection budget,
+which the database server shares. The first start used `SEED_ON_START=true`
+with `ADMIN_*` values to create reference data and the first super admin;
+those settings and the `admin-password` secret were removed afterwards.
 
-## 4. Container App
+GitHub, environment **production**: secrets `AZURE_CLIENT_ID`,
+`AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`, `JOB_TOKEN`; variables
+`AZURE_REGISTRY=kerkennahacr`, `AZURE_RESOURCE_GROUP=kerkennah-rg`,
+`AZURE_WEBAPP=zynetna-web`, `APP_URL=https://www.zynetna.tn`. The OIDC trust
+subject is `repo:Ghassen12C@114819201/Zynetna@1407400429:environment:production`
+(GitHub's ID-based format).
 
-```bash
-az containerapp create \
-  --name zynetna \
-  --resource-group zynetna-rg \
-  --environment zynetna-env \
-  --image <registry>.azurecr.io/zynetna:<sha> \
-  --target-port 3000 \
-  --ingress external \
-  --min-replicas 2 \
-  --max-replicas 10 \
-  --cpu 1 --memory 2Gi \
-  --user-assigned <identity-id>
-```
+## Deploying
 
-Two replicas minimum: rate limiting and session revocation are already
-cross-replica safe, and a single replica makes every deployment a brief outage.
+Actions → **Deploy** → Run workflow (or push a `v*` tag). The workflow:
 
-Probes:
+1. signs in to Azure with OIDC (no stored Azure password);
+2. builds the image once and pushes `zynetna:<sha>` and `zynetna:latest`;
+3. points `zynetna-web` at `zynetna:<sha>` and restarts it;
+4. waits until `/api/health` reports `status: ok` **and** `version: <sha>`.
 
-- **Liveness / readiness:** `GET /api/health`, which checks the database and
-  the storage driver and returns 503 when either is down, so a container with a
-  broken dependency is taken out of rotation instead of serving errors.
+On start the container (`scripts/start.sh`) runs `prisma migrate deploy`
+from inside Azure, so the database never accepts connections from GitHub. A
+failed migration stops the container and App Service keeps serving the
+previous one.
 
-## 5. Scheduled jobs
+**Rollback**: run Deploy with `image_tag` = an earlier commit SHA. It skips
+the build and re-points the app at that image. Migrations only go forward:
+roll back code, never schema; write a new migration to undo a schema change.
 
-Two Container Apps Jobs, both idempotent and safe to retry:
+## Scheduled jobs
 
-| Job | Schedule | Purpose |
-|---|---|---|
-| `subscriptions` | `0 3 * * *` | advance trial → grace → expired, expire stale pending reservations, complete past appointments, purge sessions and rate-limit buckets |
-| `reminders` | `*/10 * * * *` | dispatch due appointment reminders |
+`.github/workflows/jobs.yml` calls `POST /api/v1/jobs/<name>` with the job
+token: `reminders` every 15 minutes, `subscriptions` daily 02:17 UTC,
+`cleanup` daily 03:41 UTC. Every job is idempotent. Run one by hand from the
+Actions tab.
 
-Run them as commands:
-
-```bash
-npm run job:subscriptions
-npm run job:reminders
-```
-
-…or over HTTP, for a scheduler without shell access:
+## Operating
 
 ```bash
-curl -X POST https://zynetna.tn/api/v1/jobs/subscriptions \
-  -H "Authorization: Bearer $JOB_TOKEN"
+RG=kerkennah-rg; APP=zynetna-web
+curl -s https://www.zynetna.tn/api/health          # status + running version
+az webapp log tail -g $RG -n $APP                  # live container logs
+az webapp restart -g $RG -n $APP
 ```
 
-The endpoint compares the token in constant time and returns **404** — not 401
-— on failure, so its existence is not discoverable.
+Backups: the database has 7-day point-in-time restore (restore creates a new
+server; then point `database-url` at it). Images: 14-day blob soft delete.
 
-## 6. Migrations
+The production seed (`npm run db:seed:prod`) is idempotent and never deletes.
+The development seed (`npm run db:seed`) wipes every table and refuses to run
+against anything but a local database.
 
-Migrations run in the deployment pipeline **before** the new revision takes
-traffic, so the schema is never behind the code that expects it.
+## Old pilot resources
 
-```bash
-npx prisma migrate deploy
-```
+Kept, stopped, not used by Zynetna. Remove only once nothing in them is needed:
 
-Forward-only. To revert, write a new migration; never edit an applied one.
+| Resource | Holds |
+|---|---|
+| `kerkennah-app` (stopped) | the previous pilot app |
+| database `kerkennah` on `kerkennah-db` | the pilot's real businesses, customers and bookings |
+| `kerkennahstorage` / `business-images` | the pilot's business photos (public read) |
+| `kerkennahacr` repositories `barber-app`, `barber-migrator`, webhook `kerkennahwebhook` | old images and the old auto-redeploy hook |
+| `kerkennah-insights`, `kerkennah-alerte-erreurs`, `kerkennah-notifications` | monitoring of the old app |
 
-## 7. Observability
-
-- **Application Insights** via the `APPLICATIONINSIGHTS_CONNECTION_STRING`
-  environment variable, which the Container Apps runtime picks up.
-- Logs are structured JSON in production (`src/lib/logger.ts`), with password,
-  token and cookie fields redacted before anything is written.
-- Watch: `/api/health` failures, 409 `SLOT_UNAVAILABLE` rate (a sudden rise
-  means contention or a client bug), job completion, p95 latency on
-  `/api/v1/availability` and `POST /api/v1/reservations`.
-
-## 8. Custom domain and TLS
-
-```bash
-az containerapp hostname add --hostname zynetna.tn --name zynetna -g zynetna-rg
-az containerapp ssl upload --certificate-file zynetna.pfx --name zynetna -g zynetna-rg
-```
-
-`Strict-Transport-Security` is already sent from `next.config.ts`, along with
-`X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy` and a
-`Permissions-Policy` that grants geolocation only to our own origin.
-
-## 9. Before going live
-
-- [ ] `SESSION_SECRET` generated fresh; not the placeholder
-- [ ] `btree_gist`, `pg_trgm` and `citext` installed
-- [ ] `STORAGE_DRIVER=azure` and `@azure/storage-blob` present in the image
-- [ ] Database backups enabled, with point-in-time restore
-- [ ] Both scheduled jobs created and observed to succeed once
-- [ ] `/api/health` returns `{"status":"ok"}` from the public domain
-- [ ] A real booking placed end to end against production
-- [ ] Seed data **not** applied to the production database
+Do **not** delete `kerkennah-plan`, `kerkennah-db` or `kerkennahacr`
+themselves: Zynetna runs on them. Export the `kerkennah` database
+(`pg_dump`) before dropping it.
