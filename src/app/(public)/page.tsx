@@ -14,6 +14,7 @@ import {
   popularBusinesses,
   topCategories,
 } from '@/server/services/marketplace';
+import { CategoryIcon } from '@/components/brand/CategoryIcon';
 
 export const revalidate = 300;
 
@@ -74,7 +75,7 @@ export default async function HomePage() {
                   href={path(`/search?category=${category.slug}`)}
                   className="z-chip"
                 >
-                  {category.icon ? <span aria-hidden="true">{category.icon}</span> : null}
+                  <CategoryIcon slug={category.slug} fallback={category.icon} size={18} />
                   {localizedName(category, locale)}
                 </Link>
               ))}
@@ -93,7 +94,7 @@ export default async function HomePage() {
       {categories.length > 0 ? (
         <section className="z-section">
           <div className="z-container">
-            <div className="z-section__head">
+            <div className="z-section__head" data-reveal>
               <div>
                 <Eyebrow>{m.home.exploreEyebrow}</Eyebrow>
                 <h2 className="z-section__title">{m.home.popularCategories}</h2>
@@ -103,7 +104,7 @@ export default async function HomePage() {
               </Link>
             </div>
 
-            <div className="z-grid z-grid--4">
+            <div className="z-grid z-grid--4" data-reveal="stagger">
               {categories.map((category) => (
                 <Link
                   key={category.slug}
@@ -111,7 +112,7 @@ export default async function HomePage() {
                   className="z-ctile"
                 >
                   <span className="z-ctile__icon" aria-hidden="true">
-                    {category.icon ?? '✂'}
+                    <CategoryIcon slug={category.slug} fallback={category.icon ?? '✂'} size={28} />
                   </span>
                   <span className="z-ctile__name">{localizedName(category, locale)}</span>
                   <span className="z-ctile__count">
@@ -128,7 +129,7 @@ export default async function HomePage() {
       {featured.length > 0 ? (
         <section className="z-section z-section--sunken">
           <div className="z-container">
-            <div className="z-section__head">
+            <div className="z-section__head" data-reveal>
               <div>
                 <Eyebrow>{m.home.selectionEyebrow}</Eyebrow>
                 <h2 className="z-section__title">{m.home.featured}</h2>
@@ -140,6 +141,7 @@ export default async function HomePage() {
             </div>
 
             <Rail
+              reveal
               labels={{
                 previous: m.home.previous,
                 next: m.home.nextItems,
@@ -157,14 +159,14 @@ export default async function HomePage() {
       {/* ── How it works ───────────────────────────────────────────────── */}
       <section className="z-section">
         <div className="z-container">
-          <div className="z-section__head">
+          <div className="z-section__head" data-reveal>
             <div>
               <Eyebrow>{m.home.simpleEyebrow}</Eyebrow>
               <h2 className="z-section__title">{m.home.howItWorks}</h2>
             </div>
           </div>
 
-          <div className="z-grid z-grid--3">
+          <div className="z-grid z-grid--3" data-reveal="stagger">
             {steps.map((step, index) => (
               <div key={step.title} className="z-step">
                 <span className="z-step__num" aria-hidden="true">
@@ -182,13 +184,13 @@ export default async function HomePage() {
       {popular.length > 0 ? (
         <section className="z-section z-section--sunken">
           <div className="z-container">
-            <div className="z-section__head">
+            <div className="z-section__head" data-reveal>
               <div>
                 <Eyebrow>{m.home.trendingEyebrow}</Eyebrow>
                 <h2 className="z-section__title">{m.home.popular}</h2>
               </div>
             </div>
-            <div className="z-grid z-grid--3">
+            <div className="z-grid z-grid--3" data-reveal="stagger">
               {popular.map((business) => (
                 <BusinessCard key={business.slug} business={business} />
               ))}
@@ -200,7 +202,7 @@ export default async function HomePage() {
       {/* ── Professional CTA ───────────────────────────────────────────── */}
       <section className="z-section">
         <div className="z-container">
-          <div className="z-procta">
+          <div className="z-procta" data-reveal>
             <svg className="z-procta__arch" viewBox="0 0 100 138" width="300" aria-hidden="true">
               <path
                 d="M0 50a50 50 0 0 1 100 0v80a8 8 0 0 1-8 8H8a8 8 0 0 1-8-8V50Z"

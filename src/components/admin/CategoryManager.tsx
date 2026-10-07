@@ -9,6 +9,7 @@ import { Input, Select } from '@/components/ui/Field';
 import { Badge, Panel } from '@/components/ui/Primitives';
 import { saveCategoryAction, toggleCategoryAction } from '@/server/actions/admin';
 import { idle } from '@/lib/formState';
+import { CategoryIcon } from '@/components/brand/CategoryIcon';
 
 type Category = {
   id: string;
@@ -148,7 +149,7 @@ export function CategoryManager({ categories }: { categories: Category[] }) {
               <div className="z-dash__panel-head">
                 <div className="z-row" style={{ gap: 'var(--z-space-3)' }}>
                   <span className="z-ctile__icon" aria-hidden="true">
-                    {root.icon ?? '✂'}
+                    <CategoryIcon slug={root.slug} fallback={root.icon ?? '✂'} size={26} />
                   </span>
                   <div>
                     <h2 className="z-profile__h3">

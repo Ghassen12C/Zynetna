@@ -16,6 +16,7 @@ import {
   weekdayNames,
 } from '@/i18n/format';
 import { translate } from '@/i18n/server';
+import { coverToneFor } from '@/lib/brand';
 
 function hhmm(minutes: number): string {
   return `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
@@ -70,7 +71,14 @@ export async function BusinessProfileView({
           // eslint-disable-next-line @next/next/no-img-element
           <img src={business.cover.url} alt="" className="z-profile__cover-img" />
         ) : (
-          <div className="z-profile__cover-fallback" aria-hidden="true" />
+          <div
+            className="z-profile__cover-fallback z-cover"
+            aria-hidden="true"
+            style={{
+              ['--cover-from' as string]: coverToneFor(business.slug)[0],
+              ['--cover-to' as string]: coverToneFor(business.slug)[1],
+            }}
+          />
         )}
       </div>
 
@@ -117,7 +125,11 @@ export async function BusinessProfileView({
           </div>
 
           <div className="z-profile__actions">
-            <FavoriteButton businessId={business.id} initial={isFavorite} />
+            <FavoriteButton
+              businessId={business.id}
+              initial={isFavorite}
+              labels={{ add: m.business.addFavorite, remove: m.business.removeFavorite }}
+            />
             <ShareButton
               slug={business.slug}
               name={business.name}
@@ -160,7 +172,7 @@ export async function BusinessProfileView({
                 Object.entries(serviceGroups).map(([group, services]) => (
                   <div key={group} className="z-svc-group">
                     <Eyebrow>{group}</Eyebrow>
-                    <ul className="z-svc-list">
+                    <ul className="z-svc-list" data-reveal="stagger">
                       {services.map((service) => (
                         <li key={service.id} className="z-svc">
                           {service.imageUrl ? (
@@ -211,7 +223,7 @@ export async function BusinessProfileView({
             {business.staff.length > 0 ? (
               <section className="z-profile__section" id="team">
                 <h2 className="z-profile__h2">{m.business.teamTitle}</h2>
-                <div className="z-team">
+                <div className="z-team" data-reveal="stagger">
                   {business.staff.map((member) => (
                     <article key={member.id} className="z-team__card">
                       <div className="z-team__avatar">
@@ -284,7 +296,7 @@ export async function BusinessProfileView({
                     </div>
                   </div>
 
-                  <ul className="z-reviews__list">
+                  <ul className="z-reviews__list" data-reveal="stagger">
                     {business.reviews.map((review) => (
                       <li key={review.id} className="z-review">
                         <div className="z-review__head">

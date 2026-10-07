@@ -126,7 +126,7 @@ export default async function SearchPage({
               />
             ) : (
               <>
-                <div className="z-grid z-grid--3">
+                <div className="z-grid z-grid--3" data-reveal="stagger">
                   {result.businesses.map((business) => (
                     <BusinessCard key={business.slug} business={business} />
                   ))}

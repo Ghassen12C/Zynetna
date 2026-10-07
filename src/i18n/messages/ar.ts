@@ -186,6 +186,8 @@ export const ar: Messages = {
     website: 'الموقع الإلكتروني',
     noticeAndCancellation: 'الحجز {hours} ساعة مسبقاً على الأقل · إلغاء مجاني حتى {window} ساعة قبل الموعد.',
     sections: 'الأقسام',
+    addFavorite: 'إضافة إلى المفضلة',
+    removeFavorite: 'إزالة من المفضلة',
   },
   booking: {
     title: 'الحجز',

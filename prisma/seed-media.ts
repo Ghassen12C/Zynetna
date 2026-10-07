@@ -1,6 +1,7 @@
 import sharp from 'sharp';
 import { PrismaClient } from '@prisma/client';
 import { ingestImage } from '../src/server/services/media';
+import { COVER_TONES, ZELLIGE_TILE, zelligeTile } from '../src/lib/brand';
 
 /**
  * Generate cover, interior and portfolio images for the seeded businesses.
@@ -12,38 +13,27 @@ import { ingestImage } from '../src/server/services/media';
  */
 const db = new PrismaClient();
 
-/** On-brand only: Medina Blue, Jasmin, Encre and Slate. No stray hues. */
-const PALETTES = [
-  ['#0E3B66', '#246A9F'], // Medina
-  ['#E0A94E', '#B57F2C'], // Jasmin
-  ['#0A1C2E', '#16507F'], // Encre → Medina
-  ['#44566B', '#7FA8C8'], // Slate
-  ['#07213A', '#0E3B66'], // deep Medina
-  ['#C9913A', '#E0A94E'], // warm Jasmin
-];
-
-/** Business names can contain &, <, > — SVG is XML, so escape before embedding. */
-function xmlEscape(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;');
-}
-
-/** A branded abstract composition — arches, bands and a soft wash. */
-async function compose(seed: number, label: string, width = 1280, height = 960) {
-  const [from, to] = PALETTES[seed % PALETTES.length]!;
+/**
+ * A branded stand-in for a photograph: the business's gradient, a soft light
+ * from one corner, the zellige lattice from `src/lib/brand.ts`, and one tall
+ * medina doorway — the shape of the Zynetna mark — so a gallery of these still
+ * reads as one house. The tile is the same one the interface uses for covers.
+ */
+async function compose(seed: number, width = 1280, height = 960) {
+  const [from, to] = COVER_TONES[seed % COVER_TONES.length]!;
   const r = (n: number) => ((seed * 9301 + n * 49297) % 233280) / 233280;
 
-  const arches = Array.from({ length: 5 }, (_, i) => {
-    const w = 120 + r(i) * 190;
-    const x = r(i + 10) * width - w / 2;
-    const y = height - (90 + r(i + 20) * 420);
-    const opacity = (0.06 + r(i + 30) * 0.14).toFixed(3);
-    return `<path d="M${x} ${y + w} v-${w / 2} a${w / 2} ${w / 2} 0 0 1 ${w} 0 v${w / 2} z" fill="#F5F1E8" opacity="${opacity}"/>`;
-  }).join('');
+  // Vary scale and strength per image so a gallery is not twelve copies.
+  const tile = Math.round(ZELLIGE_TILE * (0.9 + r(1) * 0.9));
+  const opacity = (0.1 + r(2) * 0.1).toFixed(3);
+  const inner = zelligeTile('#F5F1E8', Number(opacity)).replace(/^<svg[^>]*>|<\/svg>$/g, '');
+
+  // One doorway, off-centre, rising from the bottom edge.
+  const dw = width * (0.22 + r(3) * 0.12);
+  const dx = r(4) > 0.5 ? width * (0.62 + r(5) * 0.16) : width * (0.06 + r(5) * 0.14);
+  const dh = height * (0.58 + r(6) * 0.2);
+  const dy = height - dh;
+  const door = `M${dx} ${height} V${dy + dw / 2} A${dw / 2} ${dw / 2} 0 0 1 ${dx + dw} ${dy + dw / 2} V${height} Z`;
 
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">
     <defs>
@@ -51,17 +41,23 @@ async function compose(seed: number, label: string, width = 1280, height = 960) 
         <stop offset="0%" stop-color="${from}"/>
         <stop offset="100%" stop-color="${to}"/>
       </linearGradient>
+      <radialGradient id="light" cx="0.15" cy="0" r="1">
+        <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.18"/>
+        <stop offset="60%" stop-color="#FFFFFF" stop-opacity="0"/>
+      </radialGradient>
+      <pattern id="z" width="${ZELLIGE_TILE}" height="${ZELLIGE_TILE}" patternUnits="userSpaceOnUse"
+               patternTransform="scale(${(tile / ZELLIGE_TILE).toFixed(3)})">${inner}</pattern>
     </defs>
     <rect width="${width}" height="${height}" fill="url(#g)"/>
-    ${arches}
+    <rect width="${width}" height="${height}" fill="url(#z)"/>
+    <rect width="${width}" height="${height}" fill="url(#light)"/>
+    <path d="${door}" fill="#F5F1E8" opacity="0.1"/>
+    <path d="${door}" fill="none" stroke="#F5F1E8" stroke-opacity="0.22" stroke-width="2"/>
     <rect x="0" y="${height - 6}" width="${width}" height="6" fill="#E0A94E"/>
-    <text x="${width / 2}" y="${height - 46}" font-family="sans-serif" font-size="26"
-          font-weight="600" fill="#F5F1E8" opacity="0.42" text-anchor="middle"
-          letter-spacing="7">${xmlEscape(label)}</text>
   </svg>`;
 
   // Emit a real JPEG so the ingest pipeline sees genuine image bytes.
-  return sharp(Buffer.from(svg)).jpeg({ quality: 88 }).toBuffer();
+  return sharp(Buffer.from(svg)).jpeg({ quality: 86 }).toBuffer();
 }
 
 async function main() {
@@ -88,7 +84,6 @@ async function main() {
   if (orphaned.count > 0) console.log(`Removed ${orphaned.count} orphaned assets.`);
 
   for (const [index, business] of businesses.entries()) {
-    const label = business.name.toUpperCase().slice(0, 20);
     const plan: { role: 'LOGO' | 'COVER' | 'EXTERIOR' | 'INTERIOR' | 'PORTFOLIO'; n: number }[] = [
       { role: 'COVER', n: 1 },
       { role: 'LOGO', n: 1 },
@@ -102,12 +97,7 @@ async function main() {
       for (let i = 0; i < item.n; i += 1) {
         variantSeed += 1;
         const square = item.role === 'LOGO';
-        const buffer = await compose(
-          variantSeed,
-          item.role === 'LOGO' ? 'Z' : label,
-          square ? 600 : 1280,
-          square ? 600 : 960,
-        );
+        const buffer = await compose(variantSeed, square ? 600 : 1280, square ? 600 : 960);
         const asset = await ingestImage({
           buffer,
           filename: `${business.slug}-${item.role.toLowerCase()}-${i}.jpg`,
@@ -125,7 +115,7 @@ async function main() {
     // One image per service.
     for (const [sIndex, service] of business.services.entries()) {
       variantSeed += 1;
-      const buffer = await compose(variantSeed, service.name.toUpperCase().slice(0, 18), 800, 600);
+      const buffer = await compose(variantSeed, 800, 600);
       const asset = await ingestImage({
         buffer,
         filename: `${service.id}.jpg`,

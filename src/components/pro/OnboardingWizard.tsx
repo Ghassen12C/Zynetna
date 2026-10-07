@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/Primitives';
 import { createBusinessAction } from '@/server/actions/onboarding';
 import { idle } from '@/lib/formState';
 import { formatPrice } from '@/i18n/format';
+import { CategoryIcon } from '@/components/brand/CategoryIcon';
 
 /**
  * Onboarding.
@@ -48,7 +49,7 @@ export function OnboardingWizard({
   price,
   currency,
 }: {
-  categories: { id: string; name: string; icon: string | null }[];
+  categories: { id: string; slug: string; name: string; icon: string | null }[];
   cities: { id: string; label: string }[];
   trialDays: number;
   price: number;
@@ -134,7 +135,7 @@ export function OnboardingWizard({
                     className="z-sr-only"
                   />
                   <span className="z-ctile__icon" aria-hidden="true">
-                    {category.icon ?? '✂'}
+                    <CategoryIcon slug={category.slug} fallback={category.icon ?? '✂'} size={28} />
                   </span>
                   <span className="z-person__name">{category.name}</span>
                 </label>

@@ -54,7 +54,7 @@ export default async function ProOverviewPage() {
 
   return (
     <div className="z-dash">
-      <div className="z-stats">
+      <div className="z-stats" data-reveal="stagger">
         <div className="z-stat">
           <span className="z-stat__value">{metrics.todayAppointments}</span>
           <span className="z-stat__label">Rendez-vous aujourd’hui</span>
@@ -91,7 +91,7 @@ export default async function ProOverviewPage() {
         />
       </Panel>
 
-      <div className="z-dash__grid">
+      <div className="z-dash__grid" data-reveal="stagger">
         <Panel className="z-dash__panel">
           <div className="z-dash__panel-head">
             <h2>Aujourd’hui</h2>

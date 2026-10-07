@@ -13,9 +13,12 @@ import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react'
 export function Rail({
   children,
   labels,
+  reveal = false,
 }: {
   children: ReactNode;
   labels: { previous: string; next: string; region: string };
+  /** Stagger the cards in as the rail scrolls into view. */
+  reveal?: boolean;
 }) {
   const track = useRef<HTMLDivElement>(null);
   const [edges, setEdges] = useState({ start: true, end: true });
@@ -52,6 +55,7 @@ export function Rail({
       <div
         ref={track}
         className="z-rail__track"
+        data-reveal={reveal ? 'stagger' : undefined}
         onScroll={measure}
         role="region"
         aria-label={labels.region}

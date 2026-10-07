@@ -408,11 +408,14 @@ export function BookingFlow({
                       ))}
                     </div>
                   ) : slots && slots.length > 0 ? (
-                    <div className="z-slots__grid">
-                      {slots.map((s) => (
+                    // Keyed on the day so the cascade replays for each date:
+                    // it shows that these are new times, not the old ones.
+                    <div className="z-slots__grid" key={day}>
+                      {slots.map((s, i) => (
                         <button
                           key={s.startAt}
                           type="button"
+                          style={{ ['--i' as string]: Math.min(i, 24) }}
                           className={`z-slot ${slot?.startAt === s.startAt ? 'is-selected' : ''}`}
                           aria-pressed={slot?.startAt === s.startAt}
                           onClick={() => setSlot(s)}
@@ -464,7 +467,7 @@ export function BookingFlow({
                 </div>
                 <div>
                   <dt>{m.booking.stepService}</dt>
-                  <dd>
+                  <dd key={service?.id ?? 'none'} className="z-tick">
                     {service ? (
                       service.name
                     ) : (
@@ -474,7 +477,7 @@ export function BookingFlow({
                 </div>
                 <div>
                   <dt>{m.booking.stepStaff}</dt>
-                  <dd>
+                  <dd key={staffId ?? (service ? 'any' : 'none')} className="z-tick">
                     {staffId
                       ? (eligibleStaff.find((m) => m.id === staffId)?.displayName ?? '—')
                       : service
@@ -484,7 +487,7 @@ export function BookingFlow({
                 </div>
                 <div>
                   <dt>{m.booking.stepTime}</dt>
-                  <dd>
+                  <dd key={slot?.startAt ?? 'none'} className="z-tick">
                     {slot ? (
                       new Intl.DateTimeFormat(intl, {
                         weekday: 'long',
@@ -510,7 +513,7 @@ export function BookingFlow({
 
               <div className="z-summary__total">
                 <span>{m.booking.total}</span>
-                <strong>
+                <strong key={service?.id ?? 'none'} className="z-tick">
                   {service ? formatPrice(service.price, locale, business.currency) : '—'}
                 </strong>
               </div>

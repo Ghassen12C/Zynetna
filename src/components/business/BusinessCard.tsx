@@ -1,6 +1,8 @@
 import Link from 'next/link';
 import { Badge, Rating } from '@/components/ui/Primitives';
 import { formatPrice } from '@/i18n/format';
+import type { CSSProperties } from 'react';
+import { coverToneFor } from '@/lib/brand';
 
 export type BusinessCardData = {
   slug: string;
@@ -16,6 +18,12 @@ export type BusinessCardData = {
   distanceKm?: number | null;
 };
 
+/** Each business keeps one stable tone, so its fallback never changes colour. */
+function coverStyle(key: string): CSSProperties {
+  const [from, to] = coverToneFor(key);
+  return { ['--cover-from' as string]: from, ['--cover-to' as string]: to };
+}
+
 export function BusinessCard({ business }: { business: BusinessCardData }) {
   return (
     <Link href={`/business/${business.slug}`} className="z-bcard">
@@ -30,8 +38,12 @@ export function BusinessCard({ business }: { business: BusinessCardData }) {
             className="z-bcard__img"
           />
         ) : (
-          <div className="z-bcard__placeholder" aria-hidden="true">
-            <svg viewBox="0 0 100 138" width="38" height="52" opacity="0.28">
+          <div
+            className="z-bcard__placeholder z-cover"
+            aria-hidden="true"
+            style={coverStyle(business.slug)}
+          >
+            <svg viewBox="0 0 100 138" width="38" height="52" opacity="0.32">
               <path d="M0 50a50 50 0 0 1 100 0v80a8 8 0 0 1-8 8H8a8 8 0 0 1-8-8V50Z" fill="currentColor" />
             </svg>
           </div>

@@ -4,6 +4,7 @@ import '@/styles/globals.css';
 import { env } from '@/lib/env';
 import { LOCALE_META, LOCALES } from '@/i18n/config';
 import { translate } from '@/i18n/server';
+import { RevealRoot, REVEAL_GUARD } from '@/components/motion/RevealRoot';
 
 /**
  * Fonts from the brand guide, self-hosted by next/font at build time: no
@@ -71,8 +72,18 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const { locale, m, dir } = await translate();
 
   return (
-    <html lang={locale} dir={dir} className={`${epilogue.variable} ${tajawal.variable}`}>
+    <html
+      lang={locale}
+      dir={dir}
+      className={`${epilogue.variable} ${tajawal.variable}`}
+      // The reveal guard sets an attribute before hydration by design.
+      suppressHydrationWarning
+    >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: REVEAL_GUARD }} />
+      </head>
       <body>
+        <RevealRoot />
         <a className="z-skip-link" href="#main">
           {m.common.skipToContent}
         </a>

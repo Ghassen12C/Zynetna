@@ -175,6 +175,8 @@ export const fr = {
     noticeAndCancellation:
       'Réservation au moins {hours} h à l’avance · annulation gratuite jusqu’à {window} h avant.',
     sections: 'Sections',
+    addFavorite: 'Ajouter aux favoris',
+    removeFavorite: 'Retirer des favoris',
   },
   booking: {
     title: 'Réservation',

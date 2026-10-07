@@ -19,7 +19,7 @@ export default async function OnboardingPage() {
     db.category.findMany({
       where: { isActive: true, parentId: null },
       orderBy: { position: 'asc' },
-      select: { id: true, name: true, icon: true },
+      select: { id: true, slug: true, name: true, icon: true },
     }),
     db.city.findMany({
       orderBy: { name: 'asc' },

@@ -174,6 +174,8 @@ export const en: Messages = {
     noticeAndCancellation:
       'Book at least {hours} h ahead · free cancellation up to {window} h before.',
     sections: 'Sections',
+    addFavorite: 'Add to favourites',
+    removeFavorite: 'Remove from favourites',
   },
   booking: {
     title: 'Booking',

@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { db } from '@/lib/db';
 import { Eyebrow } from '@/components/ui/Primitives';
+import { CategoryIcon } from '@/components/brand/CategoryIcon';
 
 export const metadata: Metadata = {
   title: 'Toutes les catégories',
@@ -54,7 +55,7 @@ export default async function CategoriesPage() {
             <section key={category.slug} className="z-panel z-catblock">
               <Link href={`/search?category=${category.slug}`} className="z-catblock__head">
                 <span className="z-ctile__icon" aria-hidden="true">
-                  {category.icon ?? '✂'}
+                  <CategoryIcon slug={category.slug} fallback={category.icon ?? '✂'} size={28} />
                 </span>
                 <span>
                   <h2>{category.name}</h2>
