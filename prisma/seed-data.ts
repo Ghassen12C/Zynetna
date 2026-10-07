@@ -2,6 +2,7 @@
  * Seed reference data for Tunisia.
  * Businesses and people below are fictional; no real private data is used.
  */
+import type { Prisma } from '@prisma/client';
 
 export const GOVERNORATES: {
   name: string; nameAr: string; slug: string;
@@ -109,4 +110,42 @@ export const CATEGORY_TREE: {
       { slug: 'hammam', name: 'Hammam', nameAr: 'حمام', nameEn: 'Hammam', servedGender: 'EVERYONE' },
     ],
   },
+];
+
+/** The launch offer as data: 2 months free, then 30 TND a month. */
+export const PLANS: Prisma.SubscriptionPlanCreateInput[] = [
+  {
+    code: 'pro-monthly', name: 'Zynetna Pro',
+    description: 'Vitrine digitale complète, réservation en ligne et gestion d’établissement.',
+    priceAmount: 30, currency: 'TND', interval: 'MONTH',
+    trialDays: 60, gracePeriodDays: 7, isDefault: true, position: 0,
+    features: {
+      maxStaff: null, maxServices: null, maxGalleryImages: 60,
+      featuredPlacement: false, sponsoredPlacement: false,
+      advancedAnalytics: false, customBookingPage: false,
+      multiLocation: false, promoCodes: false,
+    },
+  },
+  {
+    code: 'pro-annual', name: 'Zynetna Pro — annuel',
+    description: 'Deux mois offerts sur l’année.',
+    priceAmount: 300, currency: 'TND', interval: 'YEAR',
+    trialDays: 60, gracePeriodDays: 14, isActive: true, position: 1,
+    features: { maxGalleryImages: 120, advancedAnalytics: true },
+  },
+];
+
+export const PLATFORM_SETTINGS: Prisma.PlatformSettingCreateManyInput[] = [
+  { key: 'notifications.reminderOffsetsHours', value: [24, 2], description: 'Heures avant le rendez-vous pour les rappels.' },
+  { key: 'marketplace.requireApproval', value: true, description: 'Les nouveaux établissements passent par une validation.' },
+  { key: 'marketplace.defaultRadiusKm', value: 25, description: 'Rayon par défaut de la recherche « près de moi ».' },
+  { key: 'subscription.currency', value: 'TND', description: 'Devise de facturation.' },
+  { key: 'reviews.autoPublish', value: true, description: 'Publier les avis sans modération préalable.' },
+];
+
+export const FEATURE_FLAGS: Prisma.FeatureFlagCreateManyInput[] = [
+  { key: 'map.discovery', description: 'Découverte par carte', isEnabled: true },
+  { key: 'reviews.photos', description: 'Photos dans les avis', isEnabled: false },
+  { key: 'payments.online', description: 'Paiement en ligne', isEnabled: false },
+  { key: 'notifications.whatsapp', description: 'Notifications WhatsApp', isEnabled: false },
 ];

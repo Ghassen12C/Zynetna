@@ -22,9 +22,10 @@ const schema = z.object({
   AZURE_STORAGE_CONNECTION_STRING: z.string().optional(),
   AZURE_STORAGE_CONTAINER: z.string().default('zynetna-media'),
 
-  EMAIL_DRIVER: z.enum(['console', 'smtp']).default('console'),
+  EMAIL_DRIVER: z.enum(['console', 'smtp', 'resend']).default('console'),
   EMAIL_FROM: z.string().default('Zynetna <no-reply@zynetna.tn>'),
   SMTP_URL: z.string().optional(),
+  RESEND_API_KEY: z.string().optional(),
   SMS_DRIVER: z.enum(['console']).default('console'),
 
   PAYMENT_DRIVER: z.enum(['manual']).default('manual'),
@@ -53,6 +54,21 @@ export const isTest = env.NODE_ENV === 'test';
 if (env.STORAGE_DRIVER === 'azure' && !env.AZURE_STORAGE_CONNECTION_STRING) {
   throw new Error('STORAGE_DRIVER=azure requires AZURE_STORAGE_CONNECTION_STRING');
 }
+if (env.EMAIL_DRIVER === 'resend' && !env.RESEND_API_KEY) {
+  throw new Error('EMAIL_DRIVER=resend requires RESEND_API_KEY');
+}
 if (isProd && env.SESSION_SECRET.includes('replace-me')) {
   throw new Error('SESSION_SECRET still holds its placeholder value in production');
+}
+// Links in e-mails, QR codes and calendar files are built from APP_URL; a
+// production server that still believes it lives on localhost would mail out
+// dead links. `next build` also runs with NODE_ENV=production, so the check
+// only applies to a running server.
+if (isProd && process.env.NEXT_PHASE !== 'phase-production-build') {
+  if (/localhost|127\.0\.0\.1/.test(env.APP_URL)) {
+    throw new Error('APP_URL points at localhost in production; set the public origin');
+  }
+  if (env.JOB_TOKEN === 'dev-job-token-change-me') {
+    throw new Error('JOB_TOKEN still holds its development value in production');
+  }
 }

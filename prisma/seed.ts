@@ -1,7 +1,7 @@
 import { PrismaClient, type Prisma } from '@prisma/client';
 import { hashPassword } from '../src/server/auth/hash';
 import { generateReference } from '../src/domain/booking/reference';
-import { CATEGORY_TREE, GOVERNORATES } from './seed-data';
+import { CATEGORY_TREE, FEATURE_FLAGS, GOVERNORATES, PLANS, PLATFORM_SETTINGS } from './seed-data';
 
 /**
  * Development seed.
@@ -10,6 +10,24 @@ import { CATEGORY_TREE, GOVERNORATES } from './seed-data';
  * created through the same constraints production uses, so the seeded data is
  * guaranteed conflict-free rather than merely plausible.
  */
+// This seed starts by deleting every table. It must never reach a shared or
+// production database, so it refuses anything that is not on this machine.
+// Production uses prisma/seed-production.ts, which only adds reference data.
+const databaseHost = (() => {
+  try {
+    return new URL(process.env.DATABASE_URL ?? '').hostname;
+  } catch {
+    return '';
+  }
+})();
+if (process.env.NODE_ENV === 'production' || !['localhost', '127.0.0.1', '::1', 'db'].includes(databaseHost)) {
+  console.error(
+    `Refusing to run the development seed against "${databaseHost || 'an unknown host'}": it deletes all data. ` +
+      'Use `npm run db:seed:prod` for a production database.',
+  );
+  process.exit(1);
+}
+
 const db = new PrismaClient();
 
 const PASSWORD = 'Zynetna2026!';
@@ -274,50 +292,12 @@ async function main() {
     }
   }
 
-  // ── Plans — the launch offer as data ────────────────────────────────────
+  // ── Plans, settings and flags — shared with the production seed ────────
   console.log('Seeding subscription plans…');
-  const proPlan = await db.subscriptionPlan.create({
-    data: {
-      code: 'pro-monthly', name: 'Zynetna Pro',
-      description: 'Vitrine digitale complète, réservation en ligne et gestion d’établissement.',
-      priceAmount: 30, currency: 'TND', interval: 'MONTH',
-      trialDays: 60, gracePeriodDays: 7, isDefault: true, position: 0,
-      features: {
-        maxStaff: null, maxServices: null, maxGalleryImages: 60,
-        featuredPlacement: false, sponsoredPlacement: false,
-        advancedAnalytics: false, customBookingPage: false,
-        multiLocation: false, promoCodes: false,
-      },
-    },
-  });
-  await db.subscriptionPlan.create({
-    data: {
-      code: 'pro-annual', name: 'Zynetna Pro — annuel',
-      description: 'Deux mois offerts sur l’année.',
-      priceAmount: 300, currency: 'TND', interval: 'YEAR',
-      trialDays: 60, gracePeriodDays: 14, isActive: true, position: 1,
-      features: { maxGalleryImages: 120, advancedAnalytics: true },
-    },
-  });
-
-  // ── Platform settings and flags ─────────────────────────────────────────
-  await db.platformSetting.createMany({
-    data: [
-      { key: 'notifications.reminderOffsetsHours', value: [24, 2], description: 'Heures avant le rendez-vous pour les rappels.' },
-      { key: 'marketplace.requireApproval', value: true, description: 'Les nouveaux établissements passent par une validation.' },
-      { key: 'marketplace.defaultRadiusKm', value: 25, description: 'Rayon par défaut de la recherche « près de moi ».' },
-      { key: 'subscription.currency', value: 'TND', description: 'Devise de facturation.' },
-      { key: 'reviews.autoPublish', value: true, description: 'Publier les avis sans modération préalable.' },
-    ],
-  });
-  await db.featureFlag.createMany({
-    data: [
-      { key: 'map.discovery', description: 'Découverte par carte', isEnabled: true },
-      { key: 'reviews.photos', description: 'Photos dans les avis', isEnabled: false },
-      { key: 'payments.online', description: 'Paiement en ligne', isEnabled: false },
-      { key: 'notifications.whatsapp', description: 'Notifications WhatsApp', isEnabled: false },
-    ],
-  });
+  for (const plan of PLANS) await db.subscriptionPlan.create({ data: plan });
+  const proPlan = await db.subscriptionPlan.findUniqueOrThrow({ where: { code: 'pro-monthly' } });
+  await db.platformSetting.createMany({ data: PLATFORM_SETTINGS });
+  await db.featureFlag.createMany({ data: FEATURE_FLAGS });
 
   // ── Users ───────────────────────────────────────────────────────────────
   console.log('Seeding users…');

@@ -32,6 +32,15 @@ function isExempt(pathname: string): boolean {
 
 export function middleware(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
+
+  // One canonical origin: www.zynetna.tn answers with a permanent redirect to
+  // zynetna.tn, so links, SEO and the host-only session cookie all agree on a
+  // single host. Built from the Host header because behind App Service the
+  // request URL the server sees is the internal one.
+  const host = request.headers.get('host') ?? '';
+  if (host.startsWith('www.')) {
+    return NextResponse.redirect(`https://${host.slice(4)}${pathname}${search}`, 308);
+  }
   if (isExempt(pathname)) return NextResponse.next();
 
   const match = PREFIXED.exec(pathname);

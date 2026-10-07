@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { mkdir, readFile, unlink, writeFile } from 'node:fs/promises';
 import { dirname, join, normalize, resolve, sep } from 'node:path';
+import type { ContainerClient } from '@azure/storage-blob';
 import { env } from '@/lib/env';
 import { logger } from '@/lib/logger';
 
@@ -61,67 +62,56 @@ class LocalStorageDriver implements StorageDriver {
 }
 
 /**
- * Azure Blob driver. Declared with the production call shape; it refuses
- * rather than pretending when @azure/storage-blob is not installed, so a
- * misconfigured deployment fails visibly at the first upload instead of
- * silently losing images.
+ * Azure Blob driver.
+ *
+ * The container is created with public *blob* read access (never container
+ * listing): uploaded images are business photos meant to be seen, and serving
+ * them straight from Blob storage keeps image traffic off the app server.
+ * Nothing private is ever written here. The SDK is loaded on first use so a
+ * development server on the local driver never pays for it.
  */
 class AzureBlobStorageDriver implements StorageDriver {
   readonly name = 'azure';
-  private container: unknown = null;
+  private container: ContainerClient | null = null;
 
-  private async client() {
+  private async client(): Promise<ContainerClient> {
     if (this.container) return this.container;
-    try {
-      const mod = (await import(
-        /* webpackIgnore: true */ '@azure/storage-blob' as string
-      )) as {
-        BlobServiceClient: {
-          fromConnectionString(cs: string): {
-            getContainerClient(name: string): unknown;
-          };
-        };
-      };
-      const service = mod.BlobServiceClient.fromConnectionString(
-        env.AZURE_STORAGE_CONNECTION_STRING!,
-      );
-      this.container = service.getContainerClient(env.AZURE_STORAGE_CONTAINER);
-      return this.container;
-    } catch {
-      throw new Error(
-        'STORAGE_DRIVER=azure requires the @azure/storage-blob package. ' +
-          'Install it in the production image or set STORAGE_DRIVER=local.',
-      );
-    }
+    const { BlobServiceClient } = await import('@azure/storage-blob');
+    const service = BlobServiceClient.fromConnectionString(env.AZURE_STORAGE_CONNECTION_STRING!);
+    this.container = service.getContainerClient(env.AZURE_STORAGE_CONTAINER);
+    return this.container;
   }
 
   async put(key: string, body: Buffer, contentType: string): Promise<void> {
     assertSafeKey(key);
-    const container = (await this.client()) as {
-      getBlockBlobClient(k: string): {
-        uploadData(b: Buffer, o: unknown): Promise<unknown>;
-      };
-    };
+    const container = await this.client();
     await container.getBlockBlobClient(key).uploadData(body, {
-      blobHTTPHeaders: { blobContentType: contentType, blobCacheControl: 'public, max-age=31536000, immutable' },
+      blobHTTPHeaders: {
+        blobContentType: contentType,
+        // Keys are content-addressed, so a URL never changes meaning.
+        blobCacheControl: 'public, max-age=31536000, immutable',
+      },
     });
   }
 
   async get(key: string): Promise<Buffer> {
-    const container = (await this.client()) as {
-      getBlockBlobClient(k: string): { downloadToBuffer(): Promise<Buffer> };
-    };
+    assertSafeKey(key);
+    const container = await this.client();
     return container.getBlockBlobClient(key).downloadToBuffer();
   }
 
   async delete(key: string): Promise<void> {
-    const container = (await this.client()) as {
-      getBlockBlobClient(k: string): { deleteIfExists(): Promise<unknown> };
-    };
+    assertSafeKey(key);
+    const container = await this.client();
     await container.getBlockBlobClient(key).deleteIfExists();
   }
 
   url(key: string): string {
+    // An absolute STORAGE_PUBLIC_BASE_URL (a CDN in front of the container)
+    // wins; otherwise the blob endpoint itself.
+    if (/^https:\/\//.test(env.STORAGE_PUBLIC_BASE_URL)) {
+      return `${env.STORAGE_PUBLIC_BASE_URL.replace(/\/$/, '')}/${key}`;
+    }
     const account = /AccountName=([^;]+)/.exec(env.AZURE_STORAGE_CONNECTION_STRING ?? '')?.[1];
     return account
       ? `https://${account}.blob.core.windows.net/${env.AZURE_STORAGE_CONTAINER}/${key}`

@@ -91,7 +91,48 @@ class SmtpEmailProvider implements EmailProvider {
   }
 }
 
+/**
+ * Resend, over its HTTPS API: one request per message, no SDK. The sending
+ * domain (zynetna.tn) is verified in the Resend account, so EMAIL_FROM must be
+ * an address on it.
+ */
+class ResendEmailProvider implements EmailProvider {
+  readonly name = 'resend';
+  async send(message: EmailMessage): Promise<DeliveryResult> {
+    try {
+      const response = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${env.RESEND_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          from: env.EMAIL_FROM,
+          to: [message.to],
+          subject: message.subject,
+          text: message.text,
+          ...(message.html ? { html: message.html } : {}),
+        }),
+        signal: AbortSignal.timeout(10_000),
+      });
+      const body = (await response.json().catch(() => ({}))) as { id?: string; message?: string };
+      if (!response.ok) {
+        logger.error('resend rejected email', { status: response.status, error: body.message });
+        return { delivered: false, provider: this.name, error: body.message ?? `HTTP ${response.status}` };
+      }
+      return { delivered: true, provider: this.name, reference: body.id };
+    } catch (error) {
+      logger.error('resend request failed', { error: (error as Error).message });
+      return { delivered: false, provider: this.name, error: (error as Error).message };
+    }
+  }
+}
+
 export const emailProvider: EmailProvider =
-  env.EMAIL_DRIVER === 'smtp' ? new SmtpEmailProvider() : new ConsoleEmailProvider();
+  env.EMAIL_DRIVER === 'resend'
+    ? new ResendEmailProvider()
+    : env.EMAIL_DRIVER === 'smtp'
+      ? new SmtpEmailProvider()
+      : new ConsoleEmailProvider();
 
 export const smsProvider: SmsProvider = new ConsoleSmsProvider();

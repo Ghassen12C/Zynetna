@@ -1,0 +1,49 @@
+name: Scheduled jobs
+
+# Drives the app's background work through its authenticated job endpoint
+# (POST /api/v1/jobs/<name>), so no extra Azure resource is needed:
+#   reminders      every 15 minutes  — appointment reminders due now
+#   subscriptions  daily, 02:17 UTC  — trial endings, expiries, grace periods
+#   cleanup        daily, 03:41 UTC  — expired sessions and rate-limit buckets
+# GitHub may start a scheduled run a few minutes late; every job is idempotent
+# and catches up on whatever became due in the meantime.
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+    - cron: '17 2 * * *'
+    - cron: '41 3 * * *'
+  workflow_dispatch:
+    inputs:
+      job:
+        description: Job to run now
+        required: true
+        type: choice
+        options: [reminders, subscriptions, cleanup]
+
+permissions: {}
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # Only once production exists; until APP_URL is set the schedule is a no-op.
+    if: vars.APP_URL != ''
+    steps:
+      - name: Pick the job
+        id: pick
+        run: |
+          case "${{ github.event.schedule }}" in
+            '17 2 * * *') job=subscriptions ;;
+            '41 3 * * *') job=cleanup ;;
+            '') job='${{ github.event.inputs.job }}' ;;
+            *) job=reminders ;;
+          esac
+          echo "job=$job" >> "$GITHUB_OUTPUT"
+
+      - name: Call the job endpoint
+        env:
+          JOB_TOKEN: ${{ secrets.JOB_TOKEN }}
+        run: |
+          curl -fsS --max-time 120 -X POST \
+            -H "Authorization: Bearer $JOB_TOKEN" \
+            "${{ vars.APP_URL }}/api/v1/jobs/${{ steps.pick.outputs.job }}"

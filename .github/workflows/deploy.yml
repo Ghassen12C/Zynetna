@@ -1,38 +1,50 @@
 name: Deploy
 
-# Deployment is manual or on a tag: a green CI run proves the code is sound,
-# but choosing when production changes stays a decision, not a side effect.
+# Production changes on purpose, never as a side effect: run it by hand from
+# the Actions tab, or push a version tag (git tag v1.2.0 && git push --tags).
+#
+# Rollback: run it by hand with `image_tag` set to an earlier commit SHA. That
+# skips the build and points the web app back at the image already in the
+# registry. Migrations only ever move forward, so roll back code, not schema.
 on:
   workflow_dispatch:
     inputs:
-      environment:
-        description: Target environment
-        required: true
-        default: staging
-        type: choice
-        options: [staging, production]
+      image_tag:
+        description: Redeploy an existing image (commit SHA) instead of building — for rollback
+        required: false
+        default: ''
   push:
     tags: ['v*']
 
 concurrency:
-  group: deploy-${{ github.event.inputs.environment || 'production' }}
+  group: deploy-production
   cancel-in-progress: false
 
 jobs:
   deploy:
-    name: Deploy to Azure
+    name: Deploy to Azure App Service
     runs-on: ubuntu-latest
-    environment: ${{ github.event.inputs.environment || 'production' }}
-    timeout-minutes: 30
+    environment: production
+    timeout-minutes: 40
 
+    # OpenID Connect: GitHub proves its identity to Azure per run, so no
+    # long-lived Azure password is stored in the repository.
     permissions:
       id-token: write
       contents: read
 
+    env:
+      # Non-secret names live in repository variables (Settings → Secrets and
+      # variables → Actions → Variables).
+      REGISTRY: ${{ vars.AZURE_REGISTRY }}
+      RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+      WEBAPP: ${{ vars.AZURE_WEBAPP }}
+      APP_URL: ${{ vars.APP_URL }}
+      TAG: ${{ github.event.inputs.image_tag || github.sha }}
+
     steps:
       - uses: actions/checkout@v4
 
-      # Federated credentials — no long-lived secret in the repository.
       - name: Sign in to Azure
         uses: azure/login@v2
         with:
@@ -41,45 +53,53 @@ jobs:
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Sign in to the container registry
-        run: az acr login --name ${{ secrets.AZURE_REGISTRY }}
+        run: az acr login --name "$REGISTRY"
 
       - uses: docker/setup-buildx-action@v3
+        if: github.event.inputs.image_tag == ''
 
       - name: Build and push
+        if: github.event.inputs.image_tag == ''
         uses: docker/build-push-action@v6
         with:
           context: .
           push: true
+          build-args: APP_VERSION=${{ github.sha }}
           tags: |
-            ${{ secrets.AZURE_REGISTRY }}.azurecr.io/zynetna:${{ github.sha }}
-            ${{ secrets.AZURE_REGISTRY }}.azurecr.io/zynetna:latest
+            ${{ vars.AZURE_REGISTRY }}.azurecr.io/zynetna:${{ github.sha }}
+            ${{ vars.AZURE_REGISTRY }}.azurecr.io/zynetna:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      # Migrations run before the new revision takes traffic, so the schema is
-      # never behind the code that expects it.
-      - name: Apply database migrations
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      # The container applies pending migrations itself before it starts
+      # serving (scripts/start.sh), from inside Azure, so the database never
+      # has to accept connections from GitHub's runners.
+      - name: Release the image
         run: |
-          npm ci --omit=dev --ignore-scripts
-          npx prisma migrate deploy
+          az webapp config container set \
+            --resource-group "$RESOURCE_GROUP" --name "$WEBAPP" \
+            --container-image-name "$REGISTRY.azurecr.io/zynetna:$TAG" \
+            --output none
+          az webapp restart --resource-group "$RESOURCE_GROUP" --name "$WEBAPP"
 
-      - name: Release new revision
+      - name: Wait for the new version to be healthy
         run: |
-          az containerapp update \
-            --name ${{ secrets.AZURE_CONTAINER_APP }} \
-            --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
-            --image ${{ secrets.AZURE_REGISTRY }}.azurecr.io/zynetna:${{ github.sha }}
-
-      - name: Verify health
-        run: |
-          for attempt in $(seq 1 30); do
-            if curl -fsS "${{ secrets.APP_URL }}/api/health" | grep -q '"status":"ok"'; then
-              echo "Healthy after ${attempt} attempt(s)."
+          for attempt in $(seq 1 40); do
+            body=$(curl -fsS --max-time 10 "$APP_URL/api/health" || true)
+            if echo "$body" | grep -q '"status":"ok"' && echo "$body" | grep -q "\"version\":\"$TAG\""; then
+              echo "Version $TAG healthy after $attempt attempt(s)."
               exit 0
             fi
-            sleep 10
+            sleep 15
           done
-          echo "Health check never passed; investigate before sending traffic."
+          echo "Version $TAG never reported healthy. Last answer: $body"
+          echo "Roll back by running this workflow with image_tag set to the previous SHA."
           exit 1
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "### Deployed \`zynetna:$TAG\`"
+            echo "Rollback: run **Deploy** by hand with \`image_tag\` = the previous commit SHA."
+          } >> "$GITHUB_STEP_SUMMARY"
