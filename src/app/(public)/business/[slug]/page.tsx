@@ -4,6 +4,8 @@ import { env } from '@/lib/env';
 import { getBusinessProfile } from '@/server/services/businessProfile';
 import { BusinessProfileView } from '@/components/business/BusinessProfileView';
 import { db } from '@/lib/db';
+import { translate } from '@/i18n/server';
+import { localizedName } from '@/i18n/format';
 
 export const revalidate = 120;
 
@@ -22,17 +24,17 @@ export async function generateStaticParams() {
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { slug } = await params;
   const business = await getBusinessProfile(slug);
-  if (!business) return { title: 'Établissement introuvable' };
+  const { m, t, locale } = await translate();
+  if (!business) return { title: m.errors.notFound };
 
-  const city = business.location?.city?.name;
-  const category = business.categories.find((c) => c.isPrimary)?.category.name;
+  const city = business.location?.city ? localizedName(business.location.city, locale) : null;
   const title = `${business.name}${city ? ` — ${city}` : ''}`;
   const description =
     business.tagline ??
     business.description?.slice(0, 160) ??
-    `Réservez en ligne chez ${business.name}${city ? ` à ${city}` : ''}${
-      category ? ` — ${category}` : ''
-    }.`;
+    (city
+      ? t(m.business.metaDescriptionIn, { name: business.name, city })
+      : t(m.business.metaDescription, { name: business.name }));
 
   return {
     title,

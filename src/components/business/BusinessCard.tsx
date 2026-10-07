@@ -1,7 +1,9 @@
 import Link from 'next/link';
+import { cache } from 'react';
+import { db } from '@/lib/db';
 import { Badge, Rating } from '@/components/ui/Primitives';
 import { LOCALE_META } from '@/i18n/config';
-import { formatPrice } from '@/i18n/format';
+import { formatPrice, localizedName } from '@/i18n/format';
 import { translate } from '@/i18n/server';
 import { coverStyle } from '@/lib/brand';
 
@@ -19,8 +21,34 @@ export type BusinessCardData = {
   distanceKm?: number | null;
 };
 
+/**
+ * Card data carries the French city and category names (the column that is
+ * always populated). One lookup per request, shared by every card on the
+ * page, maps them to the visitor's language.
+ */
+const nameTables = cache(async () => {
+  const [categories, cities] = await Promise.all([
+    db.category.findMany({ select: { name: true, nameAr: true, nameEn: true } }),
+    db.city.findMany({ select: { name: true, nameAr: true } }),
+  ]);
+  return {
+    categories: new Map(categories.map((row) => [row.name, row])),
+    cities: new Map(cities.map((row) => [row.name, row])),
+  };
+});
+
 export async function BusinessCard({ business }: { business: BusinessCardData }) {
   const { m, t, locale, path } = await translate();
+  const tables = locale === 'fr' ? null : await nameTables();
+  const categoryName = business.categoryName
+    ? localizedName(
+        tables?.categories.get(business.categoryName) ?? { name: business.categoryName },
+        locale,
+      )
+    : null;
+  const cityName = business.cityName
+    ? localizedName(tables?.cities.get(business.cityName) ?? { name: business.cityName }, locale)
+    : null;
   const distance =
     business.distanceKm != null
       ? new Intl.NumberFormat(LOCALE_META[locale].intl, {
@@ -64,8 +92,8 @@ export async function BusinessCard({ business }: { business: BusinessCardData })
         <Rating value={business.ratingAverage} count={business.ratingCount} size={13} />
 
         <p className="z-bcard__meta">
-          {business.categoryName ? <>{business.categoryName} · </> : null}
-          {business.cityName}
+          {categoryName ? <>{categoryName} · </> : null}
+          {cityName}
           {distance != null ? (
             <span className="z-bcard__distance">
               {' · '}

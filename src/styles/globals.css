@@ -417,6 +417,11 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .z-table td { padding: var(--z-space-4); border-bottom: 1px solid var(--z-border); }
 .z-table tbody tr:hover { background: var(--z-bg-sunken); }
 .z-table--scroll { overflow-x: auto; }
+/* Inside a scroller a table may be wider than the screen, so cells keep their
+   natural width (up to a readable cap) instead of being crushed into tall,
+   one-word-per-line rows. On a wide screen it still fills the panel. */
+.z-table--scroll > table { width: max-content; min-width: 100%; }
+.z-table--scroll td { max-width: 18rem; }
 
 /* ══ Prose ════════════════════════════════════════════════════════════════ */
 
@@ -1172,7 +1177,14 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .z-auth__title { font-size: var(--z-text-3xl); }
 .z-auth__subtitle { color: var(--z-fg-muted); margin-top: var(--z-space-2); }
 .z-auth__form { display: flex; flex-direction: column; gap: var(--z-space-4); }
-.z-auth__row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--z-space-3); }
+.z-auth__row {
+  display: grid;
+  /* Two columns when they fit, one when they don't: date inputs and longer
+     French or Arabic labels need more room than a phone gives two fields. */
+  grid-template-columns: repeat(auto-fit, minmax(min(150px, 100%), 1fr));
+  gap: var(--z-space-3);
+}
+.z-auth__row > *, .z-input { min-width: 0; }
 .z-auth__foot { text-align: center; font-size: var(--z-text-sm); color: var(--z-fg-muted); }
 .z-auth__foot a { color: var(--z-accent); font-weight: var(--z-weight-semibold); }
 
@@ -2168,12 +2180,12 @@ a.z-notif:hover { border-color: var(--z-accent); }
 /* ── Dashboard panels ─────────────────────────────────────────────────── */
 
 .z-dash { display: flex; flex-direction: column; gap: var(--z-space-6); }
-.z-dash__grid { display: grid; grid-template-columns: 1fr; gap: var(--z-space-5); }
+.z-dash__grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--z-space-5); }
 @media (min-width: 900px) { .z-dash__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .z-dash__panel { display: flex; flex-direction: column; gap: var(--z-space-4); }
 .z-dash__panel-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--z-space-3); flex-wrap: wrap; }
 .z-dash__panel-head h2 { font-size: var(--z-text-lg); }
-.z-dash__panel-head a { font-size: var(--z-text-sm); color: var(--z-accent); font-weight: var(--z-weight-semibold); }
+.z-dash__panel-head a:not(.z-btn) { font-size: var(--z-text-sm); color: var(--z-accent); font-weight: var(--z-weight-semibold); }
 
 .z-today { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; }
 .z-today li {
@@ -2811,16 +2823,14 @@ a.z-notif:hover { border-color: var(--z-accent); }
 
 /* Arrows and chevrons point the other way when the text does. */
 [dir='rtl'] .z-booking__back,
-[dir='rtl'] .z-dash__panel-head a,
+[dir='rtl'] .z-dash__panel-head a:not(.z-btn),
 [dir='rtl'] .z-section__head a { unicode-bidi: plaintext; }
 
 /* Charts are drawn left-to-right data; keep them that way inside an RTL page
-   so time still reads oldest-to-newest. */
-[dir='rtl'] .z-chart,
-[dir='rtl'] .z-cal,
-[dir='rtl'] .z-cal-list { direction: ltr; }
-[dir='rtl'] .z-cal-list a,
-[dir='rtl'] .z-cal__event { direction: rtl; }
+   so time still reads oldest-to-newest. The calendar is not a chart: an
+   Arabic week runs right to left, the same way as its previous/next buttons
+   and every Arabic paper diary, so it mirrors with the page. */
+[dir='rtl'] .z-chart { direction: ltr; }
 
 /* Tabular numbers must not reorder in Arabic context. */
 [dir='rtl'] .z-ticket__ref,
@@ -3514,3 +3524,10 @@ a.z-notif:hover { border-color: var(--z-accent); }
 /* Direction-aware arrows: "forward" points the way the text reads. */
 .z-arrow { display: inline-block; }
 [dir='rtl'] .z-arrow { transform: scaleX(-1); }
+
+/* A stat card sizes its figure to the card, not the viewport: "TND 12,345.500"
+   at full display size is wider than half a phone, which pushed the admin
+   overview sideways. The figure only gives ground when the card is narrow,
+   and never below the 2xl step. */
+.z-stat { min-width: 0; container-type: inline-size; }
+.z-stat__value { font-size: clamp(var(--z-text-2xl), 15cqi, var(--z-text-3xl)); overflow-wrap: anywhere; }

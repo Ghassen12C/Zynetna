@@ -288,7 +288,7 @@ export default async function HomePage() {
               <div className="z-procta__price">
                 {trialMonths ? (
                   <span className="z-procta__free">
-                    {t(m.home.trialMonths, { months: trialMonths })}
+                    {formatCount(m.home.trialMonths, trialMonths, locale)}
                   </span>
                 ) : null}
                 {price ? (

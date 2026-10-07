@@ -83,7 +83,7 @@ export const en: Messages = {
     benefitTeam: 'Team and schedule management',
     benefitCustomers: 'Customer records and appointment history',
     benefitStats: 'Statistics and revenue',
-    trialMonths: '{months} months free',
+    trialMonths: { one: '{count} month free', other: '{count} months free' },
     thenPrice: 'then {price} / month · cancel anytime',
     learnMore: 'Learn more',
     previous: 'Previous',
@@ -153,6 +153,8 @@ export const en: Messages = {
   },
   business: {
     book: 'Book',
+    metaDescription: 'Book online at {name}.',
+    metaDescriptionIn: 'Book online at {name} in {city}.',
     bookNow: 'Book now',
     services: 'Services',
     team: 'Team',

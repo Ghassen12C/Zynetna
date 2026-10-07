@@ -84,7 +84,7 @@ export const fr = {
     benefitTeam: 'Gestion de l’équipe et des plannings',
     benefitCustomers: 'Fiche client et historique des rendez-vous',
     benefitStats: 'Statistiques et chiffre d’affaires',
-    trialMonths: '{months} mois offerts',
+    trialMonths: { one: '{count} mois offert', other: '{count} mois offerts' } as PluralForms,
     thenPrice: 'puis {price} / mois · sans engagement',
     learnMore: 'En savoir plus',
     previous: 'Précédent',
@@ -154,6 +154,8 @@ export const fr = {
   },
   business: {
     book: 'Réserver',
+    metaDescription: 'Réservez en ligne chez {name}.',
+    metaDescriptionIn: 'Réservez en ligne chez {name} à {city}.',
     bookNow: 'Réserver maintenant',
     services: 'Prestations',
     team: 'Équipe',

@@ -59,7 +59,7 @@ export const ar: Messages = {
     proCtaBody: 'ضع مؤسستك على الإنترنت، أدِر مواعيدك ووسّع قاعدة زبائنك.',
     proCtaButton: 'ابدأ مجاناً',
     trialBadge: 'شهران مجاناً',
-    trialBadgeLong: '{months} شهران مجاناً للمهنيين',
+    trialBadgeLong: 'أشهر مجانية للمهنيين: {months}',
     heroSubtitleLong:
       'حلاقون، صالونات حلاقة، معاهد تجميل، منتجعات ومراكز عافية — في كل أنحاء تونس. احجز كرسيك، احجز إشراقتك.',
     greeting: 'أهلا وسهلا! 👋',
@@ -86,7 +86,13 @@ export const ar: Messages = {
     benefitTeam: 'إدارة الفريق وجداول العمل',
     benefitCustomers: 'ملف العميل وسجل المواعيد',
     benefitStats: 'إحصاءات ورقم المعاملات',
-    trialMonths: '{months} شهران مجاناً',
+    trialMonths: {
+      one: 'شهر مجاني',
+      two: 'شهران مجاناً',
+      few: '{count} أشهر مجاناً',
+      many: '{count} شهراً مجاناً',
+      other: '{count} شهر مجاناً',
+    },
     thenPrice: 'ثم {price} شهرياً · دون التزام',
     learnMore: 'اعرف المزيد',
     previous: 'السابق',
@@ -171,6 +177,8 @@ export const ar: Messages = {
   },
   business: {
     book: 'احجز',
+    metaDescription: 'احجز عبر الإنترنت لدى {name}.',
+    metaDescriptionIn: 'احجز عبر الإنترنت لدى {name} في {city}.',
     bookNow: 'احجز الآن',
     services: 'الخدمات',
     team: 'الفريق',
