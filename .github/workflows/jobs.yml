@@ -26,8 +26,8 @@ jobs:
   run:
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    # Only once production exists; until APP_URL is set the schedule is a no-op.
-    if: vars.APP_URL != ''
+    # The token and the app URL live in the production environment.
+    environment: production
     steps:
       - name: Pick the job
         id: pick
@@ -43,7 +43,13 @@ jobs:
       - name: Call the job endpoint
         env:
           JOB_TOKEN: ${{ secrets.JOB_TOKEN }}
+          APP_URL: ${{ vars.APP_URL }}
         run: |
+          # Until production is configured there is nothing to call.
+          if [ -z "$APP_URL" ] || [ -z "$JOB_TOKEN" ]; then
+            echo "APP_URL or JOB_TOKEN not configured yet; skipping."
+            exit 0
+          fi
           curl -fsS --max-time 120 -X POST \
             -H "Authorization: Bearer $JOB_TOKEN" \
-            "${{ vars.APP_URL }}/api/v1/jobs/${{ steps.pick.outputs.job }}"
+            "$APP_URL/api/v1/jobs/${{ steps.pick.outputs.job }}"
