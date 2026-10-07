@@ -2,7 +2,9 @@ import type { MetadataRoute } from 'next';
 import { db } from '@/lib/db';
 import { env } from '@/lib/env';
 
-export const revalidate = 3600;
+// Rendered on request (then cached by the CDN/crawler), never at build time:
+// the image is built without a database.
+export const dynamic = 'force-dynamic';
 
 /**
  * Sitemap. Only live businesses and active categories are listed — a sitemap

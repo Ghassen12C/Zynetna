@@ -3,7 +3,6 @@ import { notFound } from 'next/navigation';
 import { env } from '@/lib/env';
 import { getBusinessProfile } from '@/server/services/businessProfile';
 import { BusinessProfileView } from '@/components/business/BusinessProfileView';
-import { db } from '@/lib/db';
 import { translate } from '@/i18n/server';
 import { localizedName } from '@/i18n/format';
 
@@ -11,15 +10,9 @@ export const revalidate = 120;
 
 type Params = { params: Promise<{ slug: string }> };
 
-/** Pre-render the live businesses; the rest render on demand. */
-export async function generateStaticParams() {
-  const businesses = await db.business.findMany({
-    where: { status: 'ACTIVE' },
-    select: { slug: true },
-    take: 200,
-  });
-  return businesses.map((b) => ({ slug: b.slug }));
-}
+// No generateStaticParams: the page reads the visitor's language from the
+// request, so it renders per request anyway, and listing businesses at build
+// time would make the production image impossible to build without a database.
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { slug } = await params;
