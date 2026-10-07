@@ -1,18 +1,13 @@
 import Link from 'next/link';
 import { Badge } from '@/components/ui/Primitives';
 import { ButtonLink } from '@/components/ui/Button';
-import { formatDateTime, formatDuration, formatPrice } from '@/i18n/format';
-
-const STATUS_LABEL: Record<string, string> = {
-  PENDING: 'En attente',
-  CONFIRMED: 'Confirmé',
-  COMPLETED: 'Terminé',
-  CANCELLED_BY_CUSTOMER: 'Annulé par vous',
-  CANCELLED_BY_BUSINESS: 'Annulé par l’établissement',
-  RESCHEDULED: 'Reporté',
-  NO_SHOW: 'Absence',
-  EXPIRED: 'Expiré',
-};
+import {
+  formatDateTime,
+  formatDuration,
+  formatPrice,
+  localizedName,
+} from '@/i18n/format';
+import { translate } from '@/i18n/server';
 
 const STATUS_TONE: Record<string, 'success' | 'warning' | 'danger' | 'neutral' | 'accent'> = {
   PENDING: 'warning',
@@ -37,21 +32,31 @@ export type ReservationCardData = {
     slug: string;
     name: string;
     timezone: string;
-    location: { addressLine1: string; city: { name: string } | null } | null;
+    location: {
+      addressLine1: string;
+      city: { name: string; nameAr?: string | null; nameEn?: string | null } | null;
+    } | null;
   };
   staffMember: { displayName: string };
   items: { serviceName: string; durationMinutes: number }[];
   review?: { id: string; rating: number } | null;
 };
 
-export function ReservationCard({
+export async function ReservationCard({
   reservation,
   showReviewPrompt = false,
 }: {
   reservation: ReservationCardData;
   showReviewPrompt?: boolean;
 }) {
+  const { m, locale, path } = await translate();
   const service = reservation.items[0];
+
+  // "Cancelled by you" only makes sense on the customer's own card.
+  const statusLabel: Record<string, string> = {
+    ...m.status,
+    CANCELLED_BY_CUSTOMER: m.booking.statusCancelledByYou,
+  };
 
   return (
     <article className="z-rcard">
@@ -71,46 +76,48 @@ export function ReservationCard({
 
       <div className="z-rcard__body">
         <div className="z-rcard__top">
-          <Link href={`/business/${reservation.business.slug}`} className="z-rcard__business">
+          <Link href={path(`/business/${reservation.business.slug}`)} className="z-rcard__business">
             {reservation.business.name}
           </Link>
           <Badge tone={STATUS_TONE[reservation.status] ?? 'neutral'}>
-            {STATUS_LABEL[reservation.status] ?? reservation.status}
+            {statusLabel[reservation.status] ?? reservation.status}
           </Badge>
         </div>
 
         <p className="z-rcard__service">
           {service?.serviceName ?? '—'}
-          {service ? ` · ${formatDuration(service.durationMinutes)}` : ''} · avec{' '}
-          {reservation.staffMember.displayName}
+          {service ? ` · ${formatDuration(service.durationMinutes, locale)}` : ''} ·{' '}
+          {m.account.withStaff} {reservation.staffMember.displayName}
         </p>
 
         <p className="z-rcard__when">
-          {formatDateTime(reservation.startAt, 'fr', reservation.business.timezone)}
+          {formatDateTime(reservation.startAt, locale, reservation.business.timezone)}
         </p>
 
         {reservation.business.location ? (
           <p className="z-rcard__where">
             {reservation.business.location.addressLine1}
-            {reservation.business.location.city ? `, ${reservation.business.location.city.name}` : ''}
+            {reservation.business.location.city
+              ? `, ${localizedName(reservation.business.location.city, locale)}`
+              : ''}
           </p>
         ) : null}
       </div>
 
       <div className="z-rcard__aside">
         <span className="z-rcard__price">
-          {formatPrice(Number(reservation.totalAmount), 'fr', reservation.currency)}
+          {formatPrice(Number(reservation.totalAmount), locale, reservation.currency)}
         </span>
         <ButtonLink
-          href={`/reservations/${reservation.reference}`}
+          href={path(`/reservations/${reservation.reference}`)}
           variant="secondary"
           size="sm"
         >
-          Détails
+          {m.account.details}
         </ButtonLink>
         {showReviewPrompt && reservation.status === 'COMPLETED' && !reservation.review ? (
-          <ButtonLink href={`/account/reviews?reservation=${reservation.id}`} size="sm">
-            Laisser un avis
+          <ButtonLink href={path(`/account/reviews?reservation=${reservation.id}`)} size="sm">
+            {m.account.leaveReview}
           </ButtonLink>
         ) : null}
       </div>

@@ -5,21 +5,30 @@ import { EmptyState } from '@/components/ui/Primitives';
 import { ButtonLink } from '@/components/ui/Button';
 import { getActor } from '@/server/auth/session';
 import { favoriteBusinesses } from '@/server/services/account';
+import { translate } from '@/i18n/server';
 
-export const metadata: Metadata = { title: 'Favoris', robots: { index: false } };
+export async function generateMetadata(): Promise<Metadata> {
+  const { m } = await translate();
+  return { title: m.account.favorites, robots: { index: false } };
+}
 
 export default async function FavoritesPage() {
   const actor = await getActor();
   if (!actor) redirect('/login?redirectTo=/account/favorites');
 
-  const favorites = await favoriteBusinesses(actor);
+  const [favorites, { m, path }] = await Promise.all([
+    favoriteBusinesses(actor),
+    translate(),
+  ]);
 
   if (favorites.length === 0) {
     return (
       <EmptyState
-        title="Aucun favori"
-        body="Enregistrez vos établissements préférés pour les retrouver et réserver plus vite."
-        action={<ButtonLink href="/search">Explorer les établissements</ButtonLink>}
+        title={m.account.noFavorites}
+        body={m.account.noFavoritesBodyLong}
+        action={
+          <ButtonLink href={path('/search')}>{m.account.exploreBusinesses}</ButtonLink>
+        }
       />
     );
   }

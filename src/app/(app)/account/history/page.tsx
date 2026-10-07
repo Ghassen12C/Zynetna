@@ -5,21 +5,25 @@ import { ButtonLink } from '@/components/ui/Button';
 import { ReservationCard } from '@/components/booking/ReservationCard';
 import { getActor } from '@/server/auth/session';
 import { pastReservations } from '@/server/services/account';
+import { translate } from '@/i18n/server';
 
-export const metadata: Metadata = { title: 'Historique', robots: { index: false } };
+export async function generateMetadata(): Promise<Metadata> {
+  const { m } = await translate();
+  return { title: m.account.history, robots: { index: false } };
+}
 
 export default async function HistoryPage() {
   const actor = await getActor();
   if (!actor) redirect('/login?redirectTo=/account/history');
 
-  const past = await pastReservations(actor);
+  const [past, { m, path }] = await Promise.all([pastReservations(actor), translate()]);
 
   if (past.length === 0) {
     return (
       <EmptyState
-        title="Aucun rendez-vous passé"
-        body="Vos rendez-vous terminés apparaîtront ici."
-        action={<ButtonLink href="/search">Trouver un professionnel</ButtonLink>}
+        title={m.account.noPast}
+        body={m.account.noPastBody}
+        action={<ButtonLink href={path('/search')}>{m.account.findPro}</ButtonLink>}
       />
     );
   }

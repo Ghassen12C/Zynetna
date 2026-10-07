@@ -6,17 +6,22 @@ import { ReservationCard } from '@/components/booking/ReservationCard';
 import { getActor } from '@/server/auth/session';
 import { accountSummary, reviewableReservations, upcomingReservations } from '@/server/services/account';
 import { formatDate } from '@/i18n/format';
+import { translate } from '@/i18n/server';
 
-export const metadata: Metadata = { title: 'Mes rendez-vous', robots: { index: false } };
+export async function generateMetadata(): Promise<Metadata> {
+  const { m } = await translate();
+  return { title: m.account.metaUpcoming, robots: { index: false } };
+}
 
 export default async function AccountPage() {
   const actor = await getActor();
   if (!actor) redirect('/login?redirectTo=/account');
 
-  const [upcoming, summary, reviewable] = await Promise.all([
+  const [upcoming, summary, reviewable, { m, locale, path }] = await Promise.all([
     upcomingReservations(actor),
     accountSummary(actor),
     reviewableReservations(actor),
+    translate(),
   ]);
 
   return (
@@ -24,41 +29,43 @@ export default async function AccountPage() {
       <div className="z-stats">
         <div className="z-stat">
           <span className="z-stat__value">{summary.upcoming}</span>
-          <span className="z-stat__label">Rendez-vous à venir</span>
+          <span className="z-stat__label">{m.account.upcomingCount}</span>
         </div>
         <div className="z-stat">
           <span className="z-stat__value">{summary.completed}</span>
-          <span className="z-stat__label">Rendez-vous honorés</span>
+          <span className="z-stat__label">{m.account.completedCount}</span>
         </div>
         <div className="z-stat">
           <span className="z-stat__value">{summary.favorites}</span>
-          <span className="z-stat__label">Favoris</span>
+          <span className="z-stat__label">{m.account.favorites}</span>
         </div>
       </div>
 
       {reviewable.length > 0 ? (
         <section className="z-panel z-review-prompt">
           <div>
-            <h2 className="z-profile__h3">Comment s’est passé votre rendez-vous ?</h2>
+            <h2 className="z-profile__h3">{m.account.reviewPromptTitle}</h2>
             <p className="z-policy">
               {reviewable[0]!.business.name} —{' '}
-              {reviewable[0]!.items[0]?.serviceName ?? 'votre prestation'} du{' '}
-              {formatDate(reviewable[0]!.startAt)}
+              {reviewable[0]!.items[0]?.serviceName ?? m.account.yourService} ·{' '}
+              {formatDate(reviewable[0]!.startAt, locale)}
             </p>
           </div>
-          <ButtonLink href={`/account/reviews?reservation=${reviewable[0]!.id}`}>
-            Laisser un avis
+          <ButtonLink href={path(`/account/reviews?reservation=${reviewable[0]!.id}`)}>
+            {m.account.leaveReview}
           </ButtonLink>
         </section>
       ) : null}
 
       <section>
-        <h2 className="z-profile__h3">Rendez-vous à venir</h2>
+        <h2 className="z-profile__h3">{m.account.upcomingCount}</h2>
         {upcoming.length === 0 ? (
           <EmptyState
-            title="Aucun rendez-vous à venir"
-            body="Trouvez un professionnel près de chez vous et réservez en quelques secondes."
-            action={<ButtonLink href="/search">Trouver un professionnel</ButtonLink>}
+            title={m.account.noUpcoming}
+            body={m.account.noUpcomingBody}
+            action={
+              <ButtonLink href={path('/search')}>{m.account.findPro}</ButtonLink>
+            }
           />
         ) : (
           <div className="z-stack" style={{ gap: 'var(--z-space-3)' }}>

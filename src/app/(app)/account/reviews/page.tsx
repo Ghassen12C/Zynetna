@@ -7,8 +7,12 @@ import { ReviewForm } from '@/components/review/ReviewForm';
 import { getActor } from '@/server/auth/session';
 import { myReviews, reviewableReservations } from '@/server/services/account';
 import { formatDate } from '@/i18n/format';
+import { translate } from '@/i18n/server';
 
-export const metadata: Metadata = { title: 'Mes avis', robots: { index: false } };
+export async function generateMetadata(): Promise<Metadata> {
+  const { m } = await translate();
+  return { title: m.account.reviews, robots: { index: false } };
+}
 
 export default async function ReviewsPage({
   searchParams,
@@ -19,9 +23,10 @@ export default async function ReviewsPage({
   if (!actor) redirect('/login?redirectTo=/account/reviews');
 
   const { reservation: target } = await searchParams;
-  const [reviews, pending] = await Promise.all([
+  const [reviews, pending, { m, t, locale, path }] = await Promise.all([
     myReviews(actor),
     reviewableReservations(actor),
+    translate(),
   ]);
 
   const focused = target ? pending.find((r) => r.id === target) : null;
@@ -30,7 +35,7 @@ export default async function ReviewsPage({
     <div className="z-stack" style={{ gap: 'var(--z-space-10)' }}>
       {focused ? (
         <section>
-          <h2 className="z-profile__h3">Laisser un avis</h2>
+          <h2 className="z-profile__h3">{m.account.leaveReview}</h2>
           <ReviewForm
             reservationId={focused.id}
             businessName={focused.business.name}
@@ -39,18 +44,19 @@ export default async function ReviewsPage({
         </section>
       ) : pending.length > 0 ? (
         <section>
-          <h2 className="z-profile__h3">En attente de votre avis</h2>
+          <h2 className="z-profile__h3">{m.account.awaitingYourReview}</h2>
           <div className="z-stack" style={{ gap: 'var(--z-space-3)' }}>
             {pending.map((reservation) => (
               <div key={reservation.id} className="z-panel z-review-prompt">
                 <div>
                   <strong>{reservation.business.name}</strong>
                   <p className="z-policy">
-                    {reservation.items[0]?.serviceName} · {formatDate(reservation.startAt)}
+                    {reservation.items[0]?.serviceName} ·{' '}
+                    {formatDate(reservation.startAt, locale)}
                   </p>
                 </div>
-                <ButtonLink href={`/account/reviews?reservation=${reservation.id}`} size="sm">
-                  Noter
+                <ButtonLink href={path(`/account/reviews?reservation=${reservation.id}`)} size="sm">
+                  {m.account.rate}
                 </ButtonLink>
               </div>
             ))}
@@ -59,23 +65,22 @@ export default async function ReviewsPage({
       ) : null}
 
       <section>
-        <h2 className="z-profile__h3">Avis publiés</h2>
+        <h2 className="z-profile__h3">{m.account.publishedReviews}</h2>
         {reviews.length === 0 ? (
-          <EmptyState
-            title="Vous n’avez pas encore laissé d’avis"
-            body="Après un rendez-vous terminé, vous pourrez partager votre expérience et aider les autres clients."
-          />
+          <EmptyState title={m.account.noReviewsYet} body={m.account.noReviewsYetBody} />
         ) : (
           <ul className="z-reviews__list">
             {reviews.map((review) => (
               <li key={review.id} className="z-review">
                 <div className="z-review__head">
                   <strong>
-                    <Link href={`/business/${review.business.slug}`}>{review.business.name}</Link>
+                    <Link href={path(`/business/${review.business.slug}`)}>
+                      {review.business.name}
+                    </Link>
                   </strong>
                   <Rating value={review.rating} showValue={false} size={13} />
                   <time dateTime={review.createdAt.toISOString()}>
-                    {formatDate(review.createdAt)}
+                    {formatDate(review.createdAt, locale)}
                   </time>
                 </div>
                 {review.reservation.items[0] ? (
@@ -84,7 +89,7 @@ export default async function ReviewsPage({
                 {review.comment ? <p>{review.comment}</p> : null}
                 {review.response ? (
                   <div className="z-review__response">
-                    <strong>Réponse de {review.business.name}</strong>
+                    <strong>{t(m.business.responseFrom, { name: review.business.name })}</strong>
                     <p>{review.response.body}</p>
                   </div>
                 ) : null}

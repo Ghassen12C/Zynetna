@@ -26,7 +26,12 @@ const RESERVATION_SELECT = {
       allowCustomerReschedule: true,
       minNoticeMinutes: true,
       maxAdvanceDays: true,
-      location: { select: { addressLine1: true, city: { select: { name: true } } } },
+      location: {
+        select: {
+          addressLine1: true,
+          city: { select: { name: true, nameAr: true, nameEn: true } },
+        },
+      },
       media: {
         where: { role: 'LOGO' },
         take: 1,
