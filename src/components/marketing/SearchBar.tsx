@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
+import type { Messages } from '@/i18n';
 
 /**
  * The landing search. Submits to /search as a plain navigation, so results are
@@ -10,7 +11,16 @@ import { useState, useTransition } from 'react';
  * Geolocation is strictly optional: the control is never required, a denial is
  * silent, and the page works identically without permission.
  */
-export function SearchBar({ cities }: { cities: { slug: string; name: string }[] }) {
+export function SearchBar({
+  cities,
+  m,
+  searchPath,
+}: {
+  cities: { slug: string; name: string }[];
+  m: { search: Messages['search']; home: Messages['home'] };
+  /** Locale-aware /search path, so searching does not leave the language. */
+  searchPath: string;
+}) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [query, setQuery] = useState('');
@@ -22,7 +32,7 @@ export function SearchBar({ cities }: { cities: { slug: string; name: string }[]
     if (query.trim()) params.set('q', query.trim());
     if (city) params.set('city', city);
     for (const [k, v] of Object.entries(extra ?? {})) params.set(k, v);
-    startTransition(() => router.push(`/search?${params.toString()}`));
+    startTransition(() => router.push(`${searchPath}?${params.toString()}`));
   }
 
   function useMyLocation() {
@@ -63,7 +73,7 @@ export function SearchBar({ cities }: { cities: { slug: string; name: string }[]
         <input
           id="q"
           className="z-searchbar__input"
-          placeholder="Un service, un salon, un barbier…"
+          placeholder={m.home.searchPlaceholder}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           autoComplete="off"
@@ -91,7 +101,7 @@ export function SearchBar({ cities }: { cities: { slug: string; name: string }[]
           value={city}
           onChange={(e) => setCity(e.target.value)}
         >
-          <option value="">Toute la Tunisie</option>
+          <option value="">{m.search.allTunisia}</option>
           {cities.map((c) => (
             <option key={c.slug} value={c.slug}>
               {c.name}
@@ -113,7 +123,7 @@ export function SearchBar({ cities }: { cities: { slug: string; name: string }[]
 
       <button type="submit" className="z-btn z-btn--primary z-btn--md z-searchbar__submit" disabled={pending}>
         {pending ? <span className="z-spinner" aria-hidden="true" /> : null}
-        Rechercher
+        {m.home.search}
       </button>
     </form>
   );

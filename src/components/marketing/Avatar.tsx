@@ -1,34 +1,63 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import {
+  type AvatarState,
+  autoSettleMs,
+  nextState,
+} from '@/domain/avatar/states';
+
+export type AvatarCopy = {
+  ariaLabel: string;
+  greeting: string;
+  greetingBody: string;
+};
 
 /**
- * The Zynetna welcome avatar — a Tunisian host in a chechia who greets the
- * visitor and offers a hand.
+ * The Zynetna host — a Tunisian in a chechia who welcomes the visitor.
  *
- * Deliberately inline SVG driven by CSS keyframes rather than a 3D scene or a
- * Lottie payload: it is roughly 4 KB, costs no network request, no WebGL
- * context and no main-thread animation loop, and the whole sequence is
- * transform/opacity only — so it composites on the GPU and cannot cause
- * layout thrash on a mid-range Android phone on a Tunisian 4G connection.
+ * This is brand, not decoration, and it is meant to grow into a voice
+ * concierge, so the figure renders a state from `@/domain/avatar/states`
+ * rather than a couple of local booleans. Today the page drives it through
+ * IDLE → GREETING → SPEAKING → IDLE; tomorrow a voice loop can drive the same
+ * machine through LISTENING and THINKING without the artwork changing.
  *
- * It yields completely to `prefers-reduced-motion`, where the figure simply
- * appears in its final pose.
+ * Deliberately inline SVG on CSS keyframes rather than a 3D scene or a Lottie
+ * payload: roughly 4 KB, no network request, no WebGL context and no
+ * main-thread animation loop. The whole sequence is transform and opacity
+ * only, so it composites on the GPU and cannot thrash layout on a mid-range
+ * Android phone on Tunisian 4G.
+ *
+ * Two rules it must never break. It yields completely to
+ * `prefers-reduced-motion`, where the figure simply appears in its final pose.
+ * And it never blocks the interface: the whole thing is `pointer-events: none`
+ * so a visitor who has no interest in the host can search straight past it.
  */
-export function WelcomeAvatar({ className }: { className?: string }) {
-  const [entered, setEntered] = useState(false);
-  const [waved, setWaved] = useState(false);
+export function WelcomeAvatar({
+  copy,
+  state: controlled,
+  className,
+}: {
+  copy: AvatarCopy;
+  /** Set by a future voice loop. Left out, the avatar greets and settles. */
+  state?: AvatarState;
+  className?: string;
+}) {
+  const [state, setState] = useState<AvatarState>('IDLE');
+  const [visible, setVisible] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+
+  const active = controlled ?? state;
 
   useEffect(() => {
     const node = ref.current;
     if (!node) return;
 
-    // Animate only once the figure is actually on screen.
+    // Only animate once the figure is actually on screen.
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry?.isIntersecting) {
-          setEntered(true);
+          setVisible(true);
           observer.disconnect();
         }
       },
@@ -38,18 +67,48 @@ export function WelcomeAvatar({ className }: { className?: string }) {
     return () => observer.disconnect();
   }, []);
 
+  // The welcome: greet on arrival, speak, then settle into idle. Skipped
+  // entirely when the page is driven from outside.
   useEffect(() => {
-    if (!entered) return;
-    const timer = window.setTimeout(() => setWaved(true), 700);
+    if (!visible || controlled) return;
+    setState((s) => nextState(s, 'GREETING'));
+  }, [visible, controlled]);
+
+  useEffect(() => {
+    if (controlled) return;
+    const hold = autoSettleMs(state);
+    if (hold === null) return;
+    const timer = window.setTimeout(() => {
+      setState((s) => nextState(s, 'IDLE'));
+    }, hold);
     return () => window.clearTimeout(timer);
-  }, [entered]);
+  }, [state, controlled]);
+
+  const speaking = active === 'GREETING' || active === 'SPEAKING';
 
   return (
     <div
       ref={ref}
-      className={`z-avatar ${entered ? 'is-entered' : ''} ${waved ? 'is-waving' : ''} ${className ?? ''}`}
+      // The state is a data attribute so every pose lives in CSS, which is
+      // also what lets `prefers-reduced-motion` switch the whole thing off in
+      // one place.
+      data-state={active}
+      className={`z-avatar ${visible ? 'is-visible' : ''} ${className ?? ''}`}
     >
-      <svg viewBox="0 0 260 320" role="img" aria-label="Un hôte tunisien vous souhaite la bienvenue" className="z-avatar__svg">
+      {/* The host's own words. Real text in the DOM, so a screen reader and a
+          search engine both get the greeting, and polite so it never
+          interrupts what the visitor is already doing. */}
+      <p className="z-avatar__bubble" aria-live="polite" data-shown={speaking}>
+        <strong>{copy.greeting}</strong>
+        <span>{copy.greetingBody}</span>
+      </p>
+
+      <svg
+        viewBox="0 0 260 320"
+        role="img"
+        aria-label={copy.ariaLabel}
+        className="z-avatar__svg"
+      >
         <defs>
           <clipPath id="z-av-body">
             <path d="M58 320v-66c0-40 32-62 72-62s72 22 72 62v66Z" />

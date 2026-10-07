@@ -19,6 +19,13 @@ export const en: Messages = {
     logout: 'Sign out',
     admin: 'Administration',
   },
+  avatar: {
+    ariaLabel: 'A Tunisian host wearing a chechia welcomes you',
+    greeting: 'Aaslema! Marhbé bik fi Zynetna.',
+    greetingBody: 'Tell me what you are looking for and I will take you there.',
+    pointToSearch: 'Start with a search —',
+    searchCta: 'find a professional',
+  },
   home: {
     heroTitle: 'Find. Book. Enjoy.',
     heroSubtitle:
@@ -366,6 +373,10 @@ export const en: Messages = {
     networkBody: 'Check your internet connection and try again.',
     validation: 'Please correct the highlighted fields.',
     unexpected: 'Something went wrong. Try again in a moment.',
+    notFoundLong:
+      'The link may be wrong, or the page has moved. Try the search — your professional is almost certainly there.',
+    backHome: 'Back to the home page',
+    needHelp: 'Need help?',
   },
   footer: {
     customers: 'Customers',

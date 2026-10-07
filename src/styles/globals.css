@@ -434,6 +434,10 @@ button, input, select, textarea { font: inherit; color: inherit; }
   width: 100%;
   max-width: 360px;
   margin-inline: auto;
+  /* The host is an enhancement and must never stand between the visitor and
+     the interface: it cannot be clicked, focused or dragged, so a visitor who
+     ignores it can search straight past it. */
+  pointer-events: none;
 }
 .z-avatar__svg { width: 100%; height: auto; overflow: visible; }
 
@@ -446,10 +450,10 @@ button, input, select, textarea { font: inherit; color: inherit; }
     opacity var(--z-duration-slow) var(--z-ease),
     transform 520ms var(--z-ease);
 }
-.z-avatar.is-entered .z-avatar__figure { opacity: 1; transform: translateY(0) scale(1); }
+.z-avatar.is-visible .z-avatar__figure { opacity: 1; transform: translateY(0) scale(1); }
 
 .z-avatar__ground { opacity: 0; transition: opacity 600ms var(--z-ease) 120ms; }
-.z-avatar.is-entered .z-avatar__ground { opacity: 0.08; }
+.z-avatar.is-visible .z-avatar__ground { opacity: 0.08; }
 
 /* The wave — a hand raised and shaken twice, then held open. */
 .z-avatar__arm {
@@ -457,7 +461,8 @@ button, input, select, textarea { font: inherit; color: inherit; }
   transform: rotate(10deg);
   transition: transform 420ms var(--z-ease);
 }
-.z-avatar.is-waving .z-avatar__arm { animation: z-wave 1.6s var(--z-ease) 0.1s 2; }
+/* GREETING is the only state that waves; the rest hold the hand open. */
+.z-avatar[data-state='GREETING'] .z-avatar__arm { animation: z-wave 1.6s var(--z-ease) 0.1s 2; }
 @keyframes z-wave {
   0%   { transform: rotate(10deg); }
   20%  { transform: rotate(-18deg); }
@@ -468,7 +473,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 }
 
 /* A periodic blink keeps the figure from reading as a static drawing. */
-.z-avatar.is-entered .z-avatar__eyes {
+.z-avatar.is-visible .z-avatar__eyes {
   animation: z-blink 6s steps(1, end) 2s infinite;
   transform-origin: 130px 118px;
 }
@@ -485,19 +490,142 @@ button, input, select, textarea { font: inherit; color: inherit; }
     opacity var(--z-duration-base) var(--z-ease),
     transform 480ms var(--z-ease);
 }
-.z-avatar.is-waving .z-avatar__sparks { opacity: 0.9; transform: translate(0, 0) scale(1); }
+.z-avatar[data-state='GREETING'] .z-avatar__sparks,
+.z-avatar[data-state='BOOKING_CONFIRMED'] .z-avatar__sparks { opacity: 0.9; transform: translate(0, 0) scale(1); }
+
+/* ── Per-state poses ───────────────────────────────────────────────────────
+   Each avatar state from @/domain/avatar/states gets its own pose here, so a
+   future voice loop changes one attribute and the artwork follows. The states
+   past GREETING are unused by the launch experience and cost nothing until a
+   caller drives them. */
+
+/* IDLE — alive, not idling awkwardly: a slow breath. */
+.z-avatar.is-visible[data-state='IDLE'] .z-avatar__figure {
+  animation: z-breathe 5.5s var(--z-ease) infinite;
+}
+@keyframes z-breathe {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50%      { transform: translateY(-3px) scale(1.004); }
+}
+
+/* LISTENING — leans in, eyes wide, with a pulse that makes an open
+   microphone unmistakable. */
+.z-avatar[data-state='LISTENING'] .z-avatar__figure { transform: translateY(-2px) scale(1.01); }
+.z-avatar[data-state='LISTENING'] .z-avatar__eyes { animation: none; transform: scaleY(1.12); }
+.z-avatar[data-state='LISTENING'] .z-avatar__ground { animation: z-listen 1.4s var(--z-ease) infinite; }
+@keyframes z-listen {
+  0%, 100% { opacity: 0.08; transform: scale(1); }
+  50%      { opacity: 0.18; transform: scale(1.06); }
+}
+
+/* THINKING — a small, patient sway. */
+.z-avatar[data-state='THINKING'] .z-avatar__figure { animation: z-think 1.8s var(--z-ease) infinite; }
+@keyframes z-think {
+  0%, 100% { transform: rotate(0deg); }
+  33%      { transform: rotate(-1.2deg); }
+  66%      { transform: rotate(1.2deg); }
+}
+
+/* SPEAKING — the mouth moves. Stands in for lip-sync until there is audio to
+   sync to. */
+.z-avatar[data-state='SPEAKING'] .z-avatar__smile { animation: z-speak 420ms steps(2, end) infinite; }
+@keyframes z-speak {
+  0%, 100% { transform: scaleY(1); }
+  50%      { transform: scaleY(1.6); }
+}
+.z-avatar__smile { transform-origin: 130px 136px; }
+
+/* SUCCESS and BOOKING_CONFIRMED — a lift, celebratory but not a cartoon. */
+.z-avatar[data-state='SUCCESS'] .z-avatar__figure,
+.z-avatar[data-state='BOOKING_CONFIRMED'] .z-avatar__figure {
+  animation: z-lift 900ms var(--z-ease);
+}
+@keyframes z-lift {
+  0%   { transform: translateY(0); }
+  40%  { transform: translateY(-10px); }
+  100% { transform: translateY(0); }
+}
+
+/* ERROR — a small apologetic shake, nothing alarming. */
+.z-avatar[data-state='ERROR'] .z-avatar__figure { animation: z-apologise 600ms var(--z-ease); }
+@keyframes z-apologise {
+  0%, 100% { transform: translateX(0); }
+  25%      { transform: translateX(-4px); }
+  75%      { transform: translateX(4px); }
+}
+
+/* GOODBYE — one last wave, then fades back. */
+.z-avatar[data-state='GOODBYE'] .z-avatar__arm { animation: z-wave 1.6s var(--z-ease) 1; }
+
+/* ── The host's speech ─────────────────────────────────────────────────── */
+.z-avatar__bubble {
+  position: absolute;
+  inset-block-start: 4%;
+  inset-inline-start: -2%;
+  z-index: 2;
+  max-width: 17rem;
+  margin: 0;
+  padding: var(--z-space-3) var(--z-space-4);
+  background: var(--z-bg-raised);
+  border: 1px solid var(--z-border);
+  border-radius: var(--z-radius-lg);
+  box-shadow: var(--z-shadow-md);
+  font-size: var(--z-text-sm);
+  line-height: 1.45;
+  opacity: 0;
+  transform: translateY(6px) scale(0.98);
+  transform-origin: 100% 100%;
+  transition:
+    opacity var(--z-duration-base) var(--z-ease),
+    transform var(--z-duration-base) var(--z-ease);
+}
+.z-avatar__bubble[data-shown='true'] { opacity: 1; transform: translateY(0) scale(1); }
+.z-avatar__bubble strong { display: block; font-family: var(--z-font-display); }
+.z-avatar__bubble span { display: block; color: var(--z-fg-muted); margin-block-start: 2px; }
+/* The tail, mirrored automatically in Arabic because it is an inline offset. */
+.z-avatar__bubble::after {
+  content: '';
+  position: absolute;
+  inset-block-end: -7px;
+  inset-inline-start: 28px;
+  width: 12px;
+  height: 12px;
+  background: var(--z-bg-raised);
+  border-inline-end: 1px solid var(--z-border);
+  border-block-end: 1px solid var(--z-border);
+  transform: rotate(45deg);
+}
+@media (max-width: 720px) {
+  .z-avatar__bubble { position: static; max-width: none; margin-block-end: var(--z-space-3); }
+  .z-avatar__bubble::after { display: none; }
+}
 
 @media (prefers-reduced-motion: reduce) {
+  /* Every pose collapses to the final one. Written against the state
+     attribute as well as the bare class so no per-state rule survives. */
   .z-avatar__figure,
-  .z-avatar__sparks {
+  .z-avatar__sparks,
+  .z-avatar[data-state] .z-avatar__figure,
+  .z-avatar[data-state] .z-avatar__sparks {
     opacity: 1;
     transform: none;
     transition: none;
     animation: none;
   }
-  .z-avatar__ground { opacity: 0.08; transition: none; }
-  .z-avatar__arm { animation: none; transform: rotate(-6deg); }
-  .z-avatar__eyes { animation: none; transform: none; }
+  .z-avatar__ground,
+  .z-avatar[data-state] .z-avatar__ground {
+    opacity: 0.08;
+    transition: none;
+    animation: none;
+  }
+  .z-avatar__arm,
+  .z-avatar[data-state] .z-avatar__arm { animation: none; transform: rotate(-6deg); }
+  .z-avatar__eyes,
+  .z-avatar[data-state] .z-avatar__eyes { animation: none; transform: none; }
+  .z-avatar__smile,
+  .z-avatar[data-state] .z-avatar__smile { animation: none; transform: none; }
+  /* The greeting still appears — it is information, not decoration. */
+  .z-avatar__bubble { transition: none; transform: none; }
 }
 
 /* ══ Header ═══════════════════════════════════════════════════════════════ */

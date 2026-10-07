@@ -19,6 +19,13 @@ export const ar: Messages = {
     logout: 'تسجيل الخروج',
     admin: 'الإدارة',
   },
+  avatar: {
+    ariaLabel: 'مضيف تونسي يعتمر الشاشية يرحّب بك',
+    greeting: 'عسلامة! مرحبا بيك في Zynetna.',
+    greetingBody: 'شنوة تحب تلقى اليوم؟',
+    pointToSearch: 'ابدأ بالبحث —',
+    searchCta: 'ابحث عن مهني',
+  },
   home: {
     heroTitle: 'ابحث. احجز. استمتع.',
     heroSubtitle: 'حلاقون، صالونات تجميل، منتجعات ومراكز عافية في كامل تونس.',
@@ -373,6 +380,9 @@ export const ar: Messages = {
     networkBody: 'تحقق من اتصالك بالإنترنت ثم أعد المحاولة.',
     validation: 'يُرجى تصحيح الحقول المحدّدة.',
     unexpected: 'حدث خطأ. أعد المحاولة بعد لحظة.',
+    notFoundLong: 'قد يكون الرابط خاطئاً أو أن الصفحة نُقلت. جرّب البحث — مهنيّك هناك على الأرجح.',
+    backHome: 'العودة إلى الصفحة الرئيسية',
+    needHelp: 'تحتاج مساعدة؟',
   },
   footer: {
     customers: 'الزبائن',

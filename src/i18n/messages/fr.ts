@@ -19,6 +19,13 @@ export const fr = {
     logout: 'Se déconnecter',
     admin: 'Administration',
   },
+  avatar: {
+    ariaLabel: 'Un hôte tunisien, coiffé d’une chechia, vous accueille',
+    greeting: 'Aaslema ! Marhbé bik fi Zynetna.',
+    greetingBody: 'Dis-moi ce que tu cherches, je t’emmène.',
+    pointToSearch: 'Commence par une recherche —',
+    searchCta: 'trouve un professionnel',
+  },
   home: {
     heroTitle: 'Trouve. Réserve. Profite.',
     heroSubtitle:
@@ -368,6 +375,10 @@ export const fr = {
     networkBody: 'Vérifiez votre connexion internet puis réessayez.',
     validation: 'Merci de corriger les champs indiqués.',
     unexpected: 'Une erreur est survenue. Réessayez dans un instant.',
+    notFoundLong:
+      'Le lien est peut-être erroné, ou la page a été déplacée. Essayez la recherche — votre professionnel y est sûrement.',
+    backHome: 'Retour à l’accueil',
+    needHelp: 'Besoin d’aide ?',
   },
   footer: {
     customers: 'Clients',

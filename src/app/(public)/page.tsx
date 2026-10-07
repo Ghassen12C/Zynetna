@@ -59,7 +59,11 @@ export default async function HomePage() {
             <p className="z-hero__subtitle">{m.home.heroSubtitleLong}</p>
 
             <div className="z-hero__search">
-              <SearchBar cities={cities} />
+              <SearchBar
+                cities={cities.map((c) => ({ slug: c.slug, name: localizedName(c, locale) }))}
+                m={{ search: m.search, home: m.home }}
+                searchPath={path('/search')}
+              />
             </div>
 
             <div className="z-hero__chips">
@@ -77,11 +81,9 @@ export default async function HomePage() {
           </div>
 
           <div className="z-hero__art">
-            <p className="z-hero__greeting">
-              {m.home.greeting}
-              <span>{m.home.greetingBody}</span>
-            </p>
-            <WelcomeAvatar />
+            {/* The host speaks for itself — the greeting lives with the figure
+                rather than in a separate caption beside it. */}
+            <WelcomeAvatar copy={m.avatar} />
           </div>
         </div>
       </section>

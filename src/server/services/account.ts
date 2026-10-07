@@ -29,7 +29,7 @@ const RESERVATION_SELECT = {
       location: {
         select: {
           addressLine1: true,
-          city: { select: { name: true, nameAr: true, nameEn: true } },
+          city: { select: { name: true, nameAr: true } },
         },
       },
       media: {
