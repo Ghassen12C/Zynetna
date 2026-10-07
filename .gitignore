@@ -12,3 +12,4 @@ storage/
 coverage
 .DS_Store
 dist
+.sandbox-ca.crt
