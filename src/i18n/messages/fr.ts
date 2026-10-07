@@ -27,6 +27,8 @@ export const fr = {
     greetingBody: 'Dis-moi ce que tu cherches, je t’emmène.',
     pointToSearch: 'Commence par une recherche —',
     searchCta: 'trouve un professionnel',
+    listening: 'Dis-moi : un service, un quartier, un budget…',
+    thinking: 'Un instant, je te trouve ça…',
   },
   home: {
     heroTitle: 'Trouve. Réserve. Profite.',
@@ -81,6 +83,14 @@ export const fr = {
     previous: 'Précédent',
     nextItems: 'Suivants',
     featuredRegion: 'Établissements à la une',
+    liveStats: {
+      one: '{count} établissement à réserver en ligne',
+      other: '{count} établissements à réserver en ligne',
+    } as PluralForms,
+    inCities: {
+      one: 'dans {count} ville',
+      other: 'dans {count} villes',
+    } as PluralForms,
   },
   search: {
     title: 'Résultats',

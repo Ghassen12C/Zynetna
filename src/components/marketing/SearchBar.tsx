@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 import type { Messages } from '@/i18n';
+import { cueHost } from '@/lib/hostBus';
 
 /**
  * The landing search. Submits to /search as a plain navigation, so results are
@@ -32,6 +33,9 @@ export function SearchBar({
     if (query.trim()) params.set('q', query.trim());
     if (city) params.set('city', city);
     for (const [k, v] of Object.entries(extra ?? {})) params.set(k, v);
+    // The host looks busy while the results load — it reacts to the search,
+    // it does not pretend to perform it.
+    cueHost({ state: 'THINKING', line: 'thinking' });
     startTransition(() => router.push(`${searchPath}?${params.toString()}`));
   }
 
@@ -76,6 +80,12 @@ export function SearchBar({
           placeholder={m.home.searchPlaceholder}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
+          // Focusing the field turns the host towards the visitor; leaving it
+          // lets the host settle again.
+          onFocus={() => cueHost({ state: 'LISTENING', line: 'listening' })}
+          onBlur={() => {
+            if (!pending) cueHost({ state: 'IDLE' });
+          }}
           autoComplete="off"
         />
       </div>
@@ -84,7 +94,7 @@ export function SearchBar({
 
       <div className="z-searchbar__field z-searchbar__field--city">
         <label className="z-sr-only" htmlFor="city">
-          Où ?
+          {m.home.locationPlaceholder}
         </label>
         <svg className="z-searchbar__icon" width="19" height="19" viewBox="0 0 20 20" aria-hidden="true">
           <path

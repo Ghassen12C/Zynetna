@@ -11,6 +11,8 @@ describe('brand artwork', () => {
   it('keeps the CSS cover tile identical to the generated one', () => {
     const css = readFileSync('src/styles/globals.css', 'utf8');
     expect(css).toContain(zelligeDataUri());
+    // The hero's ink variant, on the light background.
+    expect(css).toContain(zelligeDataUri('#0E3B66', 0.09));
   });
 
   it('gives a business the same tone every time, from the brand palette only', () => {

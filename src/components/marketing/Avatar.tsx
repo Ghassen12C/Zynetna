@@ -1,17 +1,42 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { Fragment, useEffect, useRef, useState } from 'react';
 import {
   type AvatarState,
   autoSettleMs,
   nextState,
 } from '@/domain/avatar/states';
+import { type HostCue, onHostCue } from '@/lib/hostBus';
 
 export type AvatarCopy = {
   ariaLabel: string;
   greeting: string;
   greetingBody: string;
+  /** Shown while the visitor is in the search field. */
+  listening: string;
+  /** Shown while a search they submitted is loading. */
+  thinking: string;
 };
+
+/** Split a line into words so they can arrive one after another, like speech. */
+function Words({ text }: { text: string }) {
+  return (
+    <>
+      {text.split(' ').map((word, i) => (
+        // The space sits outside the span: a trailing space inside an
+        // inline-block collapses and would run the words together.
+        <Fragment key={i}>
+          <span className="z-avatar__word" style={{ ['--w' as string]: i }}>
+            {word}
+          </span>{' '}
+        </Fragment>
+      ))}
+    </>
+  );
+}
+
+/** How far, in SVG units, the pupils may travel toward the pointer. */
+const GAZE = 3.2;
 
 /**
  * The Zynetna host — a Tunisian in a chechia who welcomes the visitor.
@@ -44,10 +69,74 @@ export function WelcomeAvatar({
   className?: string;
 }) {
   const [state, setState] = useState<AvatarState>('IDLE');
+  const [line, setLine] = useState<NonNullable<HostCue['line']>>('greeting');
   const [visible, setVisible] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
   const active = controlled ?? state;
+
+  // The interface cues the host; the state machine decides whether the cue
+  // is a legal move, so nothing outside can make it claim a booking.
+  useEffect(() => {
+    if (controlled) return;
+    return onHostCue((cue) => {
+      setState((current) => {
+        const next = nextState(current, cue.state);
+        if (next === cue.state) {
+          // Settling returns him to his welcome; other cues carry their line.
+          if (cue.state === 'IDLE') setLine('greeting');
+          else if (cue.line) setLine(cue.line);
+        }
+        return next;
+      });
+    });
+  }, [controlled]);
+
+  // A search that never navigates (same query, offline) must not leave the
+  // host looking busy forever.
+  useEffect(() => {
+    if (controlled || active !== 'THINKING') return;
+    const timer = window.setTimeout(() => setState((s) => nextState(s, 'IDLE')), 5000);
+    return () => window.clearTimeout(timer);
+  }, [active, controlled]);
+
+  // The host looks toward the visitor: the pupils follow the pointer a few
+  // units. Written straight to CSS variables, so a mouse move costs one style
+  // write per frame and no React render. Skipped on touch screens, where
+  // there is no pointer to follow, and when motion is unwelcome.
+  useEffect(() => {
+    const node = ref.current;
+    if (!node) return;
+    if (!window.matchMedia('(pointer: fine)').matches) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+    let frame = 0;
+    let px = 0;
+    let py = 0;
+    const apply = () => {
+      frame = 0;
+      const box = node.getBoundingClientRect();
+      // Eyes sit about a third of the way down the figure.
+      const cx = box.left + box.width / 2;
+      const cy = box.top + box.height * 0.36;
+      const dx = px - cx;
+      const dy = py - cy;
+      const distance = Math.hypot(dx, dy) || 1;
+      const reach = Math.min(1, distance / 420);
+      node.style.setProperty('--gx', `${((dx / distance) * GAZE * reach).toFixed(2)}px`);
+      node.style.setProperty('--gy', `${((dy / distance) * GAZE * 0.7 * reach).toFixed(2)}px`);
+    };
+    const onMove = (event: PointerEvent) => {
+      px = event.clientX;
+      py = event.clientY;
+      if (!frame) frame = window.requestAnimationFrame(apply);
+    };
+    window.addEventListener('pointermove', onMove, { passive: true });
+    return () => {
+      window.removeEventListener('pointermove', onMove);
+      if (frame) window.cancelAnimationFrame(frame);
+    };
+  }, []);
 
   useEffect(() => {
     const node = ref.current;
@@ -84,7 +173,11 @@ export function WelcomeAvatar({
     return () => window.clearTimeout(timer);
   }, [state, controlled]);
 
-  const speaking = active === 'GREETING' || active === 'SPEAKING';
+  // His line stays up once he has said it: it is the page's invitation, and a
+  // host standing beside an empty space after four seconds reads as broken.
+  // It only waits for the figure to arrive before appearing.
+  const speaking = visible;
+  const shownLine = active === 'GREETING' || active === 'IDLE' ? 'greeting' : line;
 
   return (
     <div
@@ -99,8 +192,22 @@ export function WelcomeAvatar({
           search engine both get the greeting, and polite so it never
           interrupts what the visitor is already doing. */}
       <p className="z-avatar__bubble" aria-live="polite" data-shown={speaking}>
-        <strong>{copy.greeting}</strong>
-        <span>{copy.greetingBody}</span>
+        {/* Keyed on the line, so the words replay whenever the host says
+            something new. */}
+        {shownLine === 'greeting' ? (
+          <span key="greeting">
+            <strong>
+              <Words text={copy.greeting} />
+            </strong>
+            <span className="z-avatar__sub">
+              <Words text={copy.greetingBody} />
+            </span>
+          </span>
+        ) : (
+          <span key={shownLine} className="z-avatar__sub z-avatar__sub--solo">
+            <Words text={shownLine === 'listening' ? copy.listening : copy.thinking} />
+          </span>
+        )}
       </p>
 
       <svg
@@ -145,10 +252,22 @@ export function WelcomeAvatar({
           />
           <path d="M116 142h28c0 6-6 9-14 9s-14-3-14-9Z" fill="#2F2419" />
 
-          {/* Eyes — these blink */}
+          {/* Cheeks — they warm when he is pleased (greeting, success). */}
+          <g className="z-avatar__cheeks">
+            <ellipse cx="101" cy="139" rx="8" ry="5" fill="#E0796A" />
+            <ellipse cx="159" cy="139" rx="8" ry="5" fill="#E0796A" />
+          </g>
+
+          {/* Eyes. The outer group blinks; the inner one follows the pointer,
+              so the two motions never fight over one transform. */}
           <g className="z-avatar__eyes">
-            <ellipse cx="112" cy="118" rx="5.5" ry="6.5" fill="#20304A" />
-            <ellipse cx="148" cy="118" rx="5.5" ry="6.5" fill="#20304A" />
+            <g className="z-avatar__gaze">
+              <ellipse cx="112" cy="118" rx="5.5" ry="6.5" fill="#20304A" />
+              <ellipse cx="148" cy="118" rx="5.5" ry="6.5" fill="#20304A" />
+              {/* Catchlights: the smallest detail that makes eyes look alive. */}
+              <circle cx="114" cy="115.5" r="1.7" fill="#FFFFFF" opacity="0.85" />
+              <circle cx="150" cy="115.5" r="1.7" fill="#FFFFFF" opacity="0.85" />
+            </g>
           </g>
           {/* Brows */}
           <path d="M103 104c5-4 13-4 18-1" stroke="#2F2419" strokeWidth="4" strokeLinecap="round" fill="none" />
@@ -189,14 +308,17 @@ export function WelcomeAvatar({
               strokeLinecap="round"
               fill="none"
             />
-            {/* Open palm, fingers up — the offered hand */}
-            <circle cx="226" cy="152" r="18" fill="#E8B788" />
-            <path
-              d="M214 142v-14M223 138v-18M232 140v-15M240 146v-11"
-              stroke="#E8B788"
-              strokeWidth="7"
-              strokeLinecap="round"
-            />
+            {/* The open hand — its own group, so it can come forward
+                (scale up, as if toward the viewer) when offered to shake. */}
+            <g className="z-avatar__hand">
+              <circle cx="226" cy="152" r="18" fill="#E8B788" />
+              <path
+                d="M214 142v-14M223 138v-18M232 140v-15M240 146v-11"
+                stroke="#E8B788"
+                strokeWidth="7"
+                strokeLinecap="round"
+              />
+            </g>
           </g>
         </g>
 

@@ -458,11 +458,70 @@ button, input, select, textarea { font: inherit; color: inherit; }
 /* The wave — a hand raised and shaken twice, then held open. */
 .z-avatar__arm {
   transform-origin: 190px 226px;
-  transform: rotate(10deg);
-  transition: transform 420ms var(--z-ease);
+  /* At rest the arm hangs relaxed at his side; poses below raise it. */
+  transform: rotate(128deg);
+  transition: transform 640ms var(--z-ease-in-out);
 }
-/* GREETING is the only state that waves; the rest hold the hand open. */
-.z-avatar[data-state='GREETING'] .z-avatar__arm { animation: z-wave 1.6s var(--z-ease) 0.1s 2; }
+.z-avatar__hand { transform-origin: 226px 152px; }
+
+/* The welcome, as one gesture in three beats: the hand comes up and waves
+   twice, then comes forward to offer a handshake, holds it, and relaxes.
+   It ends exactly on the resting pose, so handing over to IDLE never jumps. */
+.z-avatar[data-state='GREETING'] .z-avatar__arm { animation: z-greet 3800ms var(--z-ease-in-out) 250ms both; }
+.z-avatar[data-state='GREETING'] .z-avatar__hand { animation: z-offer 3800ms var(--z-ease-in-out) 250ms both; }
+@keyframes z-greet {
+  0%   { transform: rotate(128deg); }
+  12%  { transform: rotate(4deg); }
+  20%  { transform: rotate(-16deg); }
+  28%  { transform: rotate(6deg); }
+  36%  { transform: rotate(-16deg); }
+  44%  { transform: rotate(4deg); }
+  58%  { transform: rotate(62deg); }
+  82%  { transform: rotate(62deg); }
+  100% { transform: rotate(128deg); }
+}
+/* While offered, the hand grows slightly — foreshortening, as if it were
+   reaching out of the page toward the visitor. */
+@keyframes z-offer {
+  0%, 44%   { transform: scale(1); }
+  58%, 82%  { transform: scale(1.18); }
+  100%      { transform: scale(1); }
+}
+
+/* He talks while his words appear. */
+.z-avatar[data-state='GREETING'] .z-avatar__smile { animation: z-speak 420ms steps(2, end) 350ms 6; }
+
+/* Attentive while the visitor types: the hand opens outward, inviting. */
+.z-avatar[data-state='LISTENING'] .z-avatar__arm { transform: rotate(92deg); }
+/* Pleased with a result: the hand comes up. */
+.z-avatar[data-state='SUCCESS'] .z-avatar__arm,
+.z-avatar[data-state='BOOKING_CONFIRMED'] .z-avatar__arm { transform: rotate(8deg); }
+
+/* The cheeks warm when he is pleased. */
+.z-avatar__cheeks { opacity: 0; transition: opacity 600ms var(--z-ease); }
+.z-avatar[data-state='GREETING'] .z-avatar__cheeks,
+.z-avatar[data-state='SUCCESS'] .z-avatar__cheeks,
+.z-avatar[data-state='BOOKING_CONFIRMED'] .z-avatar__cheeks { opacity: 0.32; }
+
+/* The eyes follow the pointer (variables written by the component), and
+   look up and away while thinking. */
+.z-avatar__gaze {
+  transform: translate(var(--gx, 0px), var(--gy, 0px));
+  transition: transform 220ms var(--z-ease-out);
+}
+.z-avatar[data-state='THINKING'] .z-avatar__gaze { transform: translate(-2.4px, -2.8px); }
+
+/* Words arrive one after another, like speech — only once the bubble shows,
+   so nothing plays unseen. */
+.z-avatar__word { display: inline-block; }
+.z-avatar__bubble[data-shown='true'] .z-avatar__word {
+  animation: z-word 380ms var(--z-ease-out) backwards;
+  animation-delay: calc(var(--w, 0) * 65ms + 160ms);
+}
+@keyframes z-word {
+  from { opacity: 0; transform: translateY(5px); filter: blur(2px); }
+  to   { opacity: 1; transform: none; filter: none; }
+}
 @keyframes z-wave {
   0%   { transform: rotate(10deg); }
   20%  { transform: rotate(-18deg); }
@@ -555,7 +614,15 @@ button, input, select, textarea { font: inherit; color: inherit; }
 }
 
 /* GOODBYE — one last wave, then fades back. */
-.z-avatar[data-state='GOODBYE'] .z-avatar__arm { animation: z-wave 1.6s var(--z-ease) 1; }
+.z-avatar[data-state='GOODBYE'] .z-avatar__arm { animation: z-farewell 2200ms var(--z-ease-in-out) both; }
+@keyframes z-farewell {
+  0%   { transform: rotate(128deg); }
+  22%  { transform: rotate(4deg); }
+  38%  { transform: rotate(-16deg); }
+  54%  { transform: rotate(6deg); }
+  70%  { transform: rotate(-16deg); }
+  100% { transform: rotate(128deg); }
+}
 
 /* ── The host's speech ─────────────────────────────────────────────────── */
 .z-avatar__bubble {
@@ -581,7 +648,9 @@ button, input, select, textarea { font: inherit; color: inherit; }
 }
 .z-avatar__bubble[data-shown='true'] { opacity: 1; transform: translateY(0) scale(1); }
 .z-avatar__bubble strong { display: block; font-family: var(--z-font-display); }
-.z-avatar__bubble span { display: block; color: var(--z-fg-muted); margin-block-start: 2px; }
+.z-avatar__sub { display: block; color: var(--z-fg-muted); margin-block-start: 2px; }
+/* A line on its own (listening, thinking) reads as the main voice, not a caption. */
+.z-avatar__sub--solo { color: var(--z-fg); font-weight: var(--z-weight-semibold); margin: 0; }
 /* The tail, mirrored automatically in Arabic because it is an inline offset. */
 .z-avatar__bubble::after {
   content: '';
@@ -624,6 +693,12 @@ button, input, select, textarea { font: inherit; color: inherit; }
   .z-avatar[data-state] .z-avatar__eyes { animation: none; transform: none; }
   .z-avatar__smile,
   .z-avatar[data-state] .z-avatar__smile { animation: none; transform: none; }
+  .z-avatar__hand,
+  .z-avatar[data-state] .z-avatar__hand { animation: none; transform: none; }
+  .z-avatar__gaze,
+  .z-avatar[data-state] .z-avatar__gaze { transition: none; transform: none; }
+  .z-avatar__bubble .z-avatar__word { animation: none; }
+  .z-avatar__cheeks { transition: none; }
   /* The greeting still appears — it is information, not decoration. */
   .z-avatar__bubble { transition: none; transform: none; }
 }
@@ -788,7 +863,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
     radial-gradient(760px 420px at 4% 10%, var(--z-jasmin-100), transparent 60%);
   padding-block: var(--z-space-12) var(--z-space-16);
 }
-@media (min-width: 900px) { .z-hero { padding-block: var(--z-space-16) var(--z-space-20); } }
+@media (min-width: 900px) { .z-hero { padding-block: var(--z-space-16) var(--z-space-12); } }
 .z-hero__grid {
   display: grid;
   grid-template-columns: 1fr;
@@ -851,7 +926,10 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .z-grid { display: grid; gap: var(--z-space-5); }
 .z-grid--2 { grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
 .z-grid--3 { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
-.z-grid--4 { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+.z-grid--4 { grid-template-columns: repeat(auto-fill, minmax(min(150px, 100%), 1fr)); }
+/* Two across on a phone: one tall tile per row turned five categories into
+   more than a screen of scrolling. */
+@media (max-width: 560px) { .z-grid--4 .z-ctile { padding: var(--z-space-5) var(--z-space-3); } }
 
 /* ══ Business card ════════════════════════════════════════════════════════ */
 
@@ -3058,31 +3136,40 @@ a.z-notif:hover { border-color: var(--z-accent); }
 @media (prefers-reduced-motion: reduce) { .z-cover { transition: none; } }
 
 /* ══ Reveals ═════════════════════════════════════════════════════════════
-   Hidden only under [data-reveal-on], which the head guard sets when
-   JavaScript runs and motion is welcome. Without it, everything is simply
-   visible — the animation is an enhancement, never a gate.
+   Scroll-driven, with no JavaScript at all. Each target runs its entrance
+   against its own position in the viewport (`animation-timeline: view()`),
+   so the browser drives it off the main thread and it can never race React's
+   hydration — an earlier observer-based version wrote styles onto elements
+   before they had hydrated.
 
-   Animations rather than transitions, with `backwards` fill: the start frame
-   holds during a stagger delay, and once the entrance ends the element's own
-   styles take over again. A `forwards` fill or a transition override would
-   pin `transform` and quietly kill every card's hover lift. */
+   Gated twice: a browser without scroll timelines skips the whole block and
+   simply shows the content, and reduced motion opts out. Nothing is ever
+   hidden by a script that might not run.
 
-[data-reveal-on] [data-reveal]:not([data-reveal='stagger']):not([data-revealed='true']),
-[data-reveal-on] [data-reveal='stagger']:not([data-revealed='true']) > * {
-  opacity: 0;
+   The range ends at `entry 70%` — by the time an element is most of the way
+   onto the screen it is fully settled, so nothing is read half-faded. */
+
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    [data-reveal]:not([data-reveal='stagger']),
+    [data-reveal='stagger'] > * {
+      animation: z-reveal-in linear both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 70%;
+    }
+    /* Siblings in a row enter together, so each starts a little later in
+       its own entry — a stagger expressed as distance, not time. */
+    [data-reveal='stagger'] > :nth-child(2) { animation-range: entry 6% entry 76%; }
+    [data-reveal='stagger'] > :nth-child(3) { animation-range: entry 12% entry 82%; }
+    [data-reveal='stagger'] > :nth-child(4) { animation-range: entry 18% entry 88%; }
+    [data-reveal='stagger'] > :nth-child(n + 5) { animation-range: entry 22% entry 92%; }
+  }
 }
-
-[data-reveal-on] [data-reveal][data-revealed='true']:not([data-reveal='stagger']) {
-  animation: z-reveal-in var(--z-duration-enter) var(--z-ease-out) backwards;
-}
-[data-reveal-on] [data-reveal='stagger'][data-revealed='true'] > * {
-  animation: z-reveal-in var(--z-duration-enter) var(--z-ease-out) backwards;
-  animation-delay: calc(var(--i, 0) * var(--z-stagger));
-}
-
+/* `translate` and `scale` rather than `transform`: they compose with it, so
+   the filled end state never overrides a card's own hover transform. */
 @keyframes z-reveal-in {
-  from { opacity: 0; transform: translateY(24px) scale(0.985); }
-  to   { opacity: 1; transform: none; }
+  from { opacity: 0; translate: 0 28px; scale: 0.985; }
+  to   { opacity: 1; translate: 0 0; scale: 1; }
 }
 
 /* ── Favourite moment ───────────────────────────────────────────────────── */
@@ -3182,4 +3269,229 @@ a.z-notif:hover { border-color: var(--z-accent); }
 @media (prefers-reduced-motion: reduce) {
   .z-chart__line { stroke-dasharray: none; stroke-dashoffset: 0; animation: none; }
   .z-chart__area, .z-chart__now { animation: none; }
+}
+
+/* ══ Hero composition ════════════════════════════════════════════════════ */
+
+/* The brand tile, in ink this time, fading out from behind the host. */
+.z-hero__pattern {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2280%22%20height%3D%2280%22%20viewBox%3D%220%200%2080%2080%22%3E%3Cg%20fill%3D%22none%22%20stroke%3D%22%230E3B66%22%20stroke-opacity%3D%220.09%22%20stroke-width%3D%221.2%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M40%2015.96L47.04%2023L57%2023L57%2032.96L64.04%2040L57%2047.04L57%2057L47.04%2057L40%2064.04L32.96%2057L23%2057L23%2047.04L15.96%2040L23%2032.96L23%2023L32.96%2023Z%22%2F%3E%3Ccircle%20cx%3D%2240%22%20cy%3D%2240%22%20r%3D%223.2%22%2F%3E%3Cpath%20d%3D%22M0%20-9L9%200L0%209L-9%200ZM80%20-9L89%200L80%209L71%200ZM0%2071L9%2080L0%2089L-9%2080ZM80%2071L89%2080L80%2089L71%2080Z%22%2F%3E%3Cpath%20d%3D%22M40%2015.96V0M64.04%2040H80M40%2064.04V80M15.96%2040H0%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E");
+  background-size: 72px 72px;
+  -webkit-mask-image: radial-gradient(52% 62% at 78% 42%, #000 0%, transparent 72%);
+  mask-image: radial-gradient(52% 62% at 78% 42%, #000 0%, transparent 72%);
+  animation: z-pattern-in 1600ms var(--z-ease-out) 200ms backwards;
+}
+:root[dir='rtl'] .z-hero__pattern {
+  -webkit-mask-image: radial-gradient(52% 62% at 22% 42%, #000 0%, transparent 72%);
+  mask-image: radial-gradient(52% 62% at 22% 42%, #000 0%, transparent 72%);
+}
+@keyframes z-pattern-in { from { opacity: 0; } to { opacity: 1; } }
+.z-hero__grid { position: relative; }
+
+/* A live count, with a breathing dot: the marketplace is open right now. */
+.z-hero__live {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--z-space-2);
+  align-self: flex-start;
+  margin: 0;
+  padding: 6px var(--z-space-3) 6px var(--z-space-2);
+  border-radius: var(--z-radius-full);
+  background: color-mix(in srgb, var(--z-bg-raised) 80%, transparent);
+  border: 1px solid var(--z-border);
+  font-size: var(--z-text-sm);
+  font-weight: var(--z-weight-semibold);
+  color: var(--z-fg-muted);
+  backdrop-filter: blur(6px);
+}
+.z-hero__pulse {
+  position: relative;
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--z-success);
+}
+.z-hero__pulse::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  background: var(--z-success);
+  opacity: 0.35;
+  animation: z-pulse 2.4s var(--z-ease-out) infinite;
+}
+@keyframes z-pulse {
+  0%   { transform: scale(0.5); opacity: 0.45; }
+  70%  { transform: scale(1.6); opacity: 0; }
+  100% { transform: scale(1.6); opacity: 0; }
+}
+
+/* Entrance: the count, then each verb of the headline, then the line that
+   explains them, then the search — the thing to do — then the shortcuts.
+   Pure CSS keyed on --e, so it runs from first paint without JavaScript. */
+.z-hero__word { display: inline-block; }
+.z-hero__live,
+.z-hero__word,
+.z-hero__subtitle,
+.z-hero__search,
+.z-hero__chips {
+  animation: z-hero-in 780ms var(--z-ease-out) backwards;
+  animation-delay: calc(var(--e, 0) * 95ms + 80ms);
+}
+@keyframes z-hero-in {
+  from { opacity: 0; transform: translateY(18px); }
+  to   { opacity: 1; transform: none; }
+}
+/* The last verb — "Profite." — is the promise, so it carries the accent. */
+.z-hero__word:last-of-type { color: var(--z-jasmin-600); }
+:root[data-theme='dark'] .z-hero__word:last-of-type { color: var(--z-jasmin); }
+
+/* ── Phones and tablets: the host greets first ──────────────────────────
+   Stacked below the copy, the host fell under the fold on a phone — the
+   brand's welcome was the one thing a visitor never saw. Below 980px he sits
+   above the headline, head-and-shoulders beside his speech bubble. */
+@media (max-width: 979px) {
+  .z-hero { padding-block: var(--z-space-6) var(--z-space-12); }
+  .z-hero__grid { gap: var(--z-space-4); }
+  .z-hero__art { order: -1; justify-content: flex-start; padding-top: 0; }
+  .z-hero__art .z-avatar {
+    display: grid;
+    grid-template-columns: 104px minmax(0, 1fr);
+    align-items: end;
+    gap: var(--z-space-3);
+    max-width: 30rem;
+    margin-inline: 0;
+  }
+  .z-hero__art .z-avatar__svg { grid-column: 1; grid-row: 1; }
+  .z-hero__art .z-avatar__bubble {
+    grid-column: 2;
+    grid-row: 1;
+    position: relative;
+    inset: auto;
+    align-self: center;
+    max-width: none;
+    margin: 0;
+  }
+  /* The tail points sideways at the host instead of down. */
+  .z-hero__art .z-avatar__bubble::after {
+    display: block;
+    inset-block-end: auto;
+    inset-block-start: 50%;
+    inset-inline-start: -7px;
+    margin-block-start: -6px;
+    border-inline-end: 0;
+    border-inline-start: 1px solid var(--z-border);
+  }
+  .z-hero__pattern {
+    -webkit-mask-image: radial-gradient(70% 40% at 18% 10%, #000 0%, transparent 70%);
+    mask-image: radial-gradient(70% 40% at 18% 10%, #000 0%, transparent 70%);
+  }
+  :root[dir='rtl'] .z-hero__pattern {
+    -webkit-mask-image: radial-gradient(70% 40% at 82% 10%, #000 0%, transparent 70%);
+    mask-image: radial-gradient(70% 40% at 82% 10%, #000 0%, transparent 70%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .z-hero__pattern, .z-hero__live, .z-hero__word, .z-hero__subtitle,
+  .z-hero__search, .z-hero__chips, .z-hero__pulse::after { animation: none; }
+}
+
+/* ══ How it works — a journey ════════════════════════════════════════════ */
+
+.z-journey {
+  position: relative;
+  display: grid;
+  gap: var(--z-space-8);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+@media (min-width: 760px) {
+  .z-journey { grid-template-columns: repeat(3, 1fr); gap: var(--z-space-10); }
+  /* The path between the marks: dashed, in jasmine, behind them. */
+  .z-journey::before {
+    content: '';
+    position: absolute;
+    inset-block-start: 31px;
+    inset-inline: 32px calc(33.333% - 32px);
+    height: 2px;
+    background: repeating-linear-gradient(90deg, var(--z-jasmin) 0 8px, transparent 8px 16px);
+    transform-origin: left center;
+    opacity: 0.7;
+  }
+  :root[dir='rtl'] .z-journey::before { transform-origin: right center; }
+}
+@supports (animation-timeline: view()) {
+  @media (min-width: 760px) and (prefers-reduced-motion: no-preference) {
+    /* The path draws itself as the section scrolls in. */
+    .z-journey::before {
+      animation: z-path-draw linear both;
+      animation-timeline: view();
+      animation-range: entry 20% cover 45%;
+    }
+  }
+}
+@keyframes z-path-draw { from { scale: 0 1; } to { scale: 1 1; } }
+
+.z-journey__step { position: relative; display: flex; flex-direction: column; gap: var(--z-space-3); }
+.z-journey__mark {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  border-radius: var(--z-radius-xl);
+  background: var(--z-bg-raised);
+  border: 1px solid var(--z-border);
+  color: var(--z-medina);
+  box-shadow: var(--z-shadow-sm);
+  /* Sits on top of the path, like a waypoint. */
+  z-index: 1;
+  transition: transform 420ms var(--z-ease-spring), background-color var(--z-duration-base) var(--z-ease);
+}
+.z-journey__step:hover .z-journey__mark { transform: translateY(-3px) rotate(-4deg); background: var(--z-medina-50); }
+.z-journey__num {
+  position: absolute;
+  inset-block-start: -8px;
+  inset-inline-end: -8px;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--z-jasmin);
+  color: var(--z-encre);
+  font-size: var(--z-text-xs);
+  font-weight: var(--z-weight-bold);
+  border: 2px solid var(--z-bg);
+}
+:root[data-theme='dark'] .z-journey__mark { color: var(--z-accent); }
+@media (prefers-reduced-motion: reduce) {
+  .z-journey__step:hover .z-journey__mark { transform: none; }
+}
+
+/* A printed page is never scrolled, so scroll-linked entrances would leave
+   everything below the first screen at its starting frame. Print it settled. */
+@media print {
+  [data-reveal], [data-reveal] > *, .z-journey::before { animation: none !important; opacity: 1 !important; translate: none !important; scale: none !important; }
+}
+
+/* The pro panel carries the brand tile too, fading in from its far corner,
+   so the page closes in the same visual language it opened with. */
+.z-procta::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2280%22%20height%3D%2280%22%20viewBox%3D%220%200%2080%2080%22%3E%3Cg%20fill%3D%22none%22%20stroke%3D%22%23F5F1E8%22%20stroke-opacity%3D%220.16%22%20stroke-width%3D%221.2%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M40%2015.96L47.04%2023L57%2023L57%2032.96L64.04%2040L57%2047.04L57%2057L47.04%2057L40%2064.04L32.96%2057L23%2057L23%2047.04L15.96%2040L23%2032.96L23%2023L32.96%2023Z%22%2F%3E%3Ccircle%20cx%3D%2240%22%20cy%3D%2240%22%20r%3D%223.2%22%2F%3E%3Cpath%20d%3D%22M0%20-9L9%200L0%209L-9%200ZM80%20-9L89%200L80%209L71%200ZM0%2071L9%2080L0%2089L-9%2080ZM80%2071L89%2080L80%2089L71%2080Z%22%2F%3E%3Cpath%20d%3D%22M40%2015.96V0M64.04%2040H80M40%2064.04V80M15.96%2040H0%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E");
+  background-size: 64px 64px;
+  -webkit-mask-image: radial-gradient(70% 90% at 100% 0%, #000 0%, transparent 70%);
+  mask-image: radial-gradient(70% 90% at 100% 0%, #000 0%, transparent 70%);
+}
+:root[dir='rtl'] .z-procta::before {
+  -webkit-mask-image: radial-gradient(70% 90% at 0% 0%, #000 0%, transparent 70%);
+  mask-image: radial-gradient(70% 90% at 0% 0%, #000 0%, transparent 70%);
 }

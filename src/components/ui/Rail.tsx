@@ -17,7 +17,7 @@ export function Rail({
 }: {
   children: ReactNode;
   labels: { previous: string; next: string; region: string };
-  /** Stagger the cards in as the rail scrolls into view. */
+  /** Let the rail arrive as the page scrolls it into view. */
   reveal?: boolean;
 }) {
   const track = useRef<HTMLDivElement>(null);
@@ -51,11 +51,10 @@ export function Rail({
   const scrollable = !(edges.start && edges.end);
 
   return (
-    <div className="z-rail" data-scrollable={scrollable}>
+    <div className="z-rail" data-scrollable={scrollable} data-reveal={reveal ? '' : undefined}>
       <div
         ref={track}
         className="z-rail__track"
-        data-reveal={reveal ? 'stagger' : undefined}
         onScroll={measure}
         role="region"
         aria-label={labels.region}

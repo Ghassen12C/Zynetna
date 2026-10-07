@@ -27,6 +27,8 @@ export const ar: Messages = {
     greetingBody: 'شنوة تحب تلقى اليوم؟',
     pointToSearch: 'ابدأ بالبحث —',
     searchCta: 'ابحث عن مهني',
+    listening: 'قلّي شنوّة تحب: خدمة، حومة، ولا سوم…',
+    thinking: 'لحظة، نلوّجلك…',
   },
   home: {
     heroTitle: 'ابحث. احجز. استمتع.',
@@ -83,6 +85,22 @@ export const ar: Messages = {
     previous: 'السابق',
     nextItems: 'التالي',
     featuredRegion: 'مؤسسات مختارة',
+    liveStats: {
+      zero: 'لا مؤسسات بعد',
+      one: 'مؤسسة واحدة للحجز عبر الإنترنت',
+      two: 'مؤسستان للحجز عبر الإنترنت',
+      few: '{count} مؤسسات للحجز عبر الإنترنت',
+      many: '{count} مؤسسة للحجز عبر الإنترنت',
+      other: '{count} مؤسسة للحجز عبر الإنترنت',
+    },
+    inCities: {
+      zero: '',
+      one: 'في مدينة واحدة',
+      two: 'في مدينتين',
+      few: 'في {count} مدن',
+      many: 'في {count} مدينة',
+      other: 'في {count} مدينة',
+    },
   },
   search: {
     title: 'النتائج',

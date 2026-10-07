@@ -240,3 +240,16 @@ export async function listCities() {
     select: { slug: true, name: true, nameAr: true },
   });
 }
+
+/**
+ * What the home page can honestly claim: how many businesses are live and
+ * in how many cities. Counted, never hard-coded, so the badge grows with the
+ * marketplace and cannot overstate it.
+ */
+export async function marketplaceStats(): Promise<{ businesses: number; cities: number }> {
+  const [businesses, cities] = await Promise.all([
+    db.business.count({ where: LIVE }),
+    db.city.count({ where: { locations: { some: { business: LIVE } } } }),
+  ]);
+  return { businesses, cities };
+}

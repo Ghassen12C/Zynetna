@@ -27,6 +27,8 @@ export const en: Messages = {
     greetingBody: 'Tell me what you are looking for and I will take you there.',
     pointToSearch: 'Start with a search —',
     searchCta: 'find a professional',
+    listening: 'Tell me: a service, a neighbourhood, a budget…',
+    thinking: 'One moment, finding it for you…',
   },
   home: {
     heroTitle: 'Find. Book. Enjoy.',
@@ -80,6 +82,14 @@ export const en: Messages = {
     previous: 'Previous',
     nextItems: 'Next',
     featuredRegion: 'Featured places',
+    liveStats: {
+      one: '{count} place to book online',
+      other: '{count} places to book online',
+    } as PluralForms,
+    inCities: {
+      one: 'in {count} city',
+      other: 'in {count} cities',
+    } as PluralForms,
   },
   search: {
     title: 'Results',
