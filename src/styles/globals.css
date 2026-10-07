@@ -3510,3 +3510,7 @@ a.z-notif:hover { border-color: var(--z-accent); }
   color: var(--z-fg-muted);
   font-style: italic;
 }
+
+/* Direction-aware arrows: "forward" points the way the text reads. */
+.z-arrow { display: inline-block; }
+[dir='rtl'] .z-arrow { transform: scaleX(-1); }

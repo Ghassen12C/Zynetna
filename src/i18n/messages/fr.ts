@@ -1,4 +1,9 @@
 import type { PluralForms } from '../config';
+import { labelsFr } from './labels/fr';
+import { dashFr } from './dash/fr';
+import { dashSetupFr } from './dashSetup/fr';
+import { adminFr } from './admin/fr';
+import { feedbackFr } from './feedback/fr';
 
 /** French — the reference locale. Every other file mirrors these keys. */
 export const fr = {
@@ -473,6 +478,11 @@ export const fr = {
     privacy: 'Confidentialité',
     rights: 'Tous droits réservés.',
   },
+  labels: labelsFr,
+  dash: dashFr,
+  dashSetup: dashSetupFr,
+  admin: adminFr,
+  feedback: feedbackFr,
 };
 
 /**

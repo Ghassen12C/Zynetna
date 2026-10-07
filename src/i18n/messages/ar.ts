@@ -1,4 +1,9 @@
 import type { Messages } from './fr';
+import { labelsAr } from './labels/ar';
+import { dashAr } from './dash/ar';
+import { dashSetupAr } from './dashSetup/ar';
+import { adminAr } from './admin/ar';
+import { feedbackAr } from './feedback/ar';
 
 /** Arabic — set in Tajawal and rendered RTL. */
 export const ar: Messages = {
@@ -488,4 +493,9 @@ export const ar: Messages = {
     privacy: 'الخصوصية',
     rights: 'جميع الحقوق محفوظة.',
   },
+  labels: labelsAr,
+  dash: dashAr,
+  dashSetup: dashSetupAr,
+  admin: adminAr,
+  feedback: feedbackAr,
 };

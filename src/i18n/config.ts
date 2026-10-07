@@ -35,6 +35,15 @@ export function isLocale(value: string): value is Locale {
   return (LOCALES as readonly string[]).includes(value);
 }
 
+/**
+ * Prefix an app path with the locale, leaving the default locale unprefixed.
+ * The client-side twin of `translate().path`, for components that receive the
+ * locale as a prop.
+ */
+export function localePath(locale: Locale, href: string): string {
+  return locale === DEFAULT_LOCALE ? href : `/${locale}${href === '/' ? '' : href}`;
+}
+
 export function dirOf(locale: Locale): 'ltr' | 'rtl' {
   return LOCALE_META[locale].dir;
 }

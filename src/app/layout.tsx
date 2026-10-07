@@ -1,6 +1,10 @@
 import type { Metadata, Viewport } from 'next';
 import { Epilogue, Tajawal } from 'next/font/google';
 import '@/styles/globals.css';
+import '@/styles/areas/dash.css';
+import '@/styles/areas/dashSetup.css';
+import '@/styles/areas/admin.css';
+import '@/styles/areas/public.css';
 import { env } from '@/lib/env';
 import { LOCALE_META, LOCALES } from '@/i18n/config';
 import { translate } from '@/i18n/server';

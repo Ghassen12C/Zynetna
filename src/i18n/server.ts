@@ -1,6 +1,6 @@
 import 'server-only';
 import { cookies, headers } from 'next/headers';
-import { DEFAULT_LOCALE, type Locale, isLocale } from './config';
+import { DEFAULT_LOCALE, type Locale, isLocale, localePath } from './config';
 import { interpolate, type Messages, messagesFor } from './index';
 
 /**
@@ -41,7 +41,6 @@ export async function translate(): Promise<Translation> {
     m: messagesFor(locale),
     dir: LOCALE_META[locale].dir,
     t: interpolate,
-    path: (href: string) =>
-      locale === DEFAULT_LOCALE ? href : `/${locale}${href === '/' ? '' : href}`,
+    path: (href: string) => localePath(locale, href),
   };
 }

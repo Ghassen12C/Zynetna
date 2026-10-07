@@ -1,5 +1,10 @@
 import type { PluralForms } from '../config';
 import type { Messages } from './fr';
+import { labelsEn } from './labels/en';
+import { dashEn } from './dash/en';
+import { dashSetupEn } from './dashSetup/en';
+import { adminEn } from './admin/en';
+import { feedbackEn } from './feedback/en';
 
 export const en: Messages = {
   brand: {
@@ -471,4 +476,9 @@ export const en: Messages = {
     privacy: 'Privacy',
     rights: 'All rights reserved.',
   },
+  labels: labelsEn,
+  dash: dashEn,
+  dashSetup: dashSetupEn,
+  admin: adminEn,
+  feedback: feedbackEn,
 };
