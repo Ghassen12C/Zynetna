@@ -76,13 +76,32 @@ export const viewport: Viewport = {
   ],
 };
 
+/**
+ * Mirrors the system colour scheme onto <html data-theme> before first paint.
+ *
+ * The colour tokens already follow `prefers-color-scheme`, but component-level
+ * dark adjustments are written against `[data-theme='dark']`; without this
+ * they never applied to visitors in system dark mode. Runs inline in <head>
+ * so the page never flashes the wrong theme, and follows the setting live.
+ * The attribute is set outside React, hence suppressHydrationWarning on <html>.
+ */
+const THEME_SCRIPT = `(function(){try{var d=document.documentElement,m=window.matchMedia('(prefers-color-scheme: dark)');var s=function(){d.setAttribute('data-theme',m.matches?'dark':'light')};s();m.addEventListener('change',s)}catch(e){}})();`;
+
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   // lang and dir come from the resolved locale, so Arabic genuinely renders
   // right-to-left and the Arabic typeface switches via :lang(ar).
   const { locale, m, dir } = await translate();
 
   return (
-    <html lang={locale} dir={dir} className={`${epilogue.variable} ${tajawal.variable}`}>
+    <html
+      lang={locale}
+      dir={dir}
+      className={`${epilogue.variable} ${tajawal.variable}`}
+      suppressHydrationWarning
+    >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
+      </head>
       <body>
         <a className="z-skip-link" href="#main">
           {m.common.skipToContent}

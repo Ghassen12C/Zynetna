@@ -46,6 +46,11 @@
   --z-fg-subtle: #6c7c8d;
   --z-fg-inverse: var(--z-chaux);
   --z-fg-on-accent: #ffffff;
+  /* The logo and the hero's soft light, per theme. */
+  --z-brand-mark: var(--z-medina);
+  --z-brand-knockout: var(--z-chaux);
+  --z-hero-glow-a: var(--z-medina-50);
+  --z-hero-glow-b: var(--z-jasmin-100);
 
   --z-border: #ded7c8;
   --z-border-strong: #c6bda9;
@@ -167,6 +172,14 @@
     --z-accent: #5b9ad1;
     --z-accent-hover: #74abdc;
     --z-accent-active: #4a89c0;
+    /* The accent is a light blue on dark grounds, so text on it turns dark. */
+    --z-fg-on-accent: #061320;
+    /* Cream logo on the dark header; the light washes become faint glows
+       instead of the grey fog the light-theme tints leave on navy. */
+    --z-brand-mark: var(--z-chaux);
+    --z-brand-knockout: #08192b;
+    --z-hero-glow-a: rgba(91, 154, 209, 0.14);
+    --z-hero-glow-b: rgba(201, 150, 60, 0.12);
 
     --z-success: #4cb98a;
     --z-success-bg: #0f2e22;
@@ -197,6 +210,14 @@
   --z-accent: #5b9ad1;
   --z-accent-hover: #74abdc;
   --z-accent-active: #4a89c0;
+  /* The accent is a light blue on dark grounds, so text on it turns dark. */
+  --z-fg-on-accent: #061320;
+  /* Cream logo on the dark header; the light washes become faint glows
+     instead of the grey fog the light-theme tints leave on navy. */
+  --z-brand-mark: var(--z-chaux);
+  --z-brand-knockout: #08192b;
+  --z-hero-glow-a: rgba(91, 154, 209, 0.14);
+  --z-hero-glow-b: rgba(201, 150, 60, 0.12);
   --z-success: #4cb98a;
   --z-success-bg: #0f2e22;
   --z-warning: #d6a548;

@@ -864,8 +864,8 @@ button, input, select, textarea { font: inherit; color: inherit; }
   position: relative;
   overflow: hidden;
   background:
-    radial-gradient(1100px 520px at 88% -8%, var(--z-medina-50), transparent 65%),
-    radial-gradient(760px 420px at 4% 10%, var(--z-jasmin-100), transparent 60%);
+    radial-gradient(1100px 520px at 88% -8%, var(--z-hero-glow-a), transparent 65%),
+    radial-gradient(760px 420px at 4% 10%, var(--z-hero-glow-b), transparent 60%);
   padding-block: var(--z-space-12) var(--z-space-16);
 }
 @media (min-width: 900px) { .z-hero { padding-block: var(--z-space-16) var(--z-space-12); } }

@@ -22,8 +22,8 @@ export type MarkProps = {
 
 export function Mark({
   size = 40,
-  tone = 'var(--z-medina)',
-  knockout = 'var(--z-chaux)',
+  tone = 'var(--z-brand-mark)',
+  knockout = 'var(--z-brand-knockout)',
   className,
   title,
 }: MarkProps) {
@@ -61,8 +61,8 @@ export function Mark({
 /** Mark + wordmark, horizontal. The primary lockup. */
 export function Logo({
   size = 36,
-  tone = 'var(--z-medina)',
-  knockout = 'var(--z-chaux)',
+  tone = 'var(--z-brand-mark)',
+  knockout = 'var(--z-brand-knockout)',
   showTagline = false,
   className,
 }: MarkProps & { showTagline?: boolean }) {
