@@ -8,6 +8,8 @@ import { primaryBusinessId } from '@/server/auth/guard';
 import { businessHeader } from '@/server/services/proDashboard';
 import { getSubscriptionView } from '@/server/services/subscriptions';
 import { formatPrice } from '@/i18n/format';
+import { can } from '@/domain/identity/actor';
+import { PRO_NAV } from '@/domain/identity/proNav';
 
 const STATUS_LABEL: Record<string, string> = {
   DRAFT: 'Brouillon',
@@ -31,6 +33,17 @@ export default async function ProDashboardLayout({ children }: { children: React
   ]);
 
   const trialLeft = subscription?.trialDaysLeft ?? null;
+
+  /**
+   * The navigation shows only what this person may actually open.
+   *
+   * An employee holds a narrow set of permissions, and offering them a link
+   * that answers with "access denied" is worse than not offering it: the page
+   * guards already refuse, so the menu should agree with them.
+   */
+  const navItems = PRO_NAV.filter((item) => can(actor, item.permission, { businessId })).map(
+    ({ href, label }) => ({ href, label }),
+  );
 
   return (
     <div className="z-pro">
@@ -100,20 +113,7 @@ export default async function ProDashboardLayout({ children }: { children: React
         ) : null}
 
         <SectionNav
-          items={[
-            { href: '/pro/dashboard', label: 'Vue d’ensemble' },
-            { href: '/pro/dashboard/calendar', label: 'Agenda' },
-            { href: '/pro/dashboard/reservations', label: 'Réservations' },
-            { href: '/pro/dashboard/services', label: 'Prestations' },
-            { href: '/pro/dashboard/team', label: 'Équipe' },
-            { href: '/pro/dashboard/hours', label: 'Horaires' },
-            { href: '/pro/dashboard/gallery', label: 'Photos' },
-            { href: '/pro/dashboard/customers', label: 'Clients' },
-            { href: '/pro/dashboard/reviews', label: 'Avis' },
-            { href: '/pro/dashboard/analytics', label: 'Statistiques' },
-            { href: '/pro/dashboard/profile', label: 'Mon établissement' },
-            { href: '/pro/dashboard/subscription', label: 'Abonnement' },
-          ]}
+          items={navItems}
         />
 
         <div className="z-pro__body">{children}</div>

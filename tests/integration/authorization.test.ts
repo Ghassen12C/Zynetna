@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { can, permissionsIn, tenantIds } from '@/domain/identity/actor';
+import { PRO_HOME_FALLBACK, PRO_NAV } from '@/domain/identity/proNav';
 import type { Actor } from '@/domain/identity/actor';
 import { makeBusiness, makeCustomer, resetDatabase, testDb } from '../setup';
 
@@ -154,5 +155,60 @@ describe('authorization — data scoping', () => {
     expect(visibleToA[0]!.businessId).toBe(salonA.business.id);
 
     expect(await testDb.reservation.count()).toBe(2);
+  });
+});
+
+/**
+ * The dashboard menu and the page guards have to agree. An employee offered a
+ * link that answers "access denied" is a worse experience than one who never
+ * sees the link, and the two drift apart easily.
+ */
+describe('professional navigation', () => {
+  const BUSINESS = 'biz-nav';
+
+  function navFor(roles: RoleName[]) {
+    const actor = actorFor('nav', { [BUSINESS]: roles });
+    return PRO_NAV.filter((item) => can(actor, item.permission, { businessId: BUSINESS })).map(
+      (i) => i.href,
+    );
+  }
+
+  it('offers an owner the whole dashboard', () => {
+    expect(navFor(['BUSINESS_OWNER'])).toHaveLength(PRO_NAV.length);
+  });
+
+  it('offers an employee only the pages they can open', () => {
+    const hrefs = navFor(['BUSINESS_EMPLOYEE']);
+
+    expect(hrefs).toContain('/pro/dashboard/calendar');
+    expect(hrefs).toContain('/pro/dashboard/reservations');
+    expect(hrefs).toContain('/pro/dashboard/customers');
+
+    // Revenue, billing and the shape of the business are the owner's.
+    expect(hrefs).not.toContain('/pro/dashboard');
+    expect(hrefs).not.toContain('/pro/dashboard/analytics');
+    expect(hrefs).not.toContain('/pro/dashboard/subscription');
+    expect(hrefs).not.toContain('/pro/dashboard/profile');
+    expect(hrefs).not.toContain('/pro/dashboard/gallery');
+  });
+
+  it('never offers a link whose permission the actor lacks', () => {
+    for (const roles of [['BUSINESS_OWNER'], ['BUSINESS_EMPLOYEE']] as RoleName[][]) {
+      const actor = actorFor('nav', { [BUSINESS]: roles });
+      for (const item of PRO_NAV) {
+        const offered = navFor(roles).includes(item.href);
+        const allowed = can(actor, item.permission, { businessId: BUSINESS });
+        expect(offered, `${item.href} for ${roles.join('+')}`).toBe(allowed);
+      }
+    }
+  });
+
+  it('sends someone without the revenue overview to a page they can open', () => {
+    const employee = actorFor('nav', { [BUSINESS]: ['BUSINESS_EMPLOYEE'] });
+    expect(can(employee, 'business.analytics.read', { businessId: BUSINESS })).toBe(false);
+
+    const fallback = PRO_NAV.find((i) => i.href === PRO_HOME_FALLBACK);
+    expect(fallback, 'the fallback must be a real nav entry').toBeTruthy();
+    expect(can(employee, fallback!.permission, { businessId: BUSINESS })).toBe(true);
   });
 });

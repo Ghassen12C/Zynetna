@@ -34,6 +34,9 @@ export async function resetDatabase() {
     testDb.reservationItem.deleteMany(),
     testDb.reservation.deleteMany(),
     testDb.favorite.deleteMany(),
+    // Before the staff rows and businesses they point at, so the reset does
+    // not depend on cascade ordering.
+    testDb.staffInvitation.deleteMany(),
     testDb.staffService.deleteMany(),
     testDb.staffHours.deleteMany(),
     testDb.scheduleException.deleteMany(),

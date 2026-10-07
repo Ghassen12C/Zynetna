@@ -3,13 +3,19 @@ import { db } from '@/lib/db';
 import { TeamManager } from '@/components/pro/TeamManager';
 import { proContext } from '@/components/pro/ProGuard';
 import { variantUrl } from '@/server/services/media';
+import { listInvitations } from '@/server/services/invitations';
+import { InvitationsPanel } from '@/components/pro/InvitationsPanel';
+import { can } from '@/domain/identity/actor';
 
 export const metadata: Metadata = { title: 'Équipe', robots: { index: false } };
 
 export default async function TeamPage() {
-  const { businessId } = await proContext('business.staff.read', '/pro/dashboard/team');
+  const { actor, businessId } = await proContext('business.staff.read', '/pro/dashboard/team');
 
-  const [staff, services] = await Promise.all([
+  // Only someone who may change the team sees the invitation controls at all.
+  const canInvite = can(actor, 'business.staff.write', { businessId });
+
+  const [staff, services, invitations] = await Promise.all([
     db.staffMember.findMany({
       where: { businessId },
       orderBy: [{ position: 'asc' }, { createdAt: 'asc' }],
@@ -24,24 +30,44 @@ export default async function TeamPage() {
       orderBy: { position: 'asc' },
       select: { id: true, name: true, isActive: true },
     }),
+    canInvite ? listInvitations(businessId) : Promise.resolve([]),
   ]);
 
   return (
-    <TeamManager
-      businessId={businessId}
-      staff={staff.map((s) => ({
-        id: s.id,
-        displayName: s.displayName,
-        title: s.title,
-        bio: s.bio,
-        specialties: s.specialties,
-        isBookable: s.isBookable,
-        isActive: s.isActive,
-        serviceIds: s.services.map((x) => x.serviceId),
-        avatarUrl: s.avatar ? variantUrl(s.avatar, 'thumb') : null,
-        reservationCount: s._count.reservations,
-      }))}
-      services={services}
-    />
+    <div className="z-stack" style={{ gap: 'var(--z-space-8)' }}>
+      <TeamManager
+        businessId={businessId}
+        staff={staff.map((s) => ({
+          id: s.id,
+          displayName: s.displayName,
+          title: s.title,
+          bio: s.bio,
+          specialties: s.specialties,
+          isBookable: s.isBookable,
+          isActive: s.isActive,
+          serviceIds: s.services.map((x) => x.serviceId),
+          avatarUrl: s.avatar ? variantUrl(s.avatar, 'thumb') : null,
+          reservationCount: s._count.reservations,
+        }))}
+        services={services}
+      />
+
+      {canInvite ? (
+        <InvitationsPanel
+          businessId={businessId}
+          invitations={invitations.map((i) => ({
+            id: i.id,
+            email: i.email,
+            role: i.role,
+            status: i.status,
+            expiresAt: i.expiresAt.toISOString(),
+            invitedByName: i.invitedByName,
+          }))}
+          unlinkedStaff={staff
+            .filter((s) => !s.userId && s.isActive)
+            .map((s) => ({ id: s.id, displayName: s.displayName }))}
+        />
+      ) : null}
+    </div>
   );
 }

@@ -58,6 +58,8 @@ model User {
   ownedBusinesses   Business[]               @relation("BusinessOwner")
   staffProfiles     StaffMember[]
   reservations      Reservation[]            @relation("CustomerReservations")
+  invitationsSent     StaffInvitation[] @relation("InvitationsSent")
+  invitationsAccepted StaffInvitation[] @relation("InvitationsAccepted")
   reviews           Review[]
   favorites         Favorite[]
   notifications     Notification[]
@@ -256,6 +258,7 @@ model Business {
   @@index([ownerId])
   @@index([status, publishedAt])
   @@index([slug])
+  invitations   StaffInvitation[]
 }
 
 model BusinessLocation {
@@ -440,6 +443,7 @@ model StaffMember {
 
   @@unique([businessId, userId])
   @@index([businessId, isActive, position])
+  invitations  StaffInvitation[]
 }
 
 /// Which professional performs which service. The booking engine honours this.
@@ -954,4 +958,34 @@ model RateLimitBucket {
   expiresAt DateTime @db.Timestamptz(3)
 
   @@index([expiresAt])
+}
+
+/// An invitation for someone to join a business's team with an account.
+///
+/// Employees are not created by typing a password on their behalf: the owner
+/// invites an email, the person accepts with their own account, and only then
+/// does the role assignment exist. The token is stored hashed, exactly like a
+/// session or a password reset, so a leaked database row cannot be redeemed.
+model StaffInvitation {
+  id            String    @id @default(cuid())
+  businessId    String
+  /// The staff row this account will be linked to when accepted.
+  staffMemberId String?
+  email         String    @db.Citext
+  role          RoleName  @default(BUSINESS_EMPLOYEE)
+  tokenHash     String    @unique
+  invitedById   String
+  expiresAt     DateTime  @db.Timestamptz(3)
+  acceptedAt    DateTime? @db.Timestamptz(3)
+  acceptedById  String?
+  revokedAt     DateTime? @db.Timestamptz(3)
+  createdAt     DateTime  @default(now()) @db.Timestamptz(3)
+
+  business    Business     @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  staffMember StaffMember? @relation(fields: [staffMemberId], references: [id], onDelete: SetNull)
+  invitedBy   User         @relation("InvitationsSent", fields: [invitedById], references: [id], onDelete: Cascade)
+  acceptedBy  User?        @relation("InvitationsAccepted", fields: [acceptedById], references: [id], onDelete: SetNull)
+
+  @@index([businessId])
+  @@index([email])
 }

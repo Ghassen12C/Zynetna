@@ -2763,3 +2763,23 @@ a.z-notif:hover { border-color: var(--z-accent); }
   .z-sticky-actions .z-row { justify-content: stretch; }
   .z-sticky-actions .z-btn { flex: 1; }
 }
+
+/* A single narrow column for focused, one-decision pages (an invitation, a
+   confirmation): comfortable measure on desktop, full width on a phone. */
+.z-narrow {
+  max-width: 34rem;
+  padding-block: var(--z-space-8);
+}
+
+/* Team invitations. */
+.z-invites { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: var(--z-space-2); }
+.z-invite {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--z-space-3);
+  flex-wrap: wrap;
+  padding: var(--z-space-3) var(--z-space-4);
+  background: var(--z-bg-raised);
+  border: 1px solid var(--z-border);
+  border-radius: var(--z-radius-md);
+  font-size: var(--z-text-sm);
+}
+.z-invite strong { font-weight: var(--z-weight-semibold); }

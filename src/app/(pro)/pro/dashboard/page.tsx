@@ -5,6 +5,8 @@ import { Panel, EmptyState } from '@/components/ui/Primitives';
 import { ButtonLink } from '@/components/ui/Button';
 import { BarList, TrendChart } from '@/components/charts/Charts';
 import { getActor } from '@/server/auth/session';
+import { can } from '@/domain/identity/actor';
+import { PRO_HOME_FALLBACK } from '@/domain/identity/proNav';
 import { primaryBusinessId, requireBusinessAccess } from '@/server/auth/guard';
 import {
   businessHeader,
@@ -22,6 +24,15 @@ export default async function ProOverviewPage() {
   if (!actor) redirect('/login?redirectTo=/pro/dashboard');
   const id = await primaryBusinessId(actor);
   if (!id) redirect('/pro/onboarding');
+
+  /**
+   * This overview is a revenue dashboard, which an employee has no business
+   * reading. Their work is the calendar, so send them there rather than
+   * answering their own landing page with "access denied".
+   */
+  if (!can(actor, 'business.analytics.read', { businessId: id })) {
+    redirect(PRO_HOME_FALLBACK);
+  }
 
   // Even though the layout resolved the business, the page re-checks the
   // permission: every data read is guarded, not just the entry point.
