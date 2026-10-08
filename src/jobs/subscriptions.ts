@@ -3,6 +3,7 @@ import { logger } from '@/lib/logger';
 import { runSubscriptionLifecycle } from '@/server/services/subscriptions';
 import { purgeExpiredSessions } from '@/server/auth/session';
 import { purgeExpiredBuckets } from '@/server/rateLimit';
+import { purgeExpiredChallenges } from '@/server/auth/twoFactor';
 
 /**
  * Nightly maintenance.
@@ -17,6 +18,7 @@ async function main() {
   const lifecycle = await runSubscriptionLifecycle();
   const sessions = await purgeExpiredSessions();
   const buckets = await purgeExpiredBuckets();
+  await purgeExpiredChallenges();
 
   // Reservations nobody ever confirmed, long past their start time, are dead
   // weight on the calendar and on availability.

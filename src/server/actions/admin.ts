@@ -6,6 +6,7 @@ import { db } from '@/lib/db';
 import { invalid, notFound } from '@/lib/errors';
 import { requireSuperAdmin } from '@/server/auth/guard';
 import { revokeAllSessions } from '@/server/auth/session';
+import { clearTwoFactor } from '@/server/auth/twoFactor';
 import { recordAudit } from '@/server/audit';
 import { notify } from '@/server/services/notifications';
 import { recordPayment } from '@/server/services/subscriptions';
@@ -130,7 +131,7 @@ export async function moderateUserAction(
   const parsed = await parseForm(
     z.object({
       userId: cuidSchema,
-      decision: z.enum(['suspend', 'reactivate', 'grantAdmin', 'revokeAdmin']),
+      decision: z.enum(['suspend', 'reactivate', 'grantAdmin', 'revokeAdmin', 'resetTwoFactor']),
       note: richTextSchema(500).optional().or(z.literal('')),
     }),
     formData,
@@ -159,6 +160,12 @@ export async function moderateUserAction(
         actor, action: 'user.suspended', targetType: 'User',
         targetId: user.id, metadata: { note: parsed.data.note || null },
       });
+    } else if (parsed.data.decision === 'resetTwoFactor') {
+      // Support for someone who lost both their phone and their recovery
+      // codes: two-step login is turned off and they can sign in with the
+      // password alone, then enrol again.
+      await clearTwoFactor(user.id);
+      await recordAudit({ actor, action: 'auth.2fa_reset', targetType: 'User', targetId: user.id });
     } else if (parsed.data.decision === 'reactivate') {
       await db.user.update({ where: { id: user.id }, data: { status: 'ACTIVE' } });
       await recordAudit({ actor, action: 'user.reactivated', targetType: 'User', targetId: user.id });

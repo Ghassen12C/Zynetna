@@ -1,6 +1,6 @@
 'use server';
 
-import { headers } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { db } from '@/lib/db';
 import { AppError, invalid } from '@/lib/errors';
@@ -15,6 +15,8 @@ import {
 } from '@/server/auth/hash';
 import { sendPasswordResetEmail } from '@/server/services/notifications';
 import { createSession, destroySession, revokeAllSessions } from '@/server/auth/session';
+import { completeLoginChallenge, createLoginChallenge } from '@/server/auth/twoFactor';
+import { isProd } from '@/lib/env';
 import { requireActor } from '@/server/auth/guard';
 import { consume } from '@/server/rateLimit';
 import {
@@ -34,6 +36,21 @@ async function clientIp(): Promise<string> {
     headerList.get('x-real-ip') ??
     'unknown'
   );
+}
+
+/**
+ * The pending-login cookie between the password and the authenticator code.
+ * It holds an opaque token only; the challenge itself lives in the database.
+ */
+const TWO_FACTOR_COOKIE = 'zynetna_2fa';
+
+/** Send people where their work is. */
+function landingFor(roles: string[]): string {
+  return roles.includes('SUPER_ADMIN')
+    ? '/admin'
+    : roles.includes('BUSINESS_OWNER') || roles.includes('BUSINESS_EMPLOYEE')
+      ? '/pro/dashboard'
+      : '/account';
 }
 
 /** Only allow redirects to our own paths — never an absolute URL from a form. */
@@ -60,7 +77,13 @@ export async function loginAction(
 
     const user = await db.user.findUnique({
       where: { email: parsed.data.email },
-      select: { id: true, passwordHash: true, status: true, roles: { select: { role: true } } },
+      select: {
+        id: true,
+        passwordHash: true,
+        status: true,
+        totpEnabledAt: true,
+        roles: { select: { role: true } },
+      },
     });
 
     if (!user) {
@@ -78,28 +101,107 @@ export async function loginAction(
       return { status: 'error', message: (await feedbackFor()).errors.accountSuspended };
     }
 
-    await createSession(user.id);
-    await db.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
-    await recordAudit({
-      action: 'auth.login',
-      targetType: 'User',
-      targetId: user.id,
-      ipAddress: ip,
-    });
-
-    // Send people where their work is.
-    const roles = user.roles.map((r) => r.role);
-    const fallback = roles.includes('SUPER_ADMIN')
-      ? '/admin'
-      : roles.includes('BUSINESS_OWNER') || roles.includes('BUSINESS_EMPLOYEE')
-        ? '/pro/dashboard'
-        : '/account';
-    destination = safeRedirect(parsed.data.redirectTo, fallback);
+    // Two-step login: the password alone opens no session, only a short-lived
+    // challenge that the authenticator code completes.
+    if (user.totpEnabledAt) {
+      const token = await createLoginChallenge(
+        user.id,
+        parsed.data.redirectTo ? safeRedirect(parsed.data.redirectTo, '') || null : null,
+      );
+      const store = await cookies();
+      store.set(TWO_FACTOR_COOKIE, token, {
+        httpOnly: true,
+        secure: isProd,
+        sameSite: 'lax',
+        path: '/',
+        maxAge: 10 * 60,
+      });
+      destination = '/login/verify';
+    } else {
+      await createSession(user.id);
+      await db.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
+      await recordAudit({
+        action: 'auth.login',
+        targetType: 'User',
+        targetId: user.id,
+        ipAddress: ip,
+      });
+      destination = safeRedirect(parsed.data.redirectTo, landingFor(user.roles.map((r) => r.role)));
+    }
   } catch (error) {
     return toFormState(error, 'loginAction');
   }
 
   redirect(destination);
+}
+
+/**
+ * Second step of a two-step login: the 6-digit code from the authenticator
+ * app, or a one-time recovery code. Rate-limited by IP, and each pending login
+ * allows only a few attempts before the password must be entered again.
+ */
+export async function verifyLoginAction(
+  _prev: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  let destination = '/account';
+  try {
+    const store = await cookies();
+    const token = store.get(TWO_FACTOR_COOKIE)?.value;
+    if (!token) throw invalid('twoFactorExpired');
+
+    const ip = await clientIp();
+    await consume('twoFactor', ip);
+
+    const code = String(formData.get('code') ?? '').trim().slice(0, 32);
+    if (!code) throw invalid('twoFactorCodeInvalid');
+
+    let result;
+    try {
+      result = await completeLoginChallenge(token, code);
+    } catch (error) {
+      // An expired or exhausted challenge cannot be retried: drop the cookie.
+      if (
+        error instanceof AppError &&
+        ['twoFactorExpired', 'twoFactorTooManyAttempts'].includes(error.i18n?.key ?? '')
+      ) {
+        store.delete(TWO_FACTOR_COOKIE);
+      }
+      throw error;
+    }
+
+    const user = await db.user.findUniqueOrThrow({
+      where: { id: result.userId },
+      select: { status: true, roles: { select: { role: true } } },
+    });
+    if (user.status !== 'ACTIVE') {
+      store.delete(TWO_FACTOR_COOKIE);
+      return { status: 'error', message: (await feedbackFor()).errors.accountSuspended };
+    }
+
+    store.delete(TWO_FACTOR_COOKIE);
+    await createSession(result.userId);
+    await db.user.update({ where: { id: result.userId }, data: { lastLoginAt: new Date() } });
+    await recordAudit({
+      action: result.method === 'recovery' ? 'auth.2fa_recovery_used' : 'auth.login',
+      targetType: 'User',
+      targetId: result.userId,
+      ipAddress: ip,
+    });
+
+    destination = safeRedirect(result.redirectTo ?? undefined, landingFor(user.roles.map((r) => r.role)));
+  } catch (error) {
+    return toFormState(error, 'verifyLoginAction');
+  }
+
+  redirect(destination);
+}
+
+/** Give up on a pending two-step login and go back to the password form. */
+export async function cancelLoginChallengeAction(): Promise<void> {
+  const store = await cookies();
+  store.delete(TWO_FACTOR_COOKIE);
+  redirect('/login');
 }
 
 export async function registerAction(

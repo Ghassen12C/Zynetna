@@ -26,6 +26,7 @@ type Row = {
   locale: string;
   createdAt: string;
   lastLoginAt: string | null;
+  twoFactor: boolean;
   roles: string[];
   reservations: number;
   reviews: number;
@@ -95,6 +96,15 @@ function UserActions({ row, isSelf, m }: { row: Row; isSelf: boolean; m: AdminMe
             <input type="hidden" name="decision" value={isAdmin ? 'revokeAdmin' : 'grantAdmin'} />
             <Submit label={isAdmin ? u.revokeAdmin : u.grantAdmin} variant="secondary" />
           </form>
+
+          {/* For someone who lost both their phone and their recovery codes. */}
+          {row.twoFactor ? (
+            <form action={formAction}>
+              <input type="hidden" name="userId" value={row.id} />
+              <input type="hidden" name="decision" value="resetTwoFactor" />
+              <Submit label={u.resetTwoFactor} variant="ghost" />
+            </form>
+          ) : null}
         </div>
       )}
     </div>
@@ -237,6 +247,12 @@ export function AdminUserTable({
                         {m.labels.userStatus[row.status as keyof typeof m.labels.userStatus] ??
                           row.status}
                       </Badge>
+                      {row.twoFactor ? (
+                        <>
+                          {' '}
+                          <Badge tone="accent">{u.twoFactorOn}</Badge>
+                        </>
+                      ) : null}
                     </td>
                     <td>
                       <span className="z-help">

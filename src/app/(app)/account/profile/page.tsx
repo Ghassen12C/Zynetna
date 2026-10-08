@@ -5,6 +5,8 @@ import { getActor } from '@/server/auth/session';
 import { ProfileForm } from '@/components/account/ProfileForm';
 import { PasswordForm } from '@/components/account/PasswordForm';
 import { LogoutButton } from '@/components/account/LogoutButton';
+import { TwoFactorPanel } from '@/components/account/TwoFactorPanel';
+import { twoFactorStatus } from '@/server/auth/twoFactor';
 import { formatCount } from '@/i18n/format';
 import { translate } from '@/i18n/server';
 
@@ -29,12 +31,13 @@ export default async function ProfilePage() {
   const actor = await getActor();
   if (!actor) redirect('/login?redirectTo=/account/profile');
 
-  const [user, sessions, { m, locale }] = await Promise.all([
+  const [user, sessions, twoFactor, { m, locale }] = await Promise.all([
     db.user.findUniqueOrThrow({
       where: { id: actor.userId },
       select: { firstName: true, lastName: true, email: true, phone: true, locale: true, createdAt: true },
     }),
     db.session.count({ where: { userId: actor.userId, revokedAt: null, expiresAt: { gt: new Date() } } }),
+    twoFactorStatus(actor.userId),
     translate(),
   ]);
 
@@ -56,6 +59,16 @@ export default async function ProfilePage() {
           {sessions > 1 ? ` ${formatCount(m.account.activeSessions, sessions, locale)}` : ''}
         </p>
         <PasswordForm m={{ auth: m.auth, account: m.account }} />
+      </section>
+
+      <section className="z-panel">
+        <h2 className="z-profile__h3">{m.account.twoFactorTitle}</h2>
+        <TwoFactorPanel
+          enabledAt={twoFactor.enabledAt?.toISOString() ?? null}
+          recoveryLeft={twoFactor.recoveryLeft}
+          m={{ auth: m.auth, account: m.account, common: m.common }}
+          locale={locale}
+        />
       </section>
 
       <section className="z-panel">

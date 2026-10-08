@@ -10,6 +10,9 @@ import type { PluralForms } from '../../config';
  */
 export const feedbackFr = {
   done: {
+    twoFactorEnabled: 'Validation en deux étapes activée.',
+    twoFactorDisabled: 'Validation en deux étapes désactivée.',
+    recoveryCodesRenewed: 'Nouveaux codes de secours créés. Les anciens ne fonctionnent plus.',
     businessUpdated: 'Établissement mis à jour.',
     userUpdated: 'Utilisateur mis à jour.',
     reviewModerated: 'Avis modéré.',
@@ -58,6 +61,11 @@ export const feedbackFr = {
   },
 
   errors: {
+    twoFactorAlreadyOn: 'La validation en deux étapes est déjà activée.',
+    twoFactorNotStarted: 'Recommencez l’activation : scannez d’abord le QR code.',
+    twoFactorCodeInvalid: 'Code incorrect ou déjà utilisé. Vérifiez l’heure de votre téléphone et réessayez.',
+    twoFactorExpired: 'Cette connexion a expiré. Saisissez à nouveau votre e-mail et votre mot de passe.',
+    twoFactorTooManyAttempts: 'Trop de codes incorrects. Saisissez à nouveau votre e-mail et votre mot de passe.',
     packNeedsServices: 'Un pack regroupe au moins deux prestations de votre établissement.',
     // Generic
     unauthenticated: 'Connectez-vous pour continuer.',

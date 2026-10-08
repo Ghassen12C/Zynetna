@@ -3,6 +3,9 @@ import type { feedbackFr } from './fr';
 
 export const feedbackEn: typeof feedbackFr = {
   done: {
+    twoFactorEnabled: 'Two-step verification is on.',
+    twoFactorDisabled: 'Two-step verification is off.',
+    recoveryCodesRenewed: 'New recovery codes created. The old ones no longer work.',
     businessUpdated: 'Business updated.',
     userUpdated: 'User updated.',
     reviewModerated: 'Review moderated.',
@@ -50,6 +53,11 @@ export const feedbackEn: typeof feedbackFr = {
   },
 
   errors: {
+    twoFactorAlreadyOn: 'Two-step verification is already on.',
+    twoFactorNotStarted: 'Start again: scan the QR code first.',
+    twoFactorCodeInvalid: 'Wrong or already used code. Check your phone’s time and try again.',
+    twoFactorExpired: 'This sign-in has expired. Enter your email and password again.',
+    twoFactorTooManyAttempts: 'Too many wrong codes. Enter your email and password again.',
     packNeedsServices: 'A pack bundles at least two of your business’s services.',
     unauthenticated: 'You must be signed in.',
     signInRequired: 'Sign-in is required for this.',

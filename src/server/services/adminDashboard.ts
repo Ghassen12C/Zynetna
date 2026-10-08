@@ -281,7 +281,7 @@ export async function adminUsers(filters: { q?: string; role?: string; status?: 
       take: perPage,
       select: {
         id: true, email: true, firstName: true, lastName: true, phone: true,
-        status: true, createdAt: true, lastLoginAt: true, locale: true,
+        status: true, createdAt: true, lastLoginAt: true, locale: true, totpEnabledAt: true,
         roles: { select: { role: true, businessId: true } },
         _count: { select: { reservations: true, reviews: true } },
       },

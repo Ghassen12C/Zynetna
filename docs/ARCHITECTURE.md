@@ -197,6 +197,19 @@ does no I/O, so double-booking and availability edge cases are tested in millise
 
 ---
 
+**Two-step login (authenticator app).** Optional for every account, from *Mon profil*.
+It follows RFC 6238 (SHA-1, 6 digits, 30 s), the format Google Authenticator and similar
+apps use (`domain/identity/totp.ts`, checked against the RFC test values). With it on, a
+correct password creates no session: it opens a `LoginChallenge` (10 minutes, 5 attempts,
+an opaque token in the `zynetna_2fa` HttpOnly cookie), and `/login/verify` turns it into a
+session after a valid code. Each code works once: the last accepted step is stored and
+updated conditionally, so a replayed or raced code is refused. The secret is AES-256-GCM
+encrypted with a key derived from `SESSION_SECRET`; rotating that secret turns two-step
+login off for everyone, who then enrol again. Ten one-time recovery codes are issued at
+enrolment, stored hashed. Turning it off needs the password and a code. A super admin can
+reset it for a user who lost both phone and codes (Admin → Utilisateurs), and every step
+is audited (`auth.2fa_*`). Code checks are rate-limited (`twoFactor`: 10 per 5 minutes).
+
 ## 6. User roles
 
 | Role | Scope | Can |

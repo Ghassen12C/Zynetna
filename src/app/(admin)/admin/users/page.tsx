@@ -37,6 +37,7 @@ export default async function AdminUsersPage({
         locale: u.locale,
         createdAt: u.createdAt.toISOString(),
         lastLoginAt: u.lastLoginAt?.toISOString() ?? null,
+        twoFactor: Boolean(u.totpEnabledAt),
         roles: [...new Set(u.roles.map((r) => r.role))],
         reservations: u._count.reservations,
         reviews: u._count.reviews,

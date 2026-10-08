@@ -3,6 +3,9 @@ import type { feedbackFr } from './fr';
 
 export const feedbackAr: typeof feedbackFr = {
   done: {
+    twoFactorEnabled: 'تم تفعيل التحقق بخطوتين.',
+    twoFactorDisabled: 'تم إيقاف التحقق بخطوتين.',
+    recoveryCodesRenewed: 'تم إنشاء رموز احتياطية جديدة. الرموز القديمة لم تعد صالحة.',
     businessUpdated: 'تم تحديث المؤسسة.',
     userUpdated: 'تم تحديث المستخدم.',
     reviewModerated: 'تمت مراجعة التقييم.',
@@ -51,6 +54,11 @@ export const feedbackAr: typeof feedbackFr = {
   },
 
   errors: {
+    twoFactorAlreadyOn: 'التحقق بخطوتين مفعّل مسبقاً.',
+    twoFactorNotStarted: 'أعد التفعيل: امسح رمز QR أولاً.',
+    twoFactorCodeInvalid: 'الرمز غير صحيح أو مستعمل. تأكّد من ساعة هاتفك وأعد المحاولة.',
+    twoFactorExpired: 'انتهت صلاحية تسجيل الدخول هذا. أدخل بريدك الإلكتروني وكلمة المرور من جديد.',
+    twoFactorTooManyAttempts: 'رموز خاطئة كثيرة. أدخل بريدك الإلكتروني وكلمة المرور من جديد.',
     packNeedsServices: 'تجمع الباقة خدمتين على الأقل من خدمات مؤسستك.',
     unauthenticated: 'سجّل الدخول للمتابعة.',
     signInRequired: 'سجّل الدخول للمتابعة.',

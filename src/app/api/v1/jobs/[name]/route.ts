@@ -6,6 +6,7 @@ import { runSubscriptionLifecycle } from '@/server/services/subscriptions';
 import { runDueReminders } from '@/server/services/notifications';
 import { purgeExpiredSessions } from '@/server/auth/session';
 import { purgeExpiredBuckets } from '@/server/rateLimit';
+import { purgeExpiredChallenges } from '@/server/auth/twoFactor';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,6 +24,7 @@ const JOBS = {
   cleanup: async () => ({
     sessions: await purgeExpiredSessions(),
     buckets: await purgeExpiredBuckets(),
+    loginChallenges: await purgeExpiredChallenges(),
   }),
 } as const;
 

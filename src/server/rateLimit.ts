@@ -12,6 +12,7 @@ export type RateLimitRule = { limit: number; windowSeconds: number };
 
 export const RATE_LIMITS = {
   login: { limit: 8, windowSeconds: 300 },
+  twoFactor: { limit: 10, windowSeconds: 300 },
   register: { limit: 5, windowSeconds: 3600 },
   passwordReset: { limit: 5, windowSeconds: 3600 },
   booking: { limit: 20, windowSeconds: 600 },

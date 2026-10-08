@@ -3652,3 +3652,10 @@ a.z-notif:hover { border-color: var(--z-accent); }
   a:hover > .z-logo .z-mark__dot,
   a:focus-visible > .z-logo .z-mark__dot { translate: 0 -9px; }
 }
+
+/* ── Two-step verification ─────────────────────────────────────────────── */
+.z-otp .z-input { font-size: var(--z-text-xl); letter-spacing: 0.3em; text-align: center; font-variant-numeric: tabular-nums; }
+/* A QR code needs a white quiet zone to scan, in either theme. */
+.z-qr { inline-size: 180px; block-size: 180px; padding: var(--z-space-2); background: #fff; border-radius: var(--z-radius-md); border: 1px solid var(--z-border); }
+.z-secret { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: var(--z-text-sm); padding: 2px var(--z-space-2); background: var(--z-bg-sunken); border-radius: var(--z-radius-sm); word-break: break-all; }
+.z-codes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--z-space-2) var(--z-space-4); list-style: none; margin: 0; padding: var(--z-space-4); border: 1px dashed var(--z-border-strong); border-radius: var(--z-radius-md); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: var(--z-text-base); }

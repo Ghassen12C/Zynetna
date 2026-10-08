@@ -51,6 +51,12 @@ model User {
   lastLoginAt   DateTime?  @db.Timestamptz(3)
   createdAt     DateTime   @default(now()) @db.Timestamptz(3)
   updatedAt     DateTime   @updatedAt @db.Timestamptz(3)
+  /// Authenticator-app secret (RFC 6238), AES-256-GCM encrypted. Set while
+  /// enrolling; two-step login is on only once totpEnabledAt is set.
+  totpSecret    String?
+  totpEnabledAt DateTime?  @db.Timestamptz(3)
+  /// Last 30-second step accepted, so a code cannot be replayed.
+  totpLastStep  Int?
 
   avatar              MediaAsset?              @relation("UserAvatar", fields: [avatarId], references: [id], onDelete: SetNull)
   sessions            Session[]
@@ -69,9 +75,43 @@ model User {
   verifications       VerificationToken[]
   reportsFiled        ContentReport[]          @relation("ReportReporter")
   reviewResponses     ReviewResponse[]
+  recoveryCodes       RecoveryCode[]
+  loginChallenges     LoginChallenge[]
 
   @@index([status, createdAt])
   @@index([createdAt])
+}
+
+/// One-time codes that stand in for the authenticator app when the phone is
+/// lost. Stored hashed; each works once.
+model RecoveryCode {
+  id        String    @id @default(cuid())
+  userId    String
+  codeHash  String    @unique
+  usedAt    DateTime? @db.Timestamptz(3)
+  createdAt DateTime  @default(now()) @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+/// The step between a correct password and the authenticator code: no session
+/// exists yet, only this short-lived record behind an HttpOnly cookie.
+model LoginChallenge {
+  id         String   @id @default(cuid())
+  /// SHA-256 of the cookie token.
+  tokenHash  String   @unique
+  userId     String
+  redirectTo String?
+  attempts   Int      @default(0)
+  expiresAt  DateTime @db.Timestamptz(3)
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
 }
 
 model Session {
