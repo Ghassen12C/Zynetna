@@ -17,6 +17,7 @@ import {
 } from '@/i18n/format';
 import { translate } from '@/i18n/server';
 import { interpolate } from '@/i18n/interpolate';
+import { mapProvider } from '@/server/providers/maps';
 import { coverStyle } from '@/lib/brand';
 
 function hhmm(minutes: number): string {
@@ -424,7 +425,7 @@ export async function BusinessProfileView({
                 </address>
                 <a
                   className="z-btn z-btn--secondary z-btn--sm z-btn--block"
-                  href={`https://www.openstreetmap.org/?mlat=${business.location.latitude}&mlon=${business.location.longitude}#map=17/${business.location.latitude}/${business.location.longitude}`}
+                  href={mapProvider.directionsUrl(business.location.latitude, business.location.longitude)}
                   target="_blank"
                   rel="noopener noreferrer"
                 >

@@ -24,6 +24,10 @@ export interface MapProvider {
   staticMapUrl?(lat: number, lng: number, zoom: number, width: number, height: number): string;
 }
 
+function googleDirections(lat: number, lng: number) {
+  return `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+}
+
 class OpenStreetMapProvider implements MapProvider {
   readonly name = 'osm';
   tiles(): TileSource {
@@ -34,8 +38,12 @@ class OpenStreetMapProvider implements MapProvider {
       subdomains: ['a', 'b', 'c'],
     };
   }
+  /**
+   * Directions open in Google Maps, which most visitors in Tunisia have on
+   * their phone. A Maps URL (no key, no API call) is free to link to.
+   */
   directionsUrl(lat: number, lng: number) {
-    return `https://www.openstreetmap.org/directions?to=${lat},${lng}`;
+    return googleDirections(lat, lng);
   }
 }
 
@@ -63,22 +71,7 @@ class MapboxProvider implements MapProvider {
     };
   }
   directionsUrl(lat: number, lng: number) {
-    return `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
-  }
-}
-
-class GoogleMapsProvider implements MapProvider {
-  readonly name = 'google';
-  tiles(): TileSource {
-    return {
-      urlTemplate: 'https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
-      attribution: '© Google',
-      maxZoom: 21,
-      subdomains: ['0', '1', '2', '3'],
-    };
-  }
-  directionsUrl(lat: number, lng: number) {
-    return `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+    return googleDirections(lat, lng);
   }
 }
 
@@ -86,7 +79,10 @@ const PROVIDERS: Record<string, MapProvider> = {
   osm: new OpenStreetMapProvider(),
   azure: new AzureMapsProvider(),
   mapbox: new MapboxProvider(),
-  google: new GoogleMapsProvider(),
+  // Google's map imagery may only be shown through its paid Maps JavaScript
+  // API; reading its tile servers directly is against its terms. Until that
+  // API is wired in, "google" keeps OpenStreetMap tiles and Google directions.
+  google: new OpenStreetMapProvider(),
 };
 
 export const mapProvider: MapProvider = PROVIDERS[env.MAP_PROVIDER] ?? PROVIDERS.osm!;

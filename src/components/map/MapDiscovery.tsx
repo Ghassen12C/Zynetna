@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useMemo, useState, useTransition } from 'react';
+import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import { Badge, EmptyState, Rating } from '@/components/ui/Primitives';
 import { ButtonLink } from '@/components/ui/Button';
 import type { TileSource } from '@/server/providers/maps';
@@ -34,8 +34,15 @@ type Pin = {
  * to Azure Maps or Mapbox changes configuration, not this component.
  */
 const TILE = 256;
-const VIEW_WIDTH = 1000;
-const VIEW_HEIGHT = 620;
+/** Height a price pin takes above its point, so none is cut off at the top. */
+const PIN_HEIGHT = 40;
+
+/** The canvas follows its frame: full width, a height that suits the width. */
+function canvasSize(frameWidth: number) {
+  const width = Math.max(280, Math.round(frameWidth));
+  const height = Math.round(Math.min(620, Math.max(380, width * 0.62)));
+  return { width, height };
+}
 
 function lngToX(lng: number, zoom: number) {
   return ((lng + 180) / 360) * TILE * 2 ** zoom;
@@ -79,6 +86,19 @@ export function MapDiscovery({
   const params = useSearchParams();
   const [, startTransition] = useTransition();
   const [selected, setSelected] = useState<Pin | null>(null);
+  const frameRef = useRef<HTMLDivElement>(null);
+  // Server render and first paint use a desktop size; the frame then reports
+  // its real width (and again on rotation or resize).
+  const [{ width, height }, setSize] = useState(() => canvasSize(1000));
+  useEffect(() => {
+    const frame = frameRef.current;
+    if (!frame) return;
+    const measure = () => setSize(canvasSize(frame.clientWidth));
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(frame);
+    return () => observer.disconnect();
+  }, []);
 
   function setParam(key: string, value: string | null) {
     const next = new URLSearchParams(params.toString());
@@ -87,34 +107,35 @@ export function MapDiscovery({
     startTransition(() => router.push(`${mapPath}?${next.toString()}`));
   }
 
-  // Frame the viewport on the pins we actually have, with Tunis as a fallback.
+  // Frame the viewport on the pins we actually have; the whole country when
+  // there are none. The zoom is the closest one at which every pin fits with
+  // a margin, measured in pixels on both axes (a degree of latitude and one
+  // of longitude are not the same size on the map).
   const view = useMemo(() => {
     if (businesses.length === 0) {
-      return { centerLat: 34.5, centerLng: 9.6, zoom: 6 };
+      return { centerLat: 34.5, centerLng: 9.6, zoom: width < 600 ? 5 : 6 };
     }
     const lats = businesses.map((b) => b.lat);
     const lngs = businesses.map((b) => b.lng);
-    const centerLat = (Math.min(...lats) + Math.max(...lats)) / 2;
-    const centerLng = (Math.min(...lngs) + Math.max(...lngs)) / 2;
-    const span = Math.max(
-      Math.max(...lats) - Math.min(...lats),
-      Math.max(...lngs) - Math.min(...lngs),
-      0.02,
-    );
-    // Choose the zoom that makes the spread of pins FILL about 70% of the
-    // viewport. Merely fitting the bounds leaves everything clustered in the
-    // middle of an empty map, which is what "fit" looked like in practice.
-    const targetPx = VIEW_WIDTH * 0.7;
-    const idealZoom = Math.log2((targetPx * 360) / (TILE * span));
-    const zoom = Math.max(5, Math.min(16, Math.floor(idealZoom)));
-    return { centerLat, centerLng, zoom };
-  }, [businesses]);
+    const north = Math.max(...lats);
+    const south = Math.min(...lats);
+    const east = Math.max(...lngs);
+    const west = Math.min(...lngs);
 
-  const width = VIEW_WIDTH;
-  const height = VIEW_HEIGHT;
+    let zoom = 16;
+    while (zoom > 5) {
+      const spanX = lngToX(east, zoom) - lngToX(west, zoom);
+      const spanY = latToY(south, zoom) - latToY(north, zoom);
+      if (spanX <= width * 0.8 && spanY + PIN_HEIGHT <= height * 0.78) break;
+      zoom -= 1;
+    }
+    return { centerLat: (north + south) / 2, centerLng: (east + west) / 2, zoom };
+  }, [businesses, width, height]);
+
   const { centerLat, centerLng, zoom } = view;
   const originX = lngToX(centerLng, zoom) - width / 2;
-  const originY = latToY(centerLat, zoom) - height / 2;
+  // Pins stand above their point, so the frame sits a little lower.
+  const originY = latToY(centerLat, zoom) - height / 2 - PIN_HEIGHT / 2;
 
   // Only the tiles that intersect the viewport.
   const tileList = useMemo(() => {
@@ -137,7 +158,7 @@ export function MapDiscovery({
       }
     }
     return out;
-  }, [originX, originY, zoom]);
+  }, [originX, originY, zoom, width, height]);
 
   function tileUrl(x: number, y: number) {
     const subdomain = tiles.subdomains?.[(x + y) % tiles.subdomains.length] ?? '';
@@ -199,7 +220,7 @@ export function MapDiscovery({
         {businesses.length === 0 ? (
           <EmptyState title={m.map.emptyTitle} body={m.map.emptyBody} />
         ) : (
-          <div className="z-map" data-provider={providerName}>
+          <div className="z-map" data-provider={providerName} ref={frameRef}>
             <div className="z-map__canvas" style={{ width, height }} role="img" aria-label={m.map.canvasLabel}>
               {tileList.map((tile) => (
                 // eslint-disable-next-line @next/next/no-img-element
