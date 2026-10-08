@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState, useState } from 'react';
+import { useActionState, useEffect, useState } from 'react';
 import { useFormStatus } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { Alert } from '@/components/ui/Alert';
@@ -78,10 +78,12 @@ function CategoryForm({
   const k = m.admin.categories;
   const router = useRouter();
   const [state, formAction] = useActionState(saveCategoryAction, idle);
-  if (state.status === 'success') {
-    router.refresh();
-    onDone();
-  }
+  useEffect(() => {
+    if (state.status === 'success') {
+      router.refresh();
+      onDone();
+    }
+  }, [state, router, onDone]);
   const errors = state.status === 'error' ? state.fieldErrors : undefined;
 
   return (

@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState, useState } from 'react';
+import { useActionState, useEffect, useState } from 'react';
 import { useFormStatus } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
@@ -40,7 +40,9 @@ export function RecordPaymentForm({
   const router = useRouter();
   const [state, formAction] = useActionState(recordPaymentAction, idle);
   const [open, setOpen] = useState(false);
-  if (state.status === 'success') router.refresh();
+  useEffect(() => {
+    if (state.status === 'success') router.refresh();
+  }, [state, router]);
 
   if (!open) {
     return (

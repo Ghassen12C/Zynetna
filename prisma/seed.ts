@@ -53,6 +53,8 @@ type BusinessBlueprint = {
   address: string;
   staff: string[];
   services: { name: string; price: number; minutes: number; buffer?: number; category: string }[];
+  /** Fixed-price bundles of the services above (weddings, events…). */
+  packs?: { name: string; price: number; minutes: number; includes: string[]; description: string }[];
 };
 
 const BUSINESSES: BusinessBlueprint[] = [
@@ -70,6 +72,13 @@ const BUSINESSES: BusinessBlueprint[] = [
       { name: 'Coupe + Barbe', price: 20, minutes: 45, category: 'coupe-homme' },
       { name: 'Rasage traditionnel', price: 12, minutes: 30, buffer: 10, category: 'rasage' },
     ],
+    packs: [
+      {
+        name: 'Pack Marié', price: 30, minutes: 75,
+        includes: ['Coupe homme', 'Barbe', 'Rasage traditionnel'],
+        description: 'Le jour J : coupe, barbe taillée et rasage au coupe-chou, serviette chaude comprise.',
+      },
+    ],
   },
   {
     slug: 'salon-yasmine-la-marsa', name: 'Salon Yasmine',
@@ -84,6 +93,13 @@ const BUSINESSES: BusinessBlueprint[] = [
       { name: 'Coupe femme', price: 35, minutes: 60, category: 'coupe-femme' },
       { name: 'Coloration', price: 90, minutes: 120, buffer: 15, category: 'coloration' },
       { name: 'Soin profond', price: 45, minutes: 45, category: 'soin-cheveux' },
+    ],
+    packs: [
+      {
+        name: 'Pack Mariée', price: 140, minutes: 210,
+        includes: ['Soin profond', 'Coloration', 'Brushing'],
+        description: 'Préparation complète avant le mariage. Un essai peut être convenu ensemble à la confirmation.',
+      },
     ],
   },
   {
@@ -454,6 +470,28 @@ async function main() {
       serviceIds.push(row.id);
     }
 
+    // Packs bundle the services above at a fixed price; they open a year
+    // ahead and the business confirms each request itself.
+    for (const [pIndex, pack] of (blueprint.packs ?? []).entries()) {
+      const row = await db.service.create({
+        data: {
+          businessId: business.id,
+          name: pack.name,
+          description: pack.description,
+          priceAmount: pack.price, durationMinutes: pack.minutes,
+          position: blueprint.services.length + pIndex,
+          isPackage: true, requiresConfirmation: true, maxAdvanceDays: 365,
+          packageItems: {
+            create: pack.includes.map((name, position) => ({
+              serviceId: serviceIds[blueprint.services.findIndex((s) => s.name === name)]!,
+              position,
+            })),
+          },
+        },
+      });
+      serviceIds.push(row.id);
+    }
+
     // Staff, each performing a realistic subset of services.
     const staffIds: string[] = [];
     for (const [stIndex, name] of blueprint.staff.entries()) {
@@ -516,7 +554,7 @@ async function main() {
 
   for (const business of createdBusinesses) {
     const services = await db.service.findMany({
-      where: { businessId: business.id },
+      where: { businessId: business.id, isPackage: false },
       select: { id: true, name: true, priceAmount: true, durationMinutes: true },
     });
 

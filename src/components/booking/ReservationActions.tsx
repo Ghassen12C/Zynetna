@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useActionState, useState } from 'react';
+import { useActionState, useEffect, useState } from 'react';
 import { useFormStatus } from 'react-dom';
 import { Alert } from '@/components/ui/Alert';
 import { Button, ButtonLink } from '@/components/ui/Button';
@@ -46,9 +46,9 @@ export function ReservationActions({
   const [confirming, setConfirming] = useState(false);
   const [state, formAction] = useActionState(cancelReservationAction, idle);
 
-  if (state.status === 'success') {
-    router.refresh();
-  }
+  useEffect(() => {
+    if (state.status === 'success') router.refresh();
+  }, [state, router]);
 
   if (!canCancel && !canReschedule) {
     return (

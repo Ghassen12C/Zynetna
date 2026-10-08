@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useActionState, useState, useTransition } from 'react';
+import { useActionState, useEffect, useState, useTransition } from 'react';
 import { useFormStatus } from 'react-dom';
 import { Alert } from '@/components/ui/Alert';
 import { Button } from '@/components/ui/Button';
@@ -45,7 +45,9 @@ function UserActions({ row, isSelf, m }: { row: Row; isSelf: boolean; m: AdminMe
   const router = useRouter();
   const [state, formAction] = useActionState(moderateUserAction, idle);
   const [confirming, setConfirming] = useState(false);
-  if (state.status === 'success') router.refresh();
+  useEffect(() => {
+    if (state.status === 'success') router.refresh();
+  }, [state, router]);
 
   // An admin cannot act on their own account from this table.
   if (isSelf) return <span className="z-help">{u.you}</span>;

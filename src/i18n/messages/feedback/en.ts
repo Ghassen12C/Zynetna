@@ -50,6 +50,7 @@ export const feedbackEn: typeof feedbackFr = {
   },
 
   errors: {
+    packNeedsServices: 'A pack bundles at least two of your business’s services.',
     unauthenticated: 'You must be signed in.',
     signInRequired: 'Sign-in is required for this.',
     forbidden: 'You do not have access to this resource.',

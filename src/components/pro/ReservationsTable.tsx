@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useActionState, useState, useTransition } from 'react';
+import { useActionState, useEffect, useState, useTransition } from 'react';
 import { useFormStatus } from 'react-dom';
 import { Button } from '@/components/ui/Button';
 import { Alert } from '@/components/ui/Alert';
@@ -93,7 +93,9 @@ function RowActions({
 }) {
   const router = useRouter();
   const [state, formAction] = useActionState(transitionReservationAction, idle);
-  if (state.status === 'success') router.refresh();
+  useEffect(() => {
+    if (state.status === 'success') router.refresh();
+  }, [state, router]);
 
   const actions = actionsFor(row.status, d);
   if (actions.length === 0) return <span className="z-help">—</span>;

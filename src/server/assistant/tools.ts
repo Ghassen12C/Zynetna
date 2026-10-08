@@ -193,6 +193,10 @@ async function getBusinessTool(_ctx: AssistantContext, raw: unknown) {
         name: s.name,
         price: s.price,
         durationMinutes: s.durationMinutes,
+        isPackage: s.isPackage,
+        includes: s.includes.map((i) => i.name),
+        requiresConfirmation: s.requiresConfirmation,
+        maxAdvanceDays: s.maxAdvanceDays,
       })),
       staff: business.staff.map((p) => ({
         id: p.id,

@@ -41,6 +41,7 @@ export async function resetDatabase() {
     testDb.staffHours.deleteMany(),
     testDb.scheduleException.deleteMany(),
     testDb.staffMember.deleteMany(),
+    testDb.servicePackageItem.deleteMany(),
     testDb.serviceMedia.deleteMany(),
     testDb.service.deleteMany(),
     testDb.businessHours.deleteMany(),

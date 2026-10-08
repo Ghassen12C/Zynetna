@@ -113,6 +113,8 @@ export async function createReservation(input: CreateReservationInput) {
       priceAmount: true,
       durationMinutes: true,
       minNoticeMinutes: true,
+      maxAdvanceDays: true,
+      requiresConfirmation: true,
     },
   });
   if (!service) throw notFound('serviceNotFound');
@@ -134,7 +136,7 @@ export async function createReservation(input: CreateReservationInput) {
 
   const policy: BookingPolicy = {
     minNoticeMinutes: service.minNoticeMinutes ?? business.minNoticeMinutes,
-    maxAdvanceDays: business.maxAdvanceDays,
+    maxAdvanceDays: service.maxAdvanceDays ?? business.maxAdvanceDays,
     cancellationWindowHours: business.cancellationWindowHours,
     allowCustomerCancel: business.allowCustomerCancel,
     allowCustomerReschedule: business.allowCustomerReschedule,
@@ -207,8 +209,12 @@ export async function createReservation(input: CreateReservationInput) {
          * business just took itself has nothing to vet, and leaving it PENDING
          * would ask the owner to approve their own appointment.
          */
+        // A service that asks for confirmation (typically a wedding pack)
+        // stays PENDING online even when the business auto-confirms the rest.
         const status: ReservationStatus =
-          input.atCounter || business.autoConfirm ? 'CONFIRMED' : 'PENDING';
+          input.atCounter || (business.autoConfirm && !service.requiresConfirmation)
+            ? 'CONFIRMED'
+            : 'PENDING';
 
         const created = await tx.reservation.create({
           data: {

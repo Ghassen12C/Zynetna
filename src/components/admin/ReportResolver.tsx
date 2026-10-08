@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState } from 'react';
+import { useActionState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Alert } from '@/components/ui/Alert';
 import { resolveReportAction } from '@/server/actions/admin';
@@ -16,7 +16,9 @@ export function ReportResolver({ reportId, m }: { reportId: string; m: Messages[
   const r = m.reports;
   const router = useRouter();
   const [state, formAction] = useActionState(resolveReportAction, idle);
-  if (state.status === 'success') router.refresh();
+  useEffect(() => {
+    if (state.status === 'success') router.refresh();
+  }, [state, router]);
 
   return (
     <form action={formAction} className="z-stack" style={{ gap: 'var(--z-space-2)' }}>

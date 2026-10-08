@@ -61,10 +61,21 @@ export const serviceSchema = z.object({
   durationMinutes: durationSchema,
   bufferMinutes: z.coerce.number().int().min(0).max(240).default(0),
   prepMinutes: z.coerce.number().int().min(0).max(240).default(0),
-  minNoticeMinutes: z.coerce.number().int().min(0).max(20160).optional().or(z.literal('')),
+  // Up to 60 days of notice: a wedding pack may need weeks to prepare.
+  minNoticeMinutes: z.coerce.number().int().min(0).max(86400).optional().or(z.literal('')),
+  /** Booking horizon for this service, in days; empty = the business's. */
+  maxAdvanceDays: z.coerce.number().int().min(1).max(400).optional().or(z.literal('')),
+  requiresConfirmation: z.coerce.boolean().default(false),
+  /** Only read when creating: a service never turns into a pack later. */
+  isPackage: z.coerce.boolean().default(false),
   isActive: z.coerce.boolean().default(true),
   /** Repeated checkbox inputs arrive as a string or an array of strings. */
   staffIds: z
+    .union([z.string(), z.array(z.string())])
+    .optional()
+    .transform((value) => (value === undefined ? [] : Array.isArray(value) ? value : [value])),
+  /** For a pack: the services it bundles, in order. */
+  includedServiceIds: z
     .union([z.string(), z.array(z.string())])
     .optional()
     .transform((value) => (value === undefined ? [] : Array.isArray(value) ? value : [value])),

@@ -155,6 +155,10 @@ export const fr = {
     } as PluralForms,
   },
   business: {
+    packs: 'Packs & événements',
+    packIncludes: 'Comprend :',
+    onRequest: 'sur confirmation',
+    insteadOf: 'au lieu de {price}',
     book: 'Réserver',
     metaDescription: 'Réservez en ligne chez {name}.',
     metaDescriptionIn: 'Réservez en ligne chez {name} à {city}.',
@@ -223,6 +227,7 @@ export const fr = {
     qrPrint: 'Imprimer',
   },
   booking: {
+    otherDate: 'Autre date :',
     title: 'Réservation',
     stepService: 'Prestation',
     stepStaff: 'Professionnel',

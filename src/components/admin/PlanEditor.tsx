@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState, useState } from 'react';
+import { useActionState, useEffect, useState } from 'react';
 import { useFormStatus } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { Alert } from '@/components/ui/Alert';
@@ -60,11 +60,15 @@ export function PlanEditor({
   const [editing, setEditing] = useState<Plan | null>(null);
   const [creating, setCreating] = useState(false);
 
-  if (state.status === 'success') {
-    router.refresh();
-    if (editing) setEditing(null);
-    if (creating) setCreating(false);
-  }
+  // Once per save: the action state stays "success" afterwards, so doing this
+  // during render would close the editor again every time it is reopened.
+  useEffect(() => {
+    if (state.status === 'success') {
+      router.refresh();
+      setEditing(null);
+      setCreating(false);
+    }
+  }, [state, router]);
 
   const target = editing ?? null;
   const errors = state.status === 'error' ? state.fieldErrors : undefined;

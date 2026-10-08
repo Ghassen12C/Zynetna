@@ -14,7 +14,7 @@ import {
   rescheduleReservationAction,
 } from '@/server/actions/booking';
 import { addDays } from '@/domain/scheduling/time';
-import { formatDuration, formatPrice } from '@/i18n/format';
+import { formatDuration, formatPrice, localizedName } from '@/i18n/format';
 import { DEFAULT_LOCALE, interpolate, LOCALE_META, type Locale, type Messages } from '@/i18n';
 
 type Service = {
@@ -24,8 +24,13 @@ type Service = {
   price: number;
   durationMinutes: number;
   categoryName: string | null;
+  category: { name: string; nameAr: string | null; nameEn: string | null } | null;
   imageUrl: string | null;
   staffIds: string[];
+  isPackage: boolean;
+  requiresConfirmation: boolean;
+  maxAdvanceDays: number | null;
+  includes: { id: string; name: string }[];
 };
 
 type Staff = {
@@ -168,10 +173,21 @@ export function BookingFlow({
     if (serviceId) void loadSlots(day);
   }, [serviceId, staffId, day, loadSlots]);
 
-  // The next 21 days, which the date strip scrolls through.
+  // How far ahead this service can be booked: a wedding pack may open a year
+  // ahead while everyday services follow the business's own horizon.
+  const horizon = service?.maxAdvanceDays ?? business.maxAdvanceDays;
+  const lastDay = addDays(today, horizon);
+
+  // A day picked for one service may be out of reach for the next one.
+  useEffect(() => {
+    if (day > lastDay) setDay(today);
+  }, [day, lastDay, today]);
+
+  // The next 21 days, which the date strip scrolls through; anything further
+  // is reached with the date picker below it.
   const days = useMemo(
     () =>
-      Array.from({ length: Math.min(21, business.maxAdvanceDays) }, (_, i) => {
+      Array.from({ length: Math.min(21, horizon + 1) }, (_, i) => {
         const key = addDays(today, i);
         const date = new Date(`${key}T12:00:00Z`);
         return {
@@ -181,7 +197,7 @@ export function BookingFlow({
           month: new Intl.DateTimeFormat(intl, { month: 'short' }).format(date),
         };
       }),
-    [today, business.maxAdvanceDays, intl],
+    [today, horizon, intl],
   );
 
   function submit() {
@@ -225,15 +241,21 @@ export function BookingFlow({
     });
   }
 
-  const serviceGroups = useMemo(
-    () =>
-      services.reduce<Record<string, Service[]>>((acc, s) => {
-        const key = s.categoryName ?? m.business.services;
-        (acc[key] ??= []).push(s);
-        return acc;
-      }, {}),
-    [services, m.business.services],
-  );
+  // Packs (weddings, events…) lead as their own group.
+  const serviceGroups = useMemo(() => {
+    const packs = services.filter((s) => s.isPackage);
+    return {
+      ...(packs.length > 0 ? { [m.business.packs]: packs } : {}),
+      ...services
+        .filter((s) => !s.isPackage)
+        .reduce<Record<string, Service[]>>((acc, s) => {
+          const key = s.category ? localizedName(s.category, locale) : m.business.services;
+          (acc[key] ??= []).push(s);
+          return acc;
+        }, {}),
+    };
+  }, [services, m.business.services, m.business.packs, locale]);
+  const needsConfirmation = !business.autoConfirm || Boolean(service?.requiresConfirmation);
 
   return (
     <div className="z-booking">
@@ -307,9 +329,22 @@ export function BookingFlow({
                         }}
                       >
                         <span className="z-choice__body">
-                          <span className="z-choice__title">{item.name}</span>
+                          <span className="z-choice__title" dir="auto">
+                            {item.name}
+                          </span>
+                          {item.includes.length > 0 ? (
+                            <span className="z-choice__meta">
+                              {item.includes.map((inc, i) => (
+                                <span key={inc.id}>
+                                  {i > 0 ? ' + ' : ''}
+                                  <bdi>{inc.name}</bdi>
+                                </span>
+                              ))}
+                            </span>
+                          ) : null}
                           <span className="z-choice__meta">
                             {formatDuration(item.durationMinutes, locale)}
+                            {item.requiresConfirmation ? ` · ${m.business.onRequest}` : ''}
                           </span>
                         </span>
                         <span className="z-choice__price">
@@ -403,6 +438,25 @@ export function BookingFlow({
                     </button>
                   ))}
                 </div>
+
+                {horizon > 20 ? (
+                  <label className="z-check z-daypick">
+                    <span>{m.booking.otherDate}</span>
+                    <input
+                      type="date"
+                      className="z-input"
+                      min={today}
+                      max={lastDay}
+                      value={day}
+                      onChange={(e) => {
+                        const picked = e.target.value;
+                        if (!picked || picked < today || picked > lastDay) return;
+                        setDay(picked);
+                        setSlot(null);
+                      }}
+                    />
+                  </label>
+                ) : null}
 
                 <div className="z-slots" aria-live="polite" aria-busy={loadingSlots}>
                   {loadingSlots ? (
@@ -522,7 +576,7 @@ export function BookingFlow({
                 </strong>
               </div>
 
-              {!business.autoConfirm ? (
+              {needsConfirmation ? (
                 <Badge tone="warning">{m.booking.needsConfirmation}</Badge>
               ) : null}
 

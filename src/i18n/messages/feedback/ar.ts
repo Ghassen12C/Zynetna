@@ -51,6 +51,7 @@ export const feedbackAr: typeof feedbackFr = {
   },
 
   errors: {
+    packNeedsServices: 'تجمع الباقة خدمتين على الأقل من خدمات مؤسستك.',
     unauthenticated: 'سجّل الدخول للمتابعة.',
     signInRequired: 'سجّل الدخول للمتابعة.',
     forbidden: 'ليست لديك صلاحية الوصول إلى هذا المورد.',

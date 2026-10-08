@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState, useState } from 'react';
+import { useActionState, useEffect, useState } from 'react';
 import { useFormStatus } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { Alert } from '@/components/ui/Alert';
@@ -121,7 +121,9 @@ function DayRow({
     periods.map((p) => ({ start: p.startMin, end: p.endMin })),
   );
 
-  if (state.status === 'success') router.refresh();
+  useEffect(() => {
+    if (state.status === 'success') router.refresh();
+  }, [state, router]);
   const t = m.dashSetup.hours;
 
   return (
@@ -213,7 +215,9 @@ function ExceptionForm({
   const [kind, setKind] = useState('CLOSED');
   const [breakFrom, setBreakFrom] = useState(720);
   const [breakTo, setBreakTo] = useState(840);
-  if (state.status === 'success') router.refresh();
+  useEffect(() => {
+    if (state.status === 'success') router.refresh();
+  }, [state, router]);
 
   const needsTimes = kind === 'BREAK' || kind === 'SPECIAL_HOURS';
   const t = m.dashSetup.hours;
@@ -300,7 +304,9 @@ function ClearStaffHours({
 }) {
   const router = useRouter();
   const [state, formAction] = useActionState(clearStaffHoursAction, idle);
-  if (state.status === 'success') router.refresh();
+  useEffect(() => {
+    if (state.status === 'success') router.refresh();
+  }, [state, router]);
   return (
     <form action={formAction}>
       <input type="hidden" name="businessId" value={businessId} />

@@ -52,23 +52,23 @@ model User {
   createdAt     DateTime   @default(now()) @db.Timestamptz(3)
   updatedAt     DateTime   @updatedAt @db.Timestamptz(3)
 
-  avatar            MediaAsset?              @relation("UserAvatar", fields: [avatarId], references: [id], onDelete: SetNull)
-  sessions          Session[]
-  roles             RoleAssignment[]
-  ownedBusinesses   Business[]               @relation("BusinessOwner")
-  staffProfiles     StaffMember[]
-  reservations      Reservation[]            @relation("CustomerReservations")
-  invitationsSent     StaffInvitation[] @relation("InvitationsSent")
-  invitationsAccepted StaffInvitation[] @relation("InvitationsAccepted")
-  reviews           Review[]
-  favorites         Favorite[]
-  notifications     Notification[]
-  notificationPrefs NotificationPreference[]
-  auditLogs         AuditLog[]               @relation("AuditActor")
-  passwordResets    PasswordResetToken[]
-  verifications     VerificationToken[]
-  reportsFiled      ContentReport[]          @relation("ReportReporter")
-  reviewResponses   ReviewResponse[]
+  avatar              MediaAsset?              @relation("UserAvatar", fields: [avatarId], references: [id], onDelete: SetNull)
+  sessions            Session[]
+  roles               RoleAssignment[]
+  ownedBusinesses     Business[]               @relation("BusinessOwner")
+  staffProfiles       StaffMember[]
+  reservations        Reservation[]            @relation("CustomerReservations")
+  invitationsSent     StaffInvitation[]        @relation("InvitationsSent")
+  invitationsAccepted StaffInvitation[]        @relation("InvitationsAccepted")
+  reviews             Review[]
+  favorites           Favorite[]
+  notifications       Notification[]
+  notificationPrefs   NotificationPreference[]
+  auditLogs           AuditLog[]               @relation("AuditActor")
+  passwordResets      PasswordResetToken[]
+  verifications       VerificationToken[]
+  reportsFiled        ContentReport[]          @relation("ReportReporter")
+  reviewResponses     ReviewResponse[]
 
   @@index([status, createdAt])
   @@index([createdAt])
@@ -253,12 +253,12 @@ model Business {
   roleGrants      RoleAssignment[]
   reports         ContentReport[]
   reviewResponses ReviewResponse[]
+  invitations     StaffInvitation[]
 
   @@index([status, verification, ratingAverage])
   @@index([ownerId])
   @@index([status, publishedAt])
   @@index([slug])
-  invitations   StaffInvitation[]
 }
 
 model BusinessLocation {
@@ -320,28 +320,41 @@ model BusinessCategory {
 }
 
 model Service {
-  id               String   @id @default(cuid())
-  businessId       String
-  categoryId       String?
-  name             String
-  description      String?
-  priceAmount      Decimal  @db.Decimal(10, 2)
-  currency         String   @default("TND")
-  durationMinutes  Int
-  bufferMinutes    Int      @default(0)
-  prepMinutes      Int      @default(0)
+  id                   String   @id @default(cuid())
+  businessId           String
+  categoryId           String?
+  name                 String
+  description          String?
+  priceAmount          Decimal  @db.Decimal(10, 2)
+  currency             String   @default("TND")
+  durationMinutes      Int
+  bufferMinutes        Int      @default(0)
+  prepMinutes          Int      @default(0)
   /// Overrides the business default when set.
-  minNoticeMinutes Int?
-  isActive         Boolean  @default(true)
-  position         Int      @default(0)
-  createdAt        DateTime @default(now()) @db.Timestamptz(3)
-  updatedAt        DateTime @updatedAt @db.Timestamptz(3)
+  minNoticeMinutes     Int?
+  /// Overrides the business booking horizon when set — a wedding pack is
+  /// booked months ahead, a beard trim a few days.
+  maxAdvanceDays       Int?
+  /// A pack: a bundle of this business's services sold at one price and
+  /// booked as one appointment (wedding, engagement, Eid…).
+  isPackage            Boolean  @default(false)
+  /// Every booking stays PENDING until the business confirms it, whatever
+  /// the business-wide auto-confirm setting — packs often need a word first.
+  requiresConfirmation Boolean  @default(false)
+  isActive             Boolean  @default(true)
+  position             Int      @default(0)
+  createdAt            DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt            DateTime @updatedAt @db.Timestamptz(3)
 
-  business Business          @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  category Category?         @relation(fields: [categoryId], references: [id], onDelete: SetNull)
-  staff    StaffService[]
-  media    ServiceMedia[]
-  items    ReservationItem[]
+  business     Business             @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  category     Category?            @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  staff        StaffService[]
+  media        ServiceMedia[]
+  items        ReservationItem[]
+  /// For a pack: the services it bundles.
+  packageItems ServicePackageItem[] @relation("PackageItems")
+  /// For a regular service: the packs that include it.
+  includedIn   ServicePackageItem[] @relation("IncludedService")
 
   @@index([businessId, isActive, position])
   @@index([categoryId, isActive])
@@ -402,6 +415,21 @@ model BusinessMedia {
   @@index([assetId])
 }
 
+/// One service inside a pack. Both sides belong to the same business;
+/// resolvePackItems (src/server/services/packages.ts) enforces it.
+model ServicePackageItem {
+  id        String @id @default(cuid())
+  packageId String
+  serviceId String
+  position  Int    @default(0)
+
+  package Service @relation("PackageItems", fields: [packageId], references: [id], onDelete: Cascade)
+  service Service @relation("IncludedService", fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@unique([packageId, serviceId])
+  @@index([serviceId])
+}
+
 model ServiceMedia {
   id        String @id @default(cuid())
   serviceId String
@@ -440,10 +468,10 @@ model StaffMember {
   hours        StaffHours[]
   exceptions   ScheduleException[]
   reservations Reservation[]
+  invitations  StaffInvitation[]
 
   @@unique([businessId, userId])
   @@index([businessId, isActive, position])
-  invitations  StaffInvitation[]
 }
 
 /// Which professional performs which service. The booking engine honours this.

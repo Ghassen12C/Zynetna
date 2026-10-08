@@ -58,6 +58,7 @@ export const feedbackFr = {
   },
 
   errors: {
+    packNeedsServices: 'Un pack regroupe au moins deux prestations de votre établissement.',
     // Generic
     unauthenticated: 'Connectez-vous pour continuer.',
     signInRequired: 'Connectez-vous pour continuer.',

@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState, useRef, useState } from 'react';
+import { useActionState, useEffect, useRef, useState } from 'react';
 import { useFormStatus } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { Alert } from '@/components/ui/Alert';
@@ -74,7 +74,9 @@ function UploadForm({
   const [state, formAction] = useActionState(uploadBusinessMediaAction, idle);
   const formRef = useRef<HTMLFormElement>(null);
 
-  if (state.status === 'success') router.refresh();
+  useEffect(() => {
+    if (state.status === 'success') router.refresh();
+  }, [state, router]);
 
   return (
     <form ref={formRef} action={formAction} className="z-upload">
@@ -107,7 +109,9 @@ function DeleteForm({
 }) {
   const router = useRouter();
   const [state, formAction] = useActionState(deleteBusinessMediaAction, idle);
-  if (state.status === 'success') router.refresh();
+  useEffect(() => {
+    if (state.status === 'success') router.refresh();
+  }, [state, router]);
 
   return (
     <form action={formAction}>

@@ -50,6 +50,7 @@ async function loadSnapshot(q: AvailabilityQuery) {
       bufferMinutes: true,
       prepMinutes: true,
       minNoticeMinutes: true,
+      maxAdvanceDays: true,
     },
   });
   if (!service) throw notFound('serviceNotFound');
@@ -137,7 +138,8 @@ export async function getDayAvailability(
       hours: snapshot.business.hours,
       slotGranularityMinutes: snapshot.business.slotGranularityMinutes,
       minNoticeMinutes: snapshot.business.minNoticeMinutes,
-      maxAdvanceDays: snapshot.business.maxAdvanceDays,
+      // A pack may open further ahead than the business's usual horizon.
+      maxAdvanceDays: snapshot.service.maxAdvanceDays ?? snapshot.business.maxAdvanceDays,
     },
     service: snapshot.service,
     staff: snapshot.staff,
@@ -161,7 +163,8 @@ export async function getRangeAvailability(
       hours: snapshot.business.hours,
       slotGranularityMinutes: snapshot.business.slotGranularityMinutes,
       minNoticeMinutes: snapshot.business.minNoticeMinutes,
-      maxAdvanceDays: snapshot.business.maxAdvanceDays,
+      // A pack may open further ahead than the business's usual horizon.
+      maxAdvanceDays: snapshot.service.maxAdvanceDays ?? snapshot.business.maxAdvanceDays,
     },
     service: snapshot.service,
     staff: snapshot.staff,

@@ -16,6 +16,7 @@ import {
   weekdayNames,
 } from '@/i18n/format';
 import { translate } from '@/i18n/server';
+import { interpolate } from '@/i18n/interpolate';
 import { coverStyle } from '@/lib/brand';
 
 function hhmm(minutes: number): string {
@@ -42,15 +43,18 @@ export async function BusinessProfileView({
     periods: business.hours.filter((h) => h.weekday === weekday),
   }));
 
-  // Services grouped by their category, in the order the owner arranged them.
-  const serviceGroups = business.services.reduce<Record<string, typeof business.services>>(
-    (acc, service) => {
-      const key = service.categoryName ?? m.business.services;
+  // Services grouped by their category, in the order the owner arranged them;
+  // packs (weddings, events…) lead as their own group.
+  const packs = business.services.filter((s) => s.isPackage);
+  const serviceGroups = business.services
+    .filter((s) => !s.isPackage)
+    .reduce<Record<string, typeof business.services>>((acc, service) => {
+      const key = service.category
+        ? localizedName(service.category, locale)
+        : m.business.services;
       (acc[key] ??= []).push(service);
       return acc;
-    },
-    {},
-  );
+    }, {});
 
   return (
     <div className="z-profile">
@@ -175,12 +179,18 @@ export async function BusinessProfileView({
               {business.services.length === 0 ? (
                 <EmptyState title={m.business.noServices} body={m.business.noServicesBody} />
               ) : (
-                Object.entries(serviceGroups).map(([group, services]) => (
+                [
+                  ...(packs.length > 0 ? ([[m.business.packs, packs]] as const) : []),
+                  ...Object.entries(serviceGroups),
+                ].map(([group, services]) => (
                   <div key={group} className="z-svc-group">
                     <Eyebrow>{group}</Eyebrow>
                     <ul className="z-svc-list" data-reveal="stagger">
                       {services.map((service) => (
-                        <li key={service.id} className="z-svc">
+                        <li
+                          key={service.id}
+                          className={`z-svc ${service.isPackage ? 'z-svc--pack' : ''}`}
+                        >
                           {service.imageUrl ? (
                             // eslint-disable-next-line @next/next/no-img-element
                             <img
@@ -193,11 +203,23 @@ export async function BusinessProfileView({
 
                           <div className="z-svc__body">
                             <h3 className="z-svc__name" dir="auto">{service.name}</h3>
+                            {service.includes.length > 0 ? (
+                              <p className="z-svc__includes">
+                                {m.business.packIncludes}{' '}
+                                {service.includes.map((item, i) => (
+                                  <span key={item.id}>
+                                    {i > 0 ? ' + ' : ''}
+                                    <bdi>{item.name}</bdi>
+                                  </span>
+                                ))}
+                              </p>
+                            ) : null}
                             {service.description ? (
                               <p className="z-svc__desc" dir="auto">{service.description}</p>
                             ) : null}
                             <p className="z-svc__duration">
                               {formatDuration(service.durationMinutes, locale)}
+                              {service.requiresConfirmation ? ` · ${m.business.onRequest}` : ''}
                             </p>
                           </div>
 
@@ -205,6 +227,13 @@ export async function BusinessProfileView({
                             <span className="z-svc__price">
                               {formatPrice(service.price, locale, business.currency)}
                             </span>
+                            {service.isPackage && service.separatePrice > service.price ? (
+                              <span className="z-svc__was">
+                                {interpolate(m.business.insteadOf, {
+                                  price: formatPrice(service.separatePrice, locale, business.currency),
+                                })}
+                              </span>
+                            ) : null}
                             {business.bookable ? (
                               <ButtonLink
                                 href={path(

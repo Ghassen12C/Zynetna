@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState, useState } from 'react';
+import { useActionState, useEffect, useState } from 'react';
 import { useFormStatus } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { Alert } from '@/components/ui/Alert';
@@ -33,7 +33,9 @@ export function ReviewModerator({
   const router = useRouter();
   const [state, formAction] = useActionState(moderateReviewAction, idle);
   const [pendingDecision, setPendingDecision] = useState<string | null>(null);
-  if (state.status === 'success') router.refresh();
+  useEffect(() => {
+    if (state.status === 'success') router.refresh();
+  }, [state, router]);
 
   const decisions = [
     { key: 'publish', label: r.publish, variant: 'primary' as const, note: false },

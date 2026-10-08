@@ -154,6 +154,10 @@ export const en: Messages = {
     } as PluralForms,
   },
   business: {
+    packs: 'Packages & events',
+    packIncludes: 'Includes:',
+    onRequest: 'on request',
+    insteadOf: 'instead of {price}',
     book: 'Book',
     metaDescription: 'Book online at {name}.',
     metaDescriptionIn: 'Book online at {name} in {city}.',
@@ -221,6 +225,7 @@ export const en: Messages = {
     qrPrint: 'Print',
   },
   booking: {
+    otherDate: 'Another date:',
     title: 'Booking',
     stepService: 'Service',
     stepStaff: 'Professional',

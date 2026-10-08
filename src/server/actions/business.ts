@@ -7,6 +7,7 @@ import { type FeedbackPartKey, invalid, localized, notFound } from '@/lib/errors
 import { requireBusinessAccess } from '@/server/auth/guard';
 import { recordAudit } from '@/server/audit';
 import { entitlementsFor } from '@/server/services/subscriptions';
+import { resolvePackItems, setPackItems } from '@/server/services/packages';
 import { hhmmToMinutes, minutesToHHMM } from '@/domain/scheduling/time';
 import { cuidSchema } from '@/lib/validation/common';
 import {
@@ -181,6 +182,10 @@ export async function saveServiceAction(
   const raw = new FormData();
   for (const [k, v] of formData.entries()) raw.append(k, v);
   raw.set('isActive', formData.has('isActive') ? 'true' : 'false');
+  // Checkboxes are absent when unticked; a plain string "false" would coerce
+  // to true, so the booleans are rebuilt from presence.
+  raw.set('requiresConfirmation', formData.has('requiresConfirmation') ? 'true' : '');
+  raw.set('isPackage', formData.get('isPackage') === 'true' ? 'true' : '');
 
   const parsed = await parseForm(serviceSchema, raw);
   if (!parsed.ok) return parsed.state;
@@ -210,13 +215,29 @@ export async function saveServiceAction(
     });
 
     let serviceId = data.id;
-    if (serviceId) {
-      const existing = await db.service.findFirst({
-        where: { id: serviceId, businessId },
-        select: { id: true },
-      });
-      if (!existing) throw notFound('serviceNotFound');
+    // Whether this is a pack is decided once, at creation.
+    const existing = serviceId
+      ? await db.service.findFirst({
+          where: { id: serviceId, businessId },
+          select: { id: true, isPackage: true },
+        })
+      : null;
+    if (serviceId && !existing) throw notFound('serviceNotFound');
+    const isPackage = existing ? existing.isPackage : data.isPackage;
 
+    // Resolved before anything is written, so a refused pack leaves no trace.
+    const included = isPackage
+      ? await resolvePackItems(businessId, serviceId ?? null, data.includedServiceIds)
+      : [];
+
+    const extras = {
+      maxAdvanceDays: data.maxAdvanceDays === '' || data.maxAdvanceDays === undefined
+        ? null
+        : Number(data.maxAdvanceDays),
+      requiresConfirmation: data.requiresConfirmation,
+    };
+
+    if (serviceId) {
       await db.service.update({
         where: { id: serviceId },
         data: {
@@ -228,6 +249,7 @@ export async function saveServiceAction(
           bufferMinutes: data.bufferMinutes,
           prepMinutes: data.prepMinutes,
           minNoticeMinutes: data.minNoticeMinutes === '' ? null : Number(data.minNoticeMinutes),
+          ...extras,
           isActive: data.isActive,
         },
       });
@@ -244,6 +266,8 @@ export async function saveServiceAction(
           bufferMinutes: data.bufferMinutes,
           prepMinutes: data.prepMinutes,
           minNoticeMinutes: data.minNoticeMinutes === '' ? null : Number(data.minNoticeMinutes),
+          ...extras,
+          isPackage,
           isActive: data.isActive,
           position,
         },
@@ -251,6 +275,8 @@ export async function saveServiceAction(
       });
       serviceId = created.id;
     }
+
+    if (isPackage) await setPackItems(serviceId!, included);
 
     await db.staffService.deleteMany({ where: { serviceId } });
     if (validStaff.length > 0) {

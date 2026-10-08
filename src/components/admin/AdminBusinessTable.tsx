@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useActionState, useState, useTransition } from 'react';
+import { useActionState, useEffect, useState, useTransition } from 'react';
 import { useFormStatus } from 'react-dom';
 import { Alert } from '@/components/ui/Alert';
 import { Button } from '@/components/ui/Button';
@@ -64,7 +64,9 @@ function Moderate({ row, m }: { row: Row; m: AdminMessages }) {
   const [state, formAction] = useActionState(moderateBusinessAction, idle);
   const [needsNote, setNeedsNote] = useState<string | null>(null);
 
-  if (state.status === 'success') router.refresh();
+  useEffect(() => {
+    if (state.status === 'success') router.refresh();
+  }, [state, router]);
 
   const decisions: { key: string; label: string; variant: 'primary' | 'secondary' | 'ghost' | 'danger'; note?: boolean }[] = [];
   if (row.status === 'PENDING_REVIEW' || row.status === 'DRAFT') {

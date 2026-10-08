@@ -31,6 +31,14 @@ export async function getBusinessProfile(slug: string, options?: { preview?: boo
           category: true,
           media: { orderBy: { position: 'asc' }, take: 1, include: { asset: true } },
           staff: { select: { staffMemberId: true } },
+          packageItems: {
+            orderBy: { position: 'asc' },
+            select: {
+              service: {
+                select: { id: true, name: true, priceAmount: true, durationMinutes: true, isActive: true },
+              },
+            },
+          },
         },
       },
       staff: {
@@ -105,8 +113,18 @@ export async function getBusinessProfile(slug: string, options?: { preview?: boo
       price: Number(s.priceAmount),
       durationMinutes: s.durationMinutes,
       categoryName: s.category?.name ?? null,
+      // The category row carries its own translations; readers pick theirs.
+      category: s.category
+        ? { name: s.category.name, nameAr: s.category.nameAr, nameEn: s.category.nameEn }
+        : null,
       imageUrl: s.media[0] ? variantUrl(s.media[0].asset, 'card') : null,
       staffIds: s.staff.map((x) => x.staffMemberId),
+      isPackage: s.isPackage,
+      requiresConfirmation: s.requiresConfirmation,
+      maxAdvanceDays: s.maxAdvanceDays,
+      // What a pack bundles, and what those services would cost one by one.
+      includes: s.packageItems.map((i) => ({ id: i.service.id, name: i.service.name })),
+      separatePrice: s.packageItems.reduce((sum, i) => sum + Number(i.service.priceAmount), 0),
     })),
     staff: business.staff.map((s) => ({
       id: s.id,

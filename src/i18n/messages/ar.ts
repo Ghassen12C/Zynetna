@@ -178,6 +178,10 @@ export const ar: Messages = {
     },
   },
   business: {
+    packs: 'الباقات والمناسبات',
+    packIncludes: 'تشمل:',
+    onRequest: 'بعد تأكيد المحل',
+    insteadOf: 'عوض {price}',
     book: 'احجز',
     metaDescription: 'احجز عبر الإنترنت لدى {name}.',
     metaDescriptionIn: 'احجز عبر الإنترنت لدى {name} في {city}.',
@@ -247,6 +251,7 @@ export const ar: Messages = {
     qrPrint: 'طباعة',
   },
   booking: {
+    otherDate: 'تاريخ آخر:',
     title: 'الحجز',
     stepService: 'الخدمة',
     stepStaff: 'المحترف',

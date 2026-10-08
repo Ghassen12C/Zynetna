@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState } from 'react';
+import { useActionState, useEffect } from 'react';
 import { useFormStatus } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
@@ -28,7 +28,9 @@ function Row({ setting, m, saveLabel, locale }: RowProps) {
   const [before, after] = m.settings.updated.split('{when}');
   const router = useRouter();
   const [state, formAction] = useActionState(updateSettingAction, idle);
-  if (state.status === 'success') router.refresh();
+  useEffect(() => {
+    if (state.status === 'success') router.refresh();
+  }, [state, router]);
 
   return (
     <form action={formAction} className="z-setting">

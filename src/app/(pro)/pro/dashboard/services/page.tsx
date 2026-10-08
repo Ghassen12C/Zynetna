@@ -24,6 +24,7 @@ export default async function ServicesPage() {
         staff: { select: { staffMemberId: true } },
         media: { take: 1, orderBy: { position: 'asc' }, include: { asset: true } },
         _count: { select: { items: true } },
+        packageItems: { orderBy: { position: 'asc' }, select: { serviceId: true } },
       },
     }),
     db.staffMember.findMany({
@@ -42,7 +43,10 @@ export default async function ServicesPage() {
         parent: { select: { name: true, nameAr: true, nameEn: true } },
       },
     }),
-    db.business.findUniqueOrThrow({ where: { id: businessId }, select: { currency: true } }),
+    db.business.findUniqueOrThrow({
+      where: { id: businessId },
+      select: { currency: true, maxAdvanceDays: true },
+    }),
   ]);
 
   // Reference data carries its own translations; sort in the reader's alphabet.
@@ -62,6 +66,7 @@ export default async function ServicesPage() {
       locale={locale}
       businessId={businessId}
       currency={business.currency}
+      businessMaxAdvanceDays={business.maxAdvanceDays}
       services={services.map((s) => ({
         id: s.id,
         name: s.name,
@@ -76,6 +81,10 @@ export default async function ServicesPage() {
         staffIds: s.staff.map((x) => x.staffMemberId),
         imageUrl: s.media[0] ? variantUrl(s.media[0].asset, 'thumb') : null,
         bookingCount: s._count.items,
+        isPackage: s.isPackage,
+        includedIds: s.packageItems.map((i) => i.serviceId),
+        maxAdvanceDays: s.maxAdvanceDays,
+        requiresConfirmation: s.requiresConfirmation,
       }))}
       staff={staff}
       categories={categoryOptions}

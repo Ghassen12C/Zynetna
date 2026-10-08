@@ -114,7 +114,15 @@ Roles are **assignments**, not a column: a user can be a customer *and* own a bu
 
 ### Marketplace
 `Business` · `BusinessLocation` · `Category` (self-referencing tree) · `BusinessCategory` ·
-`Service` · `ServiceCategory` · `MediaAsset` · `BusinessMedia` · `ServiceMedia`
+`Service` · `ServicePackageItem` · `ServiceCategory` · `MediaAsset` · `BusinessMedia` ·
+`ServiceMedia`
+
+**Packs and events.** A pack (wedding, engagement, henna night, party…) is a `Service`
+with `isPackage = true`: one fixed price, one duration, booked as one appointment through
+the same engine. `ServicePackageItem` lists the regular services it bundles, only ever
+from the same business and never another pack (`resolvePackItems` in
+`server/services/packages.ts`); the list is what customers see, and the separate prices
+give the "instead of" saving. Whether a service is a pack is fixed at creation.
 
 `Business.slug` is unique and indexed → `zynetna.tn/business/<slug>`.
 `Business.status` ∈ `DRAFT | PENDING_REVIEW | ACTIVE | SUSPENDED | REJECTED` and
@@ -223,7 +231,9 @@ Business → Service → Professional → Date → Slot → Confirm
 4. Subtract existing `PENDING`/`CONFIRMED` reservations, inflated by the service's buffer.
 5. Walk the remaining windows in `slotGranularity` steps, keeping starts where
    `prep + duration + buffer` fits entirely inside one window.
-6. Drop slots violating `minNoticeMinutes`, beyond `maxAdvanceDays`, or in the past.
+6. Drop slots violating `minNoticeMinutes`, beyond `maxAdvanceDays`, or in the past. Both
+   can be set per service and then override the business's values: a wedding pack can
+   open a year ahead while everyday services keep the business horizon.
 
 The frontend renders what the server returns. It never computes availability.
 
@@ -258,6 +268,8 @@ Every transition writes a `ReservationEvent` (actor, from, to, reason, timestamp
 
 **Policies** per business, surfaced in the UI *before* confirmation: cancellation window,
 minimum notice, maximum advance, rescheduling allowed, no-show handling, auto-confirm.
+A service with `requiresConfirmation` is always booked online as `PENDING`, even when the
+business auto-confirms; walk-ins and phone bookings entered by the business are confirmed.
 
 ---
 

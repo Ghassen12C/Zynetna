@@ -1365,6 +1365,27 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .z-svc__aside { display: flex; flex-direction: column; align-items: flex-end; gap: var(--z-space-2); }
 .z-svc__price { font-family: var(--z-font-display); font-weight: var(--z-weight-bold); font-size: var(--z-text-lg); color: var(--z-medina); white-space: nowrap; }
 :root[data-theme='dark'] .z-svc__price { color: var(--z-accent); }
+/* Packs & events: a jasmin edge marks the bundled offers. */
+.z-svc--pack,
+.z-svc--pack:hover { border-inline-start: 3px solid var(--z-jasmin); }
+.z-svc__includes { font-size: var(--z-text-sm); color: var(--z-fg-muted); }
+.z-svc__was { font-size: var(--z-text-xs); color: var(--z-fg-subtle); text-decoration: line-through; white-space: nowrap; }
+.z-pack-tag {
+  display: inline-block;
+  margin-inline-end: var(--z-space-2);
+  padding: 0 var(--z-space-2);
+  border-radius: var(--z-radius-full, 999px);
+  font-size: var(--z-text-xs);
+  font-weight: var(--z-weight-bold);
+  background: color-mix(in srgb, var(--z-jasmin) 18%, transparent);
+  color: var(--z-fg);
+  vertical-align: middle;
+}
+.z-daypick { margin-top: var(--z-space-3); align-items: center; gap: var(--z-space-2); }
+.z-daypick .z-input { inline-size: auto; }
+.z-details { border: 1px solid var(--z-border); border-radius: var(--z-radius-md); padding: var(--z-space-3) var(--z-space-4); }
+.z-details > summary { cursor: pointer; list-style-position: inside; }
+.z-details[open] > summary { margin-bottom: var(--z-space-3); }
 
 /* ── Team ─────────────────────────────────────────────────────────────── */
 

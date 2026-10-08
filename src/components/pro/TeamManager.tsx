@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState, useState } from 'react';
+import { useActionState, useEffect, useState } from 'react';
 import { useFormStatus } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { Alert } from '@/components/ui/Alert';
@@ -55,10 +55,13 @@ function MemberForm({
   const router = useRouter();
   const [state, formAction] = useActionState(saveStaffAction, idle);
 
-  if (state.status === 'success') {
-    router.refresh();
-    onDone();
-  }
+  // After the render, never during it: refreshing is a state update elsewhere.
+  useEffect(() => {
+    if (state.status === 'success') {
+      router.refresh();
+      onDone();
+    }
+  }, [state, router, onDone]);
   const errors = state.status === 'error' ? state.fieldErrors : undefined;
   const t = m.dashSetup.team;
 
@@ -153,7 +156,9 @@ function MemberForm({
 function AvatarForm({ m, businessId, staffId }: { m: M; businessId: string; staffId: string }) {
   const router = useRouter();
   const [state, formAction] = useActionState(uploadStaffAvatarAction, idle);
-  if (state.status === 'success') router.refresh();
+  useEffect(() => {
+    if (state.status === 'success') router.refresh();
+  }, [state, router]);
 
   return (
     <form action={formAction} className="z-inline-upload">
@@ -186,7 +191,9 @@ function DeleteMemberForm({
   const router = useRouter();
   const [state, formAction] = useActionState(deleteStaffAction, idle);
   const [confirming, setConfirming] = useState(false);
-  if (state.status === 'success') router.refresh();
+  useEffect(() => {
+    if (state.status === 'success') router.refresh();
+  }, [state, router]);
 
   return (
     <>

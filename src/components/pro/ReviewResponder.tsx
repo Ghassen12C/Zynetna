@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState, useState } from 'react';
+import { useActionState, useEffect, useState } from 'react';
 import { useFormStatus } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { Alert } from '@/components/ui/Alert';
@@ -34,9 +34,9 @@ export function ReviewResponder({
   const [open, setOpen] = useState(false);
   const d = m.reviews;
 
-  if (state.status === 'success') {
-    router.refresh();
-  }
+  useEffect(() => {
+    if (state.status === 'success') router.refresh();
+  }, [state, router]);
 
   if (existing && !open) {
     return (
