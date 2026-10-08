@@ -1,6 +1,6 @@
 import type { SubscriptionStatus } from '@prisma/client';
 import { db } from '@/lib/db';
-import { notFound } from '@/lib/errors';
+import { conflict, notFound } from '@/lib/errors';
 import { logger } from '@/lib/logger';
 import {
   type PlanTerms,
@@ -135,13 +135,21 @@ export async function getSubscriptionView(businessId: string) {
   };
 }
 
-/** Record a payment and move the subscription into its next paid period. */
+/**
+ * A payment that extends the subscription: entered by an admin, or a D17
+ * payment the business submitted and an admin has now confirmed
+ * (`pendingPaymentId`). With `planId`, the subscription moves to that plan and
+ * the period is that plan's. One transaction: the payment, the period and the
+ * history line land together or not at all.
+ */
 export async function recordPayment(opts: {
   businessId: string;
   amount: number;
   provider?: string;
   providerRef?: string | null;
   recordedById?: string | null;
+  pendingPaymentId?: string;
+  planId?: string | null;
 }) {
   const subscription = await db.subscription.findUnique({
     where: { businessId: opts.businessId },
@@ -149,7 +157,13 @@ export async function recordPayment(opts: {
   });
   if (!subscription) throw notFound('subscriptionNotFound');
 
-  const terms = termsOf(subscription.plan);
+  const plan =
+    opts.planId && opts.planId !== subscription.planId
+      ? await db.subscriptionPlan.findUnique({ where: { id: opts.planId } })
+      : subscription.plan;
+  if (!plan) throw notFound('planNotFound');
+
+  const terms = termsOf(plan);
   const now = new Date();
   // Extend from the current period end when still in credit, else from now.
   const start =
@@ -159,24 +173,38 @@ export async function recordPayment(opts: {
   const end = periodEnd(start, terms);
 
   return db.$transaction(async (tx) => {
-    await tx.payment.create({
-      data: {
-        subscriptionId: subscription.id,
-        amount: opts.amount,
-        currency: subscription.plan.currency,
-        status: 'SUCCEEDED',
-        provider: opts.provider ?? 'manual',
-        providerRef: opts.providerRef ?? null,
-        periodStart: start,
-        periodEnd: end,
-        paidAt: now,
-        recordedById: opts.recordedById ?? null,
-      },
-    });
+    const settled = {
+      status: 'SUCCEEDED' as const,
+      periodStart: start,
+      periodEnd: end,
+      paidAt: now,
+      recordedById: opts.recordedById ?? null,
+    };
+    if (opts.pendingPaymentId) {
+      // Only a payment still pending can be confirmed, once.
+      const { count } = await tx.payment.updateMany({
+        where: { id: opts.pendingPaymentId, subscriptionId: subscription.id, status: 'PENDING' },
+        data: { ...settled, reviewedAt: now },
+      });
+      if (count !== 1) throw conflict('paymentNotPending');
+    } else {
+      await tx.payment.create({
+        data: {
+          subscriptionId: subscription.id,
+          amount: opts.amount,
+          currency: plan.currency,
+          provider: opts.provider ?? 'manual',
+          providerRef: opts.providerRef ?? null,
+          planId: plan.id,
+          ...settled,
+        },
+      });
+    }
 
     const updated = await tx.subscription.update({
       where: { id: subscription.id },
       data: {
+        planId: plan.id,
         status: 'ACTIVE',
         currentStartAt: start,
         currentEndAt: end,
@@ -189,7 +217,7 @@ export async function recordPayment(opts: {
         subscriptionId: subscription.id,
         fromStatus: subscription.status,
         toStatus: 'ACTIVE',
-        reason: `Payment recorded (${opts.amount} ${subscription.plan.currency})`,
+        reason: `Payment recorded (${opts.amount} ${plan.currency}${opts.provider ? `, ${opts.provider}` : ''})`,
         actorId: opts.recordedById ?? null,
       },
     });

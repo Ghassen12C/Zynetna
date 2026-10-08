@@ -5,6 +5,8 @@ import { Badge, EmptyState, Panel } from '@/components/ui/Primitives';
 import { requireSuperAdmin } from '@/server/auth/guard';
 import { RecordPaymentForm } from '@/components/admin/RecordPaymentForm';
 import { PlanEditor } from '@/components/admin/PlanEditor';
+import { D17Review } from '@/components/payments/D17Review';
+import { D17_PROVIDER } from '@/server/services/payments';
 import {
   intervalDaysFor,
   resolveStatus,
@@ -41,7 +43,7 @@ export default async function AdminSubscriptionsPage() {
   const s = m.admin.subscriptions;
   const now = new Date();
 
-  const [subscriptions, plans, recentPayments] = await Promise.all([
+  const [subscriptions, plans, recentPayments, pendingD17] = await Promise.all([
     db.subscription.findMany({
       orderBy: { createdAt: 'desc' },
       include: {
@@ -62,7 +64,22 @@ export default async function AdminSubscriptionsPage() {
         subscription: { select: { business: { select: { name: true, slug: true } } } },
       },
     }),
+    db.payment.findMany({
+      where: { provider: D17_PROVIDER, status: 'PENDING' },
+      orderBy: { createdAt: 'asc' },
+      select: {
+        id: true, amount: true, currency: true, createdAt: true,
+        providerRef: true, metadata: true, planId: true,
+        subscription: {
+          select: {
+            business: { select: { name: true, slug: true, owner: { select: { email: true } } } },
+          },
+        },
+      },
+    }),
   ]);
+  const planName = new Map(plans.map((p) => [p.id, p.name]));
+  const d17 = m.admin.d17;
 
   // Effective status, not the stored one: a lapsed row the sweep has not yet
   // touched must not read as active here.
@@ -89,6 +106,81 @@ export default async function AdminSubscriptionsPage() {
         <h1 className="z-search__title">{m.admin.nav.subscriptions}</h1>
         <p className="z-policy">{s.manualNote}</p>
       </div>
+
+      <Panel className="z-dash__panel">
+        <div>
+          <h2 className="z-profile__h3">
+            {d17.pendingTitle} ({formatNumber(pendingD17.length, locale)})
+          </h2>
+          <p className="z-policy">{d17.pendingLead}</p>
+        </div>
+        {pendingD17.length === 0 ? (
+          <p className="z-help">{d17.none}</p>
+        ) : (
+          <div className="z-table--scroll">
+            <table className="z-table">
+              <thead>
+                <tr>
+                  <th>{d17.colBusiness}</th>
+                  <th>{d17.colPlan}</th>
+                  <th>{d17.colAmount}</th>
+                  <th>{d17.colSent}</th>
+                  <th>{d17.colRef}</th>
+                  <th>{d17.colProof}</th>
+                  <th />
+                </tr>
+              </thead>
+              <tbody>
+                {pendingD17.map((payment) => {
+                  const meta = (payment.metadata ?? {}) as { reference?: unknown };
+                  return (
+                    <tr key={payment.id}>
+                      <td>
+                        {payment.subscription.business.name}
+                        <br />
+                        <span className="z-help" dir="ltr">
+                          {payment.subscription.business.owner.email}
+                        </span>
+                      </td>
+                      <td>{payment.planId ? (planName.get(payment.planId) ?? '—') : '—'}</td>
+                      <td>{formatPrice(Number(payment.amount), locale, payment.currency)}</td>
+                      <td>
+                        <span className="z-help">{formatDate(payment.createdAt, locale)}</span>
+                      </td>
+                      <td>
+                        <bdi dir="ltr" className="z-d17__ref">
+                          {typeof meta.reference === 'string' ? meta.reference : '—'}
+                        </bdi>
+                        {payment.providerRef ? (
+                          <>
+                            <br />
+                            <span className="z-help">
+                              {t(d17.transaction, { ref: payment.providerRef })}
+                            </span>
+                          </>
+                        ) : null}
+                      </td>
+                      <td>
+                        <a
+                          href={`/api/payments/${payment.id}/proof`}
+                          target="_blank"
+                          rel="noopener"
+                          className="z-btn z-btn--secondary z-btn--sm"
+                        >
+                          {d17.viewProof}
+                        </a>
+                      </td>
+                      <td>
+                        <D17Review paymentId={payment.id} m={{ admin: m.admin, common: m.common }} />
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Panel>
 
       <div className="z-stats">
         <div className="z-stat">
@@ -208,7 +300,7 @@ export default async function AdminSubscriptionsPage() {
               <tbody>
                 {recentPayments.map((payment) => (
                   <tr key={payment.id}>
-                    <td>{payment.paidAt ? formatDate(payment.paidAt, locale) : '—'}</td>
+                    <td>{formatDate(payment.paidAt ?? payment.createdAt, locale)}</td>
                     <td>{payment.subscription.business.name}</td>
                     <td>{formatPrice(Number(payment.amount), locale, payment.currency)}</td>
                     <td>

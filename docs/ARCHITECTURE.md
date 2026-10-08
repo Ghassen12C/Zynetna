@@ -320,6 +320,27 @@ Payments: `PaymentProvider` interface + a `ManualPaymentProvider` that records a
 admin-confirmed bank/cash payment. No fake card form, no fake success screen. A Tunisian
 PSP (ClicToPay / Paymee / Flouci) drops in as one more implementation.
 
+**Paying by D17** (`src/server/services/payments.ts`). Zynetna charges nothing itself:
+1. The super admin uploads the platform's D17 "Paiement commerçant" QR code in
+   Admin → Paramètres (setting `payments.d17`). It is stored as a *private* object, never
+   committed to the repository and never given a public URL.
+2. On Abonnement, the business owner picks a plan, scans the QR in their own D17 app,
+   pays, writes the reference `ZYN-XXXXXX` in the transfer message, and uploads the
+   screenshot. That creates a `Payment` with status `PENDING`, provider `d17`, the
+   chosen `planId` and the screenshot's private `proofKey`. One pending D17 payment per
+   subscription. The admins get a `PAYMENT_SUBMITTED` notification.
+3. In Admin → Abonnements, the admin checks the money arrived in the D17 app.
+   - **Confirm** runs `recordPayment` on that same row (a conditional update, so a
+     double click cannot confirm twice). It switches the plan if another was chosen and
+     extends the period.
+   - **Refuse** marks it `FAILED` with a reason the owner is notified of.
+   - The subscription moves only on Confirm.
+
+The screenshot is served only by `GET /api/payments/[id]/proof`, to the business's
+owner (`business.subscription.read` on that business) or a super admin. Anyone else gets
+404. The QR is served by `GET /api/payments/d17-qr` to signed-in accounts while D17 is
+on, and to admins at all times.
+
 ---
 
 ## 9. Media architecture
@@ -341,6 +362,14 @@ client → POST /api/v1/media (multipart)
 drag-reorder; `ServiceMedia` attaches it to a service. **Only keys and metadata in
 Postgres** — never binaries. `StorageDriver` has `put`/`delete`/`url`/`signedUploadUrl`, so
 moving to Azure Blob + CDN is a config change (`STORAGE_DRIVER=azure`).
+
+**Private objects** use keys under `private/` (payment screenshots, the D17 QR). They:
+- are re-encoded the same way (which drops EXIF/GPS);
+- get no `MediaAsset` row;
+- on Azure, go to a separate container, `<container>-private`, which is created on first
+  use with no public access;
+- are refused by the development `/media/` route;
+- are read only through routes that check who is asking.
 
 ---
 

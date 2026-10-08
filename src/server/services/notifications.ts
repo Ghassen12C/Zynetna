@@ -340,6 +340,58 @@ export const notify = {
       }),
     });
   },
+
+  /** A business sent a D17 payment: every platform admin is told. */
+  async paymentSubmitted(businessName: string, amount: string) {
+    const admins = await db.roleAssignment.findMany({
+      where: { role: 'SUPER_ADMIN', businessId: null },
+      select: { userId: true },
+    });
+    for (const { userId } of admins) {
+      const recipient = await recipientOf(userId);
+      if (!recipient) continue;
+      await dispatch({
+        recipient,
+        type: 'PAYMENT_SUBMITTED',
+        link: '/admin/subscriptions',
+        render: (m, t) => ({
+          title: t(m.notify.paymentSubmittedTitle, { business: businessName }),
+          body: t(m.notify.paymentSubmittedBody, { business: businessName, amount }),
+        }),
+      });
+    }
+  },
+
+  async paymentConfirmed(ownerId: string, businessName: string, until: Date) {
+    const recipient = await recipientOf(ownerId);
+    if (!recipient) return;
+    await dispatch({
+      recipient,
+      type: 'SUBSCRIPTION_RENEWED',
+      link: '/pro/dashboard/subscription',
+      render: (m, t, locale) => ({
+        title: m.notify.paymentConfirmedTitle,
+        body: t(m.notify.paymentConfirmedBody, {
+          business: businessName,
+          date: new Intl.DateTimeFormat(LOCALE_META[locale].intl, { dateStyle: 'long' }).format(until),
+        }),
+      }),
+    });
+  },
+
+  async paymentRejected(ownerId: string, businessName: string, reason: string) {
+    const recipient = await recipientOf(ownerId);
+    if (!recipient) return;
+    await dispatch({
+      recipient,
+      type: 'PAYMENT_REJECTED',
+      link: '/pro/dashboard/subscription',
+      render: (m, t) => ({
+        title: m.notify.paymentRejectedTitle,
+        body: t(m.notify.paymentRejectedBody, { business: businessName, reason }),
+      }),
+    });
+  },
 };
 
 /** Dispatch due reminders — called by the scheduled job. */

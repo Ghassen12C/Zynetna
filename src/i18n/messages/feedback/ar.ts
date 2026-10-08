@@ -3,6 +3,10 @@ import type { feedbackFr } from './fr';
 
 export const feedbackAr: typeof feedbackFr = {
   done: {
+    paymentSubmitted: 'تم إرسال الدفعة. سنتحقق منها ونفعّل اشتراكك فور وصولها.',
+    paymentConfirmed: 'تم تأكيد الدفعة وتمديد الاشتراك.',
+    paymentRejected: 'تم رفض الدفعة وإعلام المهني.',
+    d17Saved: 'تم حفظ إعدادات الدفع عبر D17.',
     twoFactorEnabled: 'تم تفعيل التحقق بخطوتين.',
     twoFactorDisabled: 'تم إيقاف التحقق بخطوتين.',
     recoveryCodesRenewed: 'تم إنشاء رموز احتياطية جديدة. الرموز القديمة لم تعد صالحة.',
@@ -54,6 +58,14 @@ export const feedbackAr: typeof feedbackFr = {
   },
 
   errors: {
+    reasonRequired: 'اذكر سبب الرفض: سيُرسل إلى المهني.',
+    d17QrRequired: 'أضف أولاً رمز QR الخاص بـ D17 لتفعيل طريقة الدفع هذه.',
+    d17Unavailable: 'الدفع عبر D17 غير متاح حالياً.',
+    planNotFound: 'هذه الصيغة غير موجودة أو لم تعد متوفرة.',
+    paymentAlreadyPending: 'هناك دفعة في انتظار التأكيد. سنعلمك فور التحقق منها.',
+    paymentNotFound: 'الدفعة غير موجودة.',
+    paymentNotPending: 'تمت معالجة هذه الدفعة من قبل.',
+    proofRequired: 'أضف لقطة شاشة لعملية الدفع عبر D17.',
     twoFactorAlreadyOn: 'التحقق بخطوتين مفعّل مسبقاً.',
     twoFactorNotStarted: 'أعد التفعيل: امسح رمز QR أولاً.',
     twoFactorCodeInvalid: 'الرمز غير صحيح أو مستعمل. تأكّد من ساعة هاتفك وأعد المحاولة.',

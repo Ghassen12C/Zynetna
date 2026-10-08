@@ -3,6 +3,10 @@ import type { feedbackFr } from './fr';
 
 export const feedbackEn: typeof feedbackFr = {
   done: {
+    paymentSubmitted: 'Payment sent. We check it and activate your subscription as soon as it arrives.',
+    paymentConfirmed: 'Payment confirmed, subscription extended.',
+    paymentRejected: 'Payment refused. The professional has been told.',
+    d17Saved: 'D17 payment settings saved.',
     twoFactorEnabled: 'Two-step verification is on.',
     twoFactorDisabled: 'Two-step verification is off.',
     recoveryCodesRenewed: 'New recovery codes created. The old ones no longer work.',
@@ -53,6 +57,14 @@ export const feedbackEn: typeof feedbackFr = {
   },
 
   errors: {
+    reasonRequired: 'Give the reason for refusing: it is sent to the professional.',
+    d17QrRequired: 'Add the D17 QR code first to turn this payment method on.',
+    d17Unavailable: 'Paying with D17 is not available right now.',
+    planNotFound: 'This plan does not exist or is no longer offered.',
+    paymentAlreadyPending: 'A payment is already waiting for confirmation. You will be told as soon as it is checked.',
+    paymentNotFound: 'Payment not found.',
+    paymentNotPending: 'This payment has already been handled.',
+    proofRequired: 'Add the screenshot of the D17 payment.',
     twoFactorAlreadyOn: 'Two-step verification is already on.',
     twoFactorNotStarted: 'Start again: scan the QR code first.',
     twoFactorCodeInvalid: 'Wrong or already used code. Check your phone’s time and try again.',

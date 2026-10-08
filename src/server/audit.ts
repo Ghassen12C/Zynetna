@@ -50,6 +50,9 @@ export type AuditAction =
   | 'subscription.changed'
   | 'subscription.plan_updated'
   | 'payment.recorded'
+  | 'payment.submitted'
+  | 'payment.confirmed'
+  | 'payment.rejected'
   | 'setting.updated'
   | 'flag.updated'
   | 'media.deleted';

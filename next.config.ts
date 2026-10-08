@@ -13,7 +13,15 @@ const config: NextConfig = {
     formats: ['image/avif', 'image/webp'],
     remotePatterns: [{ protocol: 'https', hostname: '**.blob.core.windows.net' }],
   },
-  experimental: { optimizePackageImports: ['motion'] },
+  experimental: {
+    optimizePackageImports: ['motion'],
+    // Photos and payment screenshots are uploaded through server actions,
+    // whose default limit is 1 MB: most phone photos are larger. 9 MB leaves
+    // room for the form fields around the 8 MB the image pipeline accepts
+    // (MAX_UPLOAD_BYTES in server/services/media.ts), which is checked again
+    // on the server.
+    serverActions: { bodySizeLimit: '9mb' },
+  },
   async headers() {
     return [
       {

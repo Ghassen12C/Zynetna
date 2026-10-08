@@ -10,6 +10,10 @@ import type { PluralForms } from '../../config';
  */
 export const feedbackFr = {
   done: {
+    paymentSubmitted: 'Paiement envoyé. Nous le vérifions et activons votre abonnement dès réception.',
+    paymentConfirmed: 'Paiement confirmé, abonnement prolongé.',
+    paymentRejected: 'Paiement refusé. Le professionnel a été prévenu.',
+    d17Saved: 'Paiement D17 enregistré.',
     twoFactorEnabled: 'Validation en deux étapes activée.',
     twoFactorDisabled: 'Validation en deux étapes désactivée.',
     recoveryCodesRenewed: 'Nouveaux codes de secours créés. Les anciens ne fonctionnent plus.',
@@ -61,6 +65,14 @@ export const feedbackFr = {
   },
 
   errors: {
+    reasonRequired: 'Indiquez la raison du refus : elle est envoyée au professionnel.',
+    d17QrRequired: 'Ajoutez d’abord le QR code D17 pour activer ce mode de paiement.',
+    d17Unavailable: 'Le paiement par D17 n’est pas disponible pour le moment.',
+    planNotFound: 'Cette formule n’existe pas ou n’est plus proposée.',
+    paymentAlreadyPending: 'Un paiement est déjà en attente de confirmation. Vous serez prévenu dès qu’il est vérifié.',
+    paymentNotFound: 'Paiement introuvable.',
+    paymentNotPending: 'Ce paiement a déjà été traité.',
+    proofRequired: 'Ajoutez la capture d’écran du paiement D17.',
     twoFactorAlreadyOn: 'La validation en deux étapes est déjà activée.',
     twoFactorNotStarted: 'Recommencez l’activation : scannez d’abord le QR code.',
     twoFactorCodeInvalid: 'Code incorrect ou déjà utilisé. Vérifiez l’heure de votre téléphone et réessayez.',

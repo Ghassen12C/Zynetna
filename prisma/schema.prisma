@@ -913,6 +913,13 @@ model Payment {
   failureReason  String?
   recordedById   String?
   metadata       Json?
+  /// D17 (or other self-reported) payments: the plan paid for, who sent it,
+  /// and the storage key of the screenshot. The key is never sent to a
+  /// browser; the screenshot is only served through an authorised route.
+  planId         String?
+  submittedById  String?
+  proofKey       String?
+  reviewedAt     DateTime?     @db.Timestamptz(3)
   createdAt      DateTime      @default(now()) @db.Timestamptz(3)
 
   subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
@@ -975,6 +982,8 @@ enum NotificationType {
   TRIAL_ENDING
   SUBSCRIPTION_EXPIRED
   SUBSCRIPTION_RENEWED
+  PAYMENT_SUBMITTED
+  PAYMENT_REJECTED
 }
 
 enum NotificationChannel {

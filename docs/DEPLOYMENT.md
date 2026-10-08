@@ -27,8 +27,11 @@ actually runs, how to change it, and how to undo a change.
  │  kerkennah-db (PostgreSQL 16, B1ms, 7-day backups)                     │
  │   └─ database zynetna, login zynetna_app (only that database),         │
  │      extensions btree_gist · citext · pg_trgm, TLS required            │
- │  zynetnamedia (Storage) └─ container zynetna-media, blob-level read,   │
- │                            14-day soft delete                          │
+ │  zynetnamedia (Storage) ├─ container zynetna-media, blob-level read,   │
+ │                          │  14-day soft delete                         │
+ │                          └─ container zynetna-media-private, no public │
+ │                             access (payment screenshots, D17 QR);      │
+ │                             the app creates it on first private upload │
  │  id-zynetna-github (managed identity, OIDC from GitHub)                │
  │   ├─ AcrPush on kerkennahacr                                           │
  │   └─ Website Contributor on zynetna-web only                           │
@@ -89,6 +92,20 @@ button only appears then. In Google Cloud Console: an OAuth consent screen
 `https://www.zynetna.tn/api/auth/google/callback`. The secret goes into Key
 Vault as `google-client-secret`; the app setting references it. Rotate it in
 Google Cloud, update the Key Vault secret, restart the app.
+
+## D17 payments
+
+Nothing to configure in Azure. After deploying, in **Admin → Paramètres →
+Paiement D17**:
+1. Upload the screenshot of the D17 "Paiement commerçant" screen, cropped to the QR.
+2. Enter the recipient name.
+3. Tick "Proposer le paiement par D17".
+
+Professionals then see "Payer avec D17" on their Abonnement page. Payments to check
+appear at the top of **Admin → Abonnements**. The QR and the screenshots live in the
+private container `zynetna-media-private`. The app creates it using the existing
+storage connection string; it is an addition, and the public `zynetna-media` container
+is not changed.
 
 ## Deploying
 

@@ -3,7 +3,7 @@ import sharp from 'sharp';
 import { db } from '@/lib/db';
 import { invalid, localized } from '@/lib/errors';
 import { logger } from '@/lib/logger';
-import { checksumOf, storage } from '../providers/storage';
+import { checksumOf, isPrivateKey, storage } from '../providers/storage';
 
 /**
  * Image ingest pipeline.
@@ -65,7 +65,16 @@ export type UploadInput = {
   alt?: string | null;
 };
 
-export async function ingestImage(input: UploadInput): Promise<UploadResult> {
+/**
+ * The checks every upload passes before anything is stored: not empty, not
+ * too large, a real image by its bytes (never by its declared type), one that
+ * decodes, and within the pixel limits.
+ */
+async function validateImage(input: {
+  buffer: Buffer;
+  declaredType: string;
+  uploadedById: string;
+}): Promise<{ width: number; height: number }> {
   if (input.buffer.length === 0) throw invalid('fileEmpty');
   if (input.buffer.length > MAX_UPLOAD_BYTES) {
     throw localized('PAYLOAD_TOO_LARGE', 'fileTooLarge', {
@@ -102,6 +111,12 @@ export async function ingestImage(input: UploadInput): Promise<UploadResult> {
   if (width * height > MAX_PIXELS) {
     throw localized('PAYLOAD_TOO_LARGE', 'imageTooLargeToProcess');
   }
+
+  return { width, height };
+}
+
+export async function ingestImage(input: UploadInput): Promise<UploadResult> {
+  const { width, height } = await validateImage(input);
 
   const id = randomBytes(12).toString('hex');
   const base = `${input.prefix}/${id}`;
@@ -185,4 +200,33 @@ export async function deleteAsset(assetId: string): Promise<void> {
   }
   await Promise.all([...keys].map((k) => storage.delete(k).catch(() => undefined)));
   await db.mediaAsset.delete({ where: { id: asset.id } }).catch(() => undefined);
+}
+
+/**
+ * A private image: a payment screenshot, say. Same checks as any upload, then
+ * re-encoded once (which also drops EXIF, GPS position included) and stored
+ * under an unguessable key that is never sent to a browser. It is read back
+ * only through `readPrivateImage`, behind an authorisation check, and gets no
+ * MediaAsset row, so it can never surface through a public media URL.
+ */
+export async function ingestPrivateImage(input: {
+  buffer: Buffer;
+  declaredType: string;
+  uploadedById: string;
+  prefix: string;
+}): Promise<string> {
+  await validateImage(input);
+  const body = await sharp(input.buffer, { limitInputPixels: MAX_PIXELS })
+    .rotate()
+    .resize(1200, 2600, { fit: 'inside', withoutEnlargement: true })
+    .webp({ quality: 82 })
+    .toBuffer();
+  const key = `private/${input.prefix}/${randomBytes(18).toString('hex')}.webp`;
+  await storage.put(key, body, 'image/webp');
+  return key;
+}
+
+export function readPrivateImage(key: string): Promise<Buffer> {
+  if (!isPrivateKey(key)) throw new Error('Not a private image key');
+  return storage.get(key);
 }

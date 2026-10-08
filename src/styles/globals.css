@@ -3664,3 +3664,15 @@ a.z-notif:hover { border-color: var(--z-accent); }
 .z-google { gap: var(--z-space-3); }
 .z-or { display: flex; align-items: center; gap: var(--z-space-3); color: var(--z-fg-subtle); font-size: var(--z-text-sm); }
 .z-or::before, .z-or::after { content: ''; flex: 1; border-block-start: 1px solid var(--z-border); }
+
+/* ── D17 payment ──────────────────────────────────────────────────────── */
+
+.z-d17__setup { display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--z-space-6); }
+.z-d17__setup > .z-kv { flex: 1; min-width: 220px; }
+.z-d17__qr { margin: 0; margin-inline: auto; display: flex; flex-direction: column; align-items: center; gap: var(--z-space-2); }
+.z-d17__qr img {
+  display: block; inline-size: 220px; max-inline-size: 100%; block-size: auto;
+  padding: var(--z-space-3); background: #fff;
+  border: 1px solid var(--z-border); border-radius: var(--z-radius-lg);
+}
+.z-d17__ref { font-family: var(--z-font-mono, ui-monospace, monospace); font-size: var(--z-text-lg); letter-spacing: 0.04em; white-space: nowrap; }

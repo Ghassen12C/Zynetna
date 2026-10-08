@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { env } from '@/lib/env';
-import { storage } from '@/server/providers/storage';
+import { isPrivateKey, storage } from '@/server/providers/storage';
 
 /**
  * Serves objects from the local storage driver in development.
@@ -28,6 +28,10 @@ export async function GET(
 
   const { key } = await context.params;
   const path = key.join('/');
+  // Private objects have their own, authorised routes; never this public one.
+  if (isPrivateKey(path)) {
+    return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  }
   const extension = path.split('.').pop()?.toLowerCase() ?? '';
   const contentType = CONTENT_TYPES[extension];
   if (!contentType) {

@@ -32,6 +32,7 @@ export const BUSINESS_TYPES: readonly NotificationType[] = [
   'TRIAL_ENDING',
   'SUBSCRIPTION_EXPIRED',
   'SUBSCRIPTION_RENEWED',
+  'PAYMENT_REJECTED',
 ];
 
 /**
