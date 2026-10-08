@@ -154,7 +154,11 @@ button, input, select, textarea { font: inherit; color: inherit; }
   display: inline-flex;
   align-items: center;
   gap: calc(var(--logo-size, 36px) * 0.32);
+  /* The brand never gives way in a crowded bar: at tablet widths the header
+     used to squeeze the mark to nothing. */
+  flex-shrink: 0;
 }
+.z-logo > svg { flex-shrink: 0; }
 .z-logo__text { display: flex; flex-direction: column; gap: 2px; }
 .z-logo__word {
   font-family: var(--z-font-display);
@@ -3579,4 +3583,51 @@ a.z-notif:hover { border-color: var(--z-accent); }
   /* Interactive cards answer the pointer. */
   .z-stat { transition: translate var(--z-duration-fast) var(--z-ease-out), box-shadow var(--z-duration-fast) var(--z-ease-out); }
   .z-stat:hover { translate: 0 -2px; box-shadow: var(--z-shadow-md); }
+}
+
+/* ══ Logo motion ═══════════════════════════════════════════════════════════
+   The mark tells its own story once, when the page opens: the arch rises
+   like a doorway, the Z settles inside it, then the dot drops onto it —
+   the moment the Latin Z becomes the Arabic ز. The wordmark tightens in
+   alongside. On hover the dot gives a small hop. The header lives in the
+   root layout, so this plays on arrival, not on every in-app navigation.
+   Entrance uses `transform`, the hop uses the separate `translate` property,
+   so neither ever restarts the other. Off entirely for reduced motion. */
+.z-mark__arch, .z-mark__z, .z-mark__dot { transform-box: fill-box; }
+
+@keyframes z-arch-rise {
+  from { opacity: 0; transform: scaleY(0.55); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes z-mark-settle {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes z-dot-drop {
+  0%   { opacity: 0; transform: translateY(-34px) scale(0.6); }
+  55%  { opacity: 1; transform: translateY(3px) scale(1.12, 0.88); }
+  75%  { transform: translateY(-3px) scale(0.96, 1.04); }
+  100% { opacity: 1; transform: none; }
+}
+@keyframes z-word-in {
+  from { opacity: 0; letter-spacing: 0.34em; }
+  to   { opacity: 1; letter-spacing: var(--z-tracking-wide); }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .z-logo .z-mark__arch {
+    transform-origin: 50% 100%;
+    animation: z-arch-rise 640ms var(--z-ease-out) backwards;
+  }
+  .z-logo .z-mark__z { animation: z-mark-settle 480ms var(--z-ease-out) 260ms backwards; }
+  .z-logo .z-mark__dot {
+    transform-origin: 50% 100%;
+    animation: z-dot-drop 760ms var(--z-ease-out) 560ms backwards;
+    transition: translate 320ms var(--z-ease-spring);
+  }
+  .z-logo__word { animation: z-word-in 820ms var(--z-ease-out) 200ms backwards; }
+
+  /* The hop: the dot springs up and lands back. */
+  a:hover > .z-logo .z-mark__dot,
+  a:focus-visible > .z-logo .z-mark__dot { translate: 0 -9px; }
 }

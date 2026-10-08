@@ -44,16 +44,18 @@ export function Mark({
     >
       {title ? <title>{title}</title> : null}
       <path
+        className="z-mark__arch"
         d="M0 50a50 50 0 0 1 100 0v80a8 8 0 0 1-8 8H8a8 8 0 0 1-8-8V50Z"
         fill={tone}
       />
-      {/* The dot — what turns the Z into ز. */}
-      <circle cx="50" cy="42" r="7" fill={knockout} />
       {/* Geometric Z, set on the same 50-unit grid as the arch. */}
       <path
+        className="z-mark__z"
         d="M25 61h50v11L42 96h33v11H25V96l33-24H25V61Z"
         fill={knockout}
       />
+      {/* The dot — what turns the Z into ز. Drawn last so it can land on top. */}
+      <circle className="z-mark__dot" cx="50" cy="42" r="7" fill={knockout} />
     </svg>
   );
 }
