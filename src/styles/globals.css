@@ -3676,3 +3676,29 @@ a.z-notif:hover { border-color: var(--z-accent); }
   border: 1px solid var(--z-border); border-radius: var(--z-radius-lg);
 }
 .z-d17__ref { font-family: var(--z-font-mono, ui-monospace, monospace); font-size: var(--z-text-lg); letter-spacing: 0.04em; white-space: nowrap; }
+
+/* ── Sign out and idle warning ─────────────────────────────────────────── */
+
+.z-logout { gap: var(--z-space-2); }
+.z-logout__icon { flex: none; }
+:root[dir='rtl'] .z-logout__icon { transform: scaleX(-1); }
+/* In a crowded desktop bar the icon alone, until there is room for the word. */
+@media (max-width: 1199px) {
+  .z-logout--compact { padding-inline: var(--z-space-2); }
+  .z-logout--compact .z-logout__text { display: none; }
+}
+
+.z-admin__logout .z-btn { color: inherit; border-color: color-mix(in srgb, currentColor 35%, transparent); }
+.z-admin__logout .z-btn:hover { background: color-mix(in srgb, currentColor 12%, transparent); }
+
+.z-idle {
+  position: fixed; z-index: 90;
+  inset-inline: var(--z-space-4); inset-block-end: var(--z-space-4);
+  margin-inline: auto; max-inline-size: 520px;
+  display: flex; align-items: center; flex-wrap: wrap; gap: var(--z-space-3);
+  padding: var(--z-space-4);
+  background: var(--z-bg-raised); color: var(--z-fg);
+  border: 1px solid var(--z-border-strong); border-radius: var(--z-radius-lg);
+  box-shadow: var(--z-shadow-lg, 0 12px 32px rgb(0 0 0 / 0.18));
+}
+.z-idle p { flex: 1; min-inline-size: 200px; margin: 0; font-size: var(--z-text-sm); }

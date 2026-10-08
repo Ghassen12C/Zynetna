@@ -15,6 +15,10 @@ const schema = z.object({
 
   SESSION_SECRET: z.string().min(32, 'SESSION_SECRET must be at least 32 characters'),
   SESSION_TTL_DAYS: z.coerce.number().int().positive().default(30),
+  /** Sign-out after inactivity, in minutes, by kind of account. */
+  SESSION_IDLE_MINUTES_ADMIN: z.coerce.number().int().positive().default(30),
+  SESSION_IDLE_MINUTES_PRO: z.coerce.number().int().positive().default(12 * 60),
+  SESSION_IDLE_MINUTES_CUSTOMER: z.coerce.number().int().positive().default(7 * 24 * 60),
 
   STORAGE_DRIVER: z.enum(['local', 'azure']).default('local'),
   STORAGE_LOCAL_DIR: z.string().default('./storage'),

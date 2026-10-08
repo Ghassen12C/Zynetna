@@ -16,11 +16,11 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ redirectTo?: string; error?: string }>;
+  searchParams: Promise<{ redirectTo?: string; error?: string; reason?: string }>;
 }) {
   const { m, locale, path } = await translate();
   if (await getActor()) redirect(path('/account'));
-  const { redirectTo, error } = await searchParams;
+  const { redirectTo, error, reason } = await searchParams;
   const googleError =
     error === 'google_suspended'
       ? m.auth.googleSuspended
@@ -43,6 +43,7 @@ export default async function LoginPage({
         <p className="z-auth__subtitle">{m.auth.loginSubtitle}</p>
       </div>
 
+      {reason === 'idle' ? <Alert tone="info">{m.auth.idleLoggedOut}</Alert> : null}
       {googleError ? <Alert tone="error">{googleError}</Alert> : null}
 
       <GoogleButton label={m.auth.continueWithGoogle} or={m.auth.orWithEmail} redirectTo={redirectTo} />

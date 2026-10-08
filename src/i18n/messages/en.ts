@@ -400,6 +400,9 @@ export const en: Messages = {
     EXPIRED: 'Expired',
   },
   auth: {
+    idleLoggedOut: 'You were signed out after a period of inactivity. Sign in again to continue.',
+    idleWarning: 'With no activity, you will be signed out in {seconds} s, for your security.',
+    idleStay: 'Stay signed in',
     continueWithGoogle: 'Continue with Google',
     orWithEmail: 'or with your email',
     googleFailed: 'Signing in with Google didn’t work. Try again, or use your email.',

@@ -210,6 +210,20 @@ enrolment, stored hashed. Turning it off needs the password and a code. A super 
 reset it for a user who lost both phone and codes (Admin → Utilisateurs), and every step
 is audited (`auth.2fa_*`). Code checks are rate-limited (`twoFactor`: 10 per 5 minutes).
 
+**Sessions end** at their absolute expiry (`SESSION_TTL_DAYS`, 30 days), or earlier after
+inactivity:
+- 30 minutes for a super admin;
+- 12 hours for anyone with a business role;
+- 7 days for a customer.
+
+Each limit can be changed with `SESSION_IDLE_MINUTES_ADMIN`, `_PRO` or `_CUSTOMER`.
+`getActor` enforces this server-side: an idle session is revoked on its next request.
+`lastSeenAt` is refreshed at most every 5 minutes, plus a `POST /api/auth/ping` the
+browser sends while the person is active. In the browser, `IdleGuard` gives a one-minute
+warning ("Rester connecté") and then signs the page out to `/login?reason=idle`, so an
+unattended screen stops showing data. Signing out is in the header, the phone menu and the
+admin bar.
+
 **"Continuer avec Google".** OpenID Connect authorization-code flow with PKCE, a state
 value and a nonce (`server/auth/google.ts`, routes under `/api/auth/google/`). The ID
 token comes straight from Google's token endpoint over TLS; its issuer, audience, expiry,

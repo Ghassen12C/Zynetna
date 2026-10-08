@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useId, useRef, useState } from 'react';
 import { LOCALES } from '@/i18n/config';
+import { LogoutButton } from '@/components/account/LogoutButton';
 
 const LOCALE_PREFIX = new RegExp(`^/(${LOCALES.join('|')})(?=/|$)`);
 
@@ -26,10 +27,13 @@ export function MobileMenu({
   links,
   actions,
   labels,
+  logoutLabel,
 }: {
   links: MenuLink[];
   actions: MenuLink[];
   labels: { open: string; close: string };
+  /** Shown, last, when someone is signed in. */
+  logoutLabel?: string;
 }) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
@@ -84,7 +88,7 @@ export function MobileMenu({
             </Link>
           ))}
         </nav>
-        {actions.length > 0 ? (
+        {actions.length > 0 || logoutLabel ? (
           <div className="z-mmenu__actions">
             {actions.map((action) => (
               <Link
@@ -97,6 +101,7 @@ export function MobileMenu({
                 {action.label}
               </Link>
             ))}
+            {logoutLabel ? <LogoutButton label={logoutLabel} block /> : null}
           </div>
         ) : null}
       </div>

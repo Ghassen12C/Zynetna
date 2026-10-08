@@ -6,7 +6,9 @@ import { ThemeToggle } from '@/components/layout/ThemeToggle';
 import { THEME_COOKIE, themeFrom } from '@/lib/theme';
 import { cookies } from 'next/headers';
 import { MobileMenu, type MenuLink } from '@/components/layout/MobileMenu';
-import { getActor } from '@/server/auth/session';
+import { LogoutButton } from '@/components/account/LogoutButton';
+import { IdleGuard } from '@/components/account/IdleGuard';
+import { getActor, idleLimitFor } from '@/server/auth/session';
 import { isSuperAdmin } from '@/domain/identity/actor';
 import { translate } from '@/i18n/server';
 import { LOCALE_META } from '@/i18n/config';
@@ -97,6 +99,7 @@ export async function Header() {
                 </ButtonLink>
               ),
             )}
+            {actor ? <LogoutButton label={m.nav.logout} size="sm" compact /> : null}
           </div>
           <MobileMenu
             links={links}
@@ -106,9 +109,16 @@ export async function Header() {
               emphasis,
             }))}
             labels={{ open: m.nav.openMenu, close: m.nav.closeMenu }}
+            logoutLabel={actor ? m.nav.logout : undefined}
           />
         </div>
       </div>
+      {actor ? (
+        <IdleGuard
+          idleMs={idleLimitFor(actor)}
+          labels={{ warning: m.auth.idleWarning, stay: m.auth.idleStay }}
+        />
+      ) : null}
     </header>
   );
 }

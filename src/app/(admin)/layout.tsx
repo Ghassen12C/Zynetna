@@ -2,7 +2,9 @@ import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { Logo } from '@/components/brand/Mark';
 import { SectionNav } from '@/components/layout/SectionNav';
-import { getActor } from '@/server/auth/session';
+import { LogoutButton } from '@/components/account/LogoutButton';
+import { IdleGuard } from '@/components/account/IdleGuard';
+import { getActor, idleLimitFor } from '@/server/auth/session';
 import { isSuperAdmin } from '@/domain/identity/actor';
 import { db } from '@/lib/db';
 import { translate } from '@/i18n/server';
@@ -32,7 +34,12 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           <span className="z-admin__who" dir="ltr">
             {actor.email}
           </span>
+          <LogoutButton label={m.nav.logout} size="sm" compact className="z-admin__logout" />
         </div>
+        <IdleGuard
+          idleMs={idleLimitFor(actor)}
+          labels={{ warning: m.auth.idleWarning, stay: m.auth.idleStay }}
+        />
       </header>
 
       <div className="z-container">

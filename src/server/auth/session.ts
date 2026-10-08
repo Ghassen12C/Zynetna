@@ -3,6 +3,12 @@ import type { RoleName } from '@prisma/client';
 import { db } from '@/lib/db';
 import { env, isProd } from '@/lib/env';
 import type { Actor } from '@/domain/identity/actor';
+import {
+  type IdleLimits,
+  TOUCH_INTERVAL_MS,
+  idleLimitMs,
+  isIdleExpired,
+} from '@/domain/identity/sessionPolicy';
 import { generateToken, hashToken } from './hash';
 
 /**
@@ -55,6 +61,19 @@ export async function destroySession(): Promise<void> {
   store.delete(SESSION_COOKIE);
 }
 
+export function idleLimits(): IdleLimits {
+  return {
+    adminMinutes: env.SESSION_IDLE_MINUTES_ADMIN,
+    proMinutes: env.SESSION_IDLE_MINUTES_PRO,
+    customerMinutes: env.SESSION_IDLE_MINUTES_CUSTOMER,
+  };
+}
+
+/** How long this person may stay inactive before being signed out. */
+export function idleLimitFor(actor: Actor): number {
+  return idleLimitMs(actor, idleLimits());
+}
+
 /** Sign out everywhere — used after a password change. */
 export async function revokeAllSessions(userId: string): Promise<void> {
   await db.session.updateMany({
@@ -95,8 +114,10 @@ function toActor(user: {
 
 /**
  * Resolve the caller from the session cookie. Returns null for anonymous,
- * expired, revoked, or suspended/deleted accounts — a suspended user loses
- * access on their next request, not at their next login.
+ * expired, revoked, idle, or suspended/deleted accounts — a suspended user
+ * loses access on their next request, not at their next login. A session left
+ * inactive past its idle limit is revoked here, server-side, whatever the
+ * browser does.
  */
 export async function getActor(): Promise<Actor | null> {
   const store = await cookies();
@@ -117,14 +138,38 @@ export async function getActor(): Promise<Actor | null> {
   if (session.expiresAt.getTime() <= Date.now()) return null;
   if (session.user.status !== 'ACTIVE') return null;
 
-  // Throttled last-seen write: at most once an hour per session.
-  if (Date.now() - session.lastSeenAt.getTime() > 3_600_000) {
+  const actor = toActor(session.user);
+  const now = new Date();
+  if (isIdleExpired(session.lastSeenAt, now, idleLimitFor(actor))) {
+    await db.session
+      .updateMany({ where: { id: session.id, revokedAt: null }, data: { revokedAt: now } })
+      .catch(() => undefined);
+    return null;
+  }
+
+  // Throttled last-seen write, which is also what keeps an active session alive.
+  if (now.getTime() - session.lastSeenAt.getTime() > TOUCH_INTERVAL_MS) {
     void db.session
-      .update({ where: { id: session.id }, data: { lastSeenAt: new Date() } })
+      .update({ where: { id: session.id }, data: { lastSeenAt: now } })
       .catch(() => undefined);
   }
 
-  return toActor(session.user);
+  return actor;
+}
+
+/**
+ * "Still here": refresh the current session's last activity now, without the
+ * usual throttle. Returns false when there is no live session to refresh.
+ */
+export async function touchSession(): Promise<boolean> {
+  if (!(await getActor())) return false;
+  const token = (await cookies()).get(SESSION_COOKIE)?.value;
+  if (!token) return false;
+  await db.session.updateMany({
+    where: { tokenHash: hashToken(token), revokedAt: null },
+    data: { lastSeenAt: new Date() },
+  });
+  return true;
 }
 
 /** Housekeeping, called by the scheduled jobs. */

@@ -403,6 +403,9 @@ export const fr = {
     EXPIRED: 'Expiré',
   },
   auth: {
+    idleLoggedOut: 'Vous avez été déconnecté après une période d’inactivité. Reconnectez-vous pour continuer.',
+    idleWarning: 'Sans activité, vous serez déconnecté dans {seconds} s, par sécurité.',
+    idleStay: 'Rester connecté',
     continueWithGoogle: 'Continuer avec Google',
     orWithEmail: 'ou avec votre e-mail',
     googleFailed: 'La connexion avec Google n’a pas abouti. Réessayez, ou utilisez votre e-mail.',

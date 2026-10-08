@@ -249,6 +249,23 @@ export async function logoutAction(): Promise<void> {
   redirect('/');
 }
 
+/**
+ * The browser saw no activity for the account's idle limit: end the session
+ * and say why on the login page. The server enforces the same limit on its
+ * own (see getActor); this only makes an unattended screen stop showing data.
+ */
+export async function idleLogoutAction(): Promise<void> {
+  const actor = await requireActor().catch(() => null);
+  await destroySession();
+  if (actor) {
+    await recordAudit({
+      actor, action: 'auth.logout', targetType: 'User', targetId: actor.userId,
+      metadata: { reason: 'idle' },
+    });
+  }
+  redirect('/login?reason=idle');
+}
+
 export async function changePasswordAction(
   _prev: FormState,
   formData: FormData,

@@ -430,6 +430,9 @@ export const ar: Messages = {
     EXPIRED: 'منتهٍ',
   },
   auth: {
+    idleLoggedOut: 'تم تسجيل خروجك بعد فترة من عدم النشاط. سجّل الدخول من جديد للمتابعة.',
+    idleWarning: 'دون أي نشاط، سيتم تسجيل خروجك بعد {seconds} ثانية، حفاظًا على أمانك.',
+    idleStay: 'البقاء متصلًا',
     continueWithGoogle: 'المتابعة باستخدام Google',
     orWithEmail: 'أو ببريدك الإلكتروني',
     googleFailed: 'تعذّر تسجيل الدخول باستخدام Google. أعد المحاولة أو استعمل بريدك الإلكتروني.',
