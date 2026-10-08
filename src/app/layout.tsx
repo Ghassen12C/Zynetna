@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from 'next';
 import { cookies } from 'next/headers';
-import { Epilogue, Tajawal } from 'next/font/google';
 import '@/styles/globals.css';
 import '@/styles/areas/dash.css';
 import '@/styles/areas/dashSetup.css';
@@ -13,23 +12,20 @@ import { UiTextProvider } from '@/components/ui/UiText';
 import { THEME_COLOR, THEME_COOKIE, themeFrom } from '@/lib/theme';
 
 /**
- * Fonts from the brand guide, self-hosted by next/font at build time: no
- * runtime request to a third party, no layout shift, and a subset small enough
- * for Tunisian mobile data.
+ * Fonts from the brand guide, shipped with the app from npm (@fontsource):
+ * no request to a third party at runtime, and none at build time either, so a
+ * deploy never fails because a font server did not answer. Each file carries
+ * one alphabet (unicode-range), so a phone downloads Arabic glyphs only for
+ * Arabic text.
  */
-const epilogue = Epilogue({
-  subsets: ['latin', 'latin-ext'],
-  weight: ['400', '500', '600', '700', '800'],
-  variable: '--font-epilogue',
-  display: 'swap',
-});
-
-const tajawal = Tajawal({
-  subsets: ['arabic', 'latin'],
-  weight: ['400', '500', '700'],
-  variable: '--font-tajawal',
-  display: 'swap',
-});
+import '@fontsource/epilogue/400.css';
+import '@fontsource/epilogue/500.css';
+import '@fontsource/epilogue/600.css';
+import '@fontsource/epilogue/700.css';
+import '@fontsource/epilogue/800.css';
+import '@fontsource/tajawal/400.css';
+import '@fontsource/tajawal/500.css';
+import '@fontsource/tajawal/700.css';
 
 const OG_LOCALE = { fr: 'fr_TN', ar: 'ar_TN', en: 'en_US' } as const;
 
@@ -86,7 +82,6 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       lang={locale}
       dir={dir}
       data-theme={theme}
-      className={`${epilogue.variable} ${tajawal.variable}`}
     >
       <body>
         <a className="z-skip-link" href="#main">

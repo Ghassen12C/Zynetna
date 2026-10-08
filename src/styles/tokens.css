@@ -74,9 +74,9 @@
   /* ── Type ──────────────────────────────────────────────────────────────
      Epilogue for Latin and French, Tajawal for Arabic. Body is 17 px / 500,
      as the guide specifies.                                               */
-  --z-font-display: var(--font-epilogue), 'Epilogue', system-ui, sans-serif;
-  --z-font-text: var(--font-epilogue), 'Epilogue', system-ui, sans-serif;
-  --z-font-arabic: var(--font-tajawal), 'Tajawal', system-ui, sans-serif;
+  --z-font-display: 'Epilogue', system-ui, sans-serif;
+  --z-font-text: 'Epilogue', system-ui, sans-serif;
+  --z-font-arabic: 'Tajawal', system-ui, sans-serif;
 
   --z-text-xs: 0.75rem;
   --z-text-sm: 0.875rem;
