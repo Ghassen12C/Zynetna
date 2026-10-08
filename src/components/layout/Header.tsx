@@ -2,6 +2,9 @@ import Link from 'next/link';
 import { Logo } from '@/components/brand/Mark';
 import { ButtonLink } from '@/components/ui/Button';
 import { LocaleSwitcher } from '@/components/layout/LocaleSwitcher';
+import { ThemeToggle } from '@/components/layout/ThemeToggle';
+import { THEME_COOKIE, themeFrom } from '@/lib/theme';
+import { cookies } from 'next/headers';
 import { MobileMenu, type MenuLink } from '@/components/layout/MobileMenu';
 import { getActor } from '@/server/auth/session';
 import { isSuperAdmin } from '@/domain/identity/actor';
@@ -13,6 +16,7 @@ type Action = MenuLink & { look: 'primary' | 'secondary' | 'ghost' | 'link' };
 
 export async function Header() {
   const [actor, { m, t, locale, path }] = await Promise.all([getActor(), translate()]);
+  const theme = themeFrom((await cookies()).get(THEME_COOKIE)?.value);
   const hasBusiness = actor ? Object.keys(actor.businessRoles).length > 0 : false;
 
   // One list of destinations and one of actions feed both the desktop bar and
@@ -73,6 +77,10 @@ export async function Header() {
           <LocaleSwitcher
             current={locale}
             label={t(m.nav.language, { language: LOCALE_META[locale].nativeLabel })}
+          />
+          <ThemeToggle
+            initial={theme}
+            labels={{ toDark: m.nav.themeToDark, toLight: m.nav.themeToLight }}
           />
 
           {/* On a phone only the language and the menu stay in the bar; the

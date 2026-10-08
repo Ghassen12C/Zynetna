@@ -25,6 +25,8 @@ export const ar: Messages = {
     admin: 'الإدارة',
     openMenu: 'فتح القائمة',
     closeMenu: 'إغلاق القائمة',
+    themeToDark: 'التبديل إلى الوضع الداكن',
+    themeToLight: 'التبديل إلى الوضع الفاتح',
     homeLabel: 'زينتنا — الرئيسية',
     language: 'اللغة: {language}',
   },

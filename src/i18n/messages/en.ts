@@ -25,6 +25,8 @@ export const en: Messages = {
     admin: 'Administration',
     openMenu: 'Open the menu',
     closeMenu: 'Close the menu',
+    themeToDark: 'Switch to dark mode',
+    themeToLight: 'Switch to light mode',
     homeLabel: 'Zynetna — home',
     language: 'Language: {language}',
   },

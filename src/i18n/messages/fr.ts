@@ -25,6 +25,8 @@ export const fr = {
     admin: 'Administration',
     openMenu: 'Ouvrir le menu',
     closeMenu: 'Fermer le menu',
+    themeToDark: 'Passer en mode sombre',
+    themeToLight: 'Passer en mode clair',
     homeLabel: 'Zynetna — accueil',
     language: 'Langue : {language}',
   },

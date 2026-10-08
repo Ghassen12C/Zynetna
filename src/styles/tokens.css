@@ -152,49 +152,9 @@
 }
 
 /* ── Dark mode ────────────────────────────────────────────────────────────
-   Semantic tokens are redefined; brand hexes are not. Components never need
-   a dark-mode branch because they only ever read the semantic layer.        */
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) {
-    --z-bg: #08192b;
-    --z-bg-raised: #0d2338;
-    --z-bg-sunken: #061320;
-    --z-bg-inverse: var(--z-chaux);
-
-    --z-fg: #e9eef4;
-    --z-fg-muted: #9fb2c4;
-    --z-fg-subtle: #7b8ea2;
-    --z-fg-inverse: var(--z-encre);
-
-    --z-border: #1b344a;
-    --z-border-strong: #2a4a66;
-
-    --z-accent: #5b9ad1;
-    --z-accent-hover: #74abdc;
-    --z-accent-active: #4a89c0;
-    /* The accent is a light blue on dark grounds, so text on it turns dark. */
-    --z-fg-on-accent: #061320;
-    /* Cream logo on the dark header; the light washes become faint glows
-       instead of the grey fog the light-theme tints leave on navy. */
-    --z-brand-mark: var(--z-chaux);
-    --z-brand-knockout: #08192b;
-    --z-hero-glow-a: rgba(91, 154, 209, 0.14);
-    --z-hero-glow-b: rgba(201, 150, 60, 0.12);
-
-    --z-success: #4cb98a;
-    --z-success-bg: #0f2e22;
-    --z-warning: #d6a548;
-    --z-warning-bg: #2e2412;
-    --z-danger: #e0737a;
-    --z-danger-bg: #311518;
-    --z-info: #5b9ad1;
-    --z-info-bg: #0f2639;
-
-    --z-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
-    --z-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.36);
-    --z-shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.44);
-  }
-}
+   Chosen by the visitor (the header toggle), never by the system setting:
+   the server renders <html data-theme="dark"> from the zynetna_theme cookie.
+   Semantic tokens are redefined; brand hexes are not.                       */
 
 :root[data-theme='dark'] {
   --z-bg: #08192b;

@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next';
+import { cookies } from 'next/headers';
 import { Epilogue, Tajawal } from 'next/font/google';
 import '@/styles/globals.css';
 import '@/styles/areas/dash.css';
@@ -9,6 +10,7 @@ import { env } from '@/lib/env';
 import { LOCALE_META, LOCALES } from '@/i18n/config';
 import { translate } from '@/i18n/server';
 import { UiTextProvider } from '@/components/ui/UiText';
+import { THEME_COLOR, THEME_COOKIE, themeFrom } from '@/lib/theme';
 
 /**
  * Fonts from the brand guide, self-hosted by next/font at build time: no
@@ -67,41 +69,25 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export const viewport: Viewport = {
-  width: 'device-width',
-  initialScale: 1,
-  themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#F5F1E8' },
-    { media: '(prefers-color-scheme: dark)', color: '#08192B' },
-  ],
-};
-
-/**
- * Mirrors the system colour scheme onto <html data-theme> before first paint.
- *
- * The colour tokens already follow `prefers-color-scheme`, but component-level
- * dark adjustments are written against `[data-theme='dark']`; without this
- * they never applied to visitors in system dark mode. Runs inline in <head>
- * so the page never flashes the wrong theme, and follows the setting live.
- * The attribute is set outside React, hence suppressHydrationWarning on <html>.
- */
-const THEME_SCRIPT = `(function(){try{var d=document.documentElement,m=window.matchMedia('(prefers-color-scheme: dark)');var s=function(){d.setAttribute('data-theme',m.matches?'dark':'light')};s();m.addEventListener('change',s)}catch(e){}})();`;
+export async function generateViewport(): Promise<Viewport> {
+  const theme = themeFrom((await cookies()).get(THEME_COOKIE)?.value);
+  return { width: 'device-width', initialScale: 1, themeColor: THEME_COLOR[theme] };
+}
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   // lang and dir come from the resolved locale, so Arabic genuinely renders
   // right-to-left and the Arabic typeface switches via :lang(ar).
   const { locale, m, dir } = await translate();
+  // The visitor's own choice (header toggle); light unless they picked dark.
+  const theme = themeFrom((await cookies()).get(THEME_COOKIE)?.value);
 
   return (
     <html
       lang={locale}
       dir={dir}
+      data-theme={theme}
       className={`${epilogue.variable} ${tajawal.variable}`}
-      suppressHydrationWarning
     >
-      <head>
-        <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
-      </head>
       <body>
         <a className="z-skip-link" href="#main">
           {m.common.skipToContent}
