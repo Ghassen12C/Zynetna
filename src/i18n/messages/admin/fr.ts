@@ -288,6 +288,7 @@ export const adminFr = {
       'auth.2fa_recovery_codes': 'Codes de secours renouvelés',
       'auth.2fa_recovery_used': 'Connexion avec un code de secours',
       'auth.2fa_reset': 'Validation en deux étapes réinitialisée par un admin',
+      'auth.google_linked': 'Compte Google associé',
       'business.created': 'Établissement créé',
       'business.updated': 'Établissement modifié',
       'business.published': 'Établissement publié',

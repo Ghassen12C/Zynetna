@@ -77,9 +77,27 @@ model User {
   reviewResponses     ReviewResponse[]
   recoveryCodes       RecoveryCode[]
   loginChallenges     LoginChallenge[]
+  oauthAccounts       OAuthAccount[]
 
   @@index([status, createdAt])
   @@index([createdAt])
+}
+
+/// A sign-in provider linked to an account ("Continuer avec Google"). The
+/// provider's stable user id, not the email, is what identifies the person on
+/// later sign-ins: an email can change, `sub` cannot.
+model OAuthAccount {
+  id                String   @id @default(cuid())
+  provider          String
+  providerAccountId String
+  userId            String
+  email             String
+  createdAt         DateTime @default(now()) @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
 }
 
 /// One-time codes that stand in for the authenticator app when the phone is

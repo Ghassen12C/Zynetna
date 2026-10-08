@@ -210,6 +210,15 @@ enrolment, stored hashed. Turning it off needs the password and a code. A super 
 reset it for a user who lost both phone and codes (Admin → Utilisateurs), and every step
 is audited (`auth.2fa_*`). Code checks are rate-limited (`twoFactor`: 10 per 5 minutes).
 
+**"Continuer avec Google".** OpenID Connect authorization-code flow with PKCE, a state
+value and a nonce (`server/auth/google.ts`, routes under `/api/auth/google/`). The ID
+token comes straight from Google's token endpoint over TLS; its issuer, audience, expiry,
+nonce and verified email are checked (`domain/identity/oidc.ts`). A Google identity is
+matched by its stable `sub` (`OAuthAccount`), else linked to the account with the same
+verified email, else a new customer account is created with a random, unusable password.
+Roles still come from Zynetna, and an account with two-step login still asks for its
+code. The button only shows when the Google client is configured.
+
 ## 6. User roles
 
 | Role | Scope | Can |

@@ -428,6 +428,11 @@ export const ar: Messages = {
     EXPIRED: 'منتهٍ',
   },
   auth: {
+    continueWithGoogle: 'المتابعة باستخدام Google',
+    orWithEmail: 'أو ببريدك الإلكتروني',
+    googleFailed: 'تعذّر تسجيل الدخول باستخدام Google. أعد المحاولة أو استعمل بريدك الإلكتروني.',
+    googleSuspended: 'هذا الحساب موقوف. اتصل بنا إن كنت تظن أن ذلك خطأ.',
+    googleRateLimited: 'محاولات تسجيل دخول كثيرة. أعد المحاولة بعد بضع دقائق.',
     verifyTitle: 'التحقق بخطوتين',
     verifySubtitle: 'افتح تطبيق المصادقة وأدخل الرمز المكوّن من 6 أرقام الخاص بزينتنا.',
     verifyCodeLabel: 'الرمز (6 أرقام)',

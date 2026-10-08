@@ -401,6 +401,11 @@ export const fr = {
     EXPIRED: 'Expiré',
   },
   auth: {
+    continueWithGoogle: 'Continuer avec Google',
+    orWithEmail: 'ou avec votre e-mail',
+    googleFailed: 'La connexion avec Google n’a pas abouti. Réessayez, ou utilisez votre e-mail.',
+    googleSuspended: 'Ce compte est suspendu. Contactez-nous si vous pensez qu’il s’agit d’une erreur.',
+    googleRateLimited: 'Trop de tentatives de connexion. Réessayez dans quelques minutes.',
     verifyTitle: 'Validation en deux étapes',
     verifySubtitle: 'Ouvrez votre application d’authentification et saisissez le code à 6 chiffres de Zynetna.',
     verifyCodeLabel: 'Code à 6 chiffres',

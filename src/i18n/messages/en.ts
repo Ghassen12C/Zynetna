@@ -398,6 +398,11 @@ export const en: Messages = {
     EXPIRED: 'Expired',
   },
   auth: {
+    continueWithGoogle: 'Continue with Google',
+    orWithEmail: 'or with your email',
+    googleFailed: 'Signing in with Google didn’t work. Try again, or use your email.',
+    googleSuspended: 'This account is suspended. Contact us if you think this is a mistake.',
+    googleRateLimited: 'Too many sign-in attempts. Try again in a few minutes.',
     verifyTitle: 'Two-step verification',
     verifySubtitle: 'Open your authenticator app and enter the 6-digit code for Zynetna.',
     verifyCodeLabel: '6-digit code',

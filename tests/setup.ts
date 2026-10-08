@@ -55,6 +55,7 @@ export async function resetDatabase() {
     testDb.business.deleteMany(),
     testDb.subscriptionPlan.deleteMany(),
     testDb.mediaAsset.deleteMany(),
+    testDb.oAuthAccount.deleteMany(),
     testDb.loginChallenge.deleteMany(),
     testDb.recoveryCode.deleteMany(),
     testDb.session.deleteMany(),

@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { Logo } from '@/components/brand/Mark';
 import { RegisterForm } from './RegisterForm';
+import { GoogleButton } from '@/components/auth/GoogleButton';
 import { getActor } from '@/server/auth/session';
 import { translate } from '@/i18n/server';
 
@@ -27,6 +28,8 @@ export default async function RegisterPage() {
         <h1 className="z-auth__title">{m.auth.registerTitle}</h1>
         <p className="z-auth__subtitle">{m.auth.registerSubtitle}</p>
       </div>
+
+      <GoogleButton label={m.auth.continueWithGoogle} or={m.auth.orWithEmail} />
 
       <RegisterForm m={m.auth} locale={locale} />
 

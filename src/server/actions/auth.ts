@@ -15,9 +15,15 @@ import {
 } from '@/server/auth/hash';
 import { sendPasswordResetEmail } from '@/server/services/notifications';
 import { createSession, destroySession, revokeAllSessions } from '@/server/auth/session';
-import { completeLoginChallenge, createLoginChallenge } from '@/server/auth/twoFactor';
+import {
+  TWO_FACTOR_COOKIE,
+  TWO_FACTOR_COOKIE_MAX_AGE,
+  completeLoginChallenge,
+  createLoginChallenge,
+} from '@/server/auth/twoFactor';
 import { isProd } from '@/lib/env';
 import { requireActor } from '@/server/auth/guard';
+import { landingFor, safeRedirect } from '@/server/auth/landing';
 import { consume } from '@/server/rateLimit';
 import {
   changePasswordSchema,
@@ -36,28 +42,6 @@ async function clientIp(): Promise<string> {
     headerList.get('x-real-ip') ??
     'unknown'
   );
-}
-
-/**
- * The pending-login cookie between the password and the authenticator code.
- * It holds an opaque token only; the challenge itself lives in the database.
- */
-const TWO_FACTOR_COOKIE = 'zynetna_2fa';
-
-/** Send people where their work is. */
-function landingFor(roles: string[]): string {
-  return roles.includes('SUPER_ADMIN')
-    ? '/admin'
-    : roles.includes('BUSINESS_OWNER') || roles.includes('BUSINESS_EMPLOYEE')
-      ? '/pro/dashboard'
-      : '/account';
-}
-
-/** Only allow redirects to our own paths — never an absolute URL from a form. */
-function safeRedirect(target: string | undefined, fallback: string): string {
-  if (!target) return fallback;
-  if (!target.startsWith('/') || target.startsWith('//')) return fallback;
-  return target;
 }
 
 export async function loginAction(
@@ -114,7 +98,7 @@ export async function loginAction(
         secure: isProd,
         sameSite: 'lax',
         path: '/',
-        maxAge: 10 * 60,
+        maxAge: TWO_FACTOR_COOKIE_MAX_AGE,
       });
       destination = '/login/verify';
     } else {

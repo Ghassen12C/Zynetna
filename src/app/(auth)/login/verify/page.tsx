@@ -4,7 +4,7 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { Logo } from '@/components/brand/Mark';
 import { VerifyForm } from './VerifyForm';
-import { findLoginChallenge } from '@/server/auth/twoFactor';
+import { TWO_FACTOR_COOKIE, findLoginChallenge } from '@/server/auth/twoFactor';
 import { translate } from '@/i18n/server';
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -18,7 +18,7 @@ export async function generateMetadata(): Promise<Metadata> {
  */
 export default async function VerifyLoginPage() {
   const { m, path } = await translate();
-  const token = (await cookies()).get('zynetna_2fa')?.value;
+  const token = (await cookies()).get(TWO_FACTOR_COOKIE)?.value;
   if (!token || !(await findLoginChallenge(token))) redirect(path('/login'));
 
   return (

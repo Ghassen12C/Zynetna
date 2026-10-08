@@ -285,6 +285,7 @@ export const adminEn: typeof adminFr = {
       'auth.2fa_recovery_codes': 'Recovery codes renewed',
       'auth.2fa_recovery_used': 'Sign-in with a recovery code',
       'auth.2fa_reset': 'Two-step verification reset by an admin',
+      'auth.google_linked': 'Google account linked',
       'business.created': 'Business created',
       'business.updated': 'Business updated',
       'business.published': 'Business published',

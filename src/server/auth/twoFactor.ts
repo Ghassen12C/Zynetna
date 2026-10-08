@@ -25,6 +25,14 @@ export const RECOVERY_CODE_COUNT = 10;
 export const CHALLENGE_TTL_MS = 10 * 60_000;
 export const CHALLENGE_MAX_ATTEMPTS = 5;
 
+/**
+ * The pending-login cookie between the first factor (password or Google) and
+ * the authenticator code. It holds an opaque token only; the challenge itself
+ * lives in the database.
+ */
+export const TWO_FACTOR_COOKIE = 'zynetna_2fa';
+export const TWO_FACTOR_COOKIE_MAX_AGE = CHALLENGE_TTL_MS / 1000;
+
 // ── Secret at rest ───────────────────────────────────────────────────────────
 // AES-256-GCM with a key derived from SESSION_SECRET (unused elsewhere), so a
 // database leak alone does not hand over anyone's authenticator secret.

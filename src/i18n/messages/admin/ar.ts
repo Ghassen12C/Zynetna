@@ -325,6 +325,7 @@ export const adminAr: typeof adminFr = {
       'auth.2fa_recovery_codes': 'تجديد الرموز الاحتياطية',
       'auth.2fa_recovery_used': 'تسجيل دخول برمز احتياطي',
       'auth.2fa_reset': 'إعادة تعيين التحقق بخطوتين من قبل مشرف',
+      'auth.google_linked': 'ربط حساب Google',
       'business.created': 'إنشاء مؤسسة',
       'business.updated': 'تعديل مؤسسة',
       'business.published': 'نشر مؤسسة',

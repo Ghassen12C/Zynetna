@@ -65,6 +65,8 @@ App settings on `zynetna-web` (values in **bold** are Key Vault references,
 | `EMAIL_DRIVER` / `EMAIL_FROM` | `resend` / `Zynetna <noreply@zynetna.tn>` |
 | `RESEND_API_KEY` | **resend-api-key** |
 | `WEBSITES_PORT` | `3000` |
+| `GOOGLE_CLIENT_ID` | the OAuth client ID (public, not a secret) — optional |
+| `GOOGLE_CLIENT_SECRET` | **google-client-secret** — optional, set together with the ID |
 
 `connection_limit=5` keeps the app well inside the B1ms connection budget,
 which the database server shares. The first start used `SEED_ON_START=true`
@@ -77,6 +79,16 @@ GitHub, environment **production**: secrets `AZURE_CLIENT_ID`,
 `AZURE_WEBAPP=zynetna-web`, `APP_URL=https://www.zynetna.tn`. The OIDC trust
 subject is `repo:Ghassen12C@114819201/Zynetna@1407400429:environment:production`
 (GitHub's ID-based format).
+
+## Google sign-in ("Continuer avec Google")
+
+Off until both `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` are set; the
+button only appears then. In Google Cloud Console: an OAuth consent screen
+(external, scopes `openid`, `email`, `profile`), then an OAuth client of type
+*Web application* with the authorised redirect URI
+`https://www.zynetna.tn/api/auth/google/callback`. The secret goes into Key
+Vault as `google-client-secret`; the app setting references it. Rotate it in
+Google Cloud, update the Key Vault secret, restart the app.
 
 ## Deploying
 

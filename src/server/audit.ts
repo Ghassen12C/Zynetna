@@ -19,6 +19,7 @@ export type AuditAction =
   | 'auth.2fa_recovery_codes'
   | 'auth.2fa_recovery_used'
   | 'auth.2fa_reset'
+  | 'auth.google_linked'
   | 'business.created'
   | 'business.updated'
   | 'business.published'

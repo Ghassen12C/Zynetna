@@ -3659,3 +3659,8 @@ a.z-notif:hover { border-color: var(--z-accent); }
 .z-qr { inline-size: 180px; block-size: 180px; padding: var(--z-space-2); background: #fff; border-radius: var(--z-radius-md); border: 1px solid var(--z-border); }
 .z-secret { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: var(--z-text-sm); padding: 2px var(--z-space-2); background: var(--z-bg-sunken); border-radius: var(--z-radius-sm); word-break: break-all; }
 .z-codes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--z-space-2) var(--z-space-4); list-style: none; margin: 0; padding: var(--z-space-4); border: 1px dashed var(--z-border-strong); border-radius: var(--z-radius-md); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: var(--z-text-base); }
+
+/* ── Continuer avec Google ─────────────────────────────────────────────── */
+.z-google { gap: var(--z-space-3); }
+.z-or { display: flex; align-items: center; gap: var(--z-space-3); color: var(--z-fg-subtle); font-size: var(--z-text-sm); }
+.z-or::before, .z-or::after { content: ''; flex: 1; border-block-start: 1px solid var(--z-border); }

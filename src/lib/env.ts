@@ -34,6 +34,10 @@ const schema = z.object({
   MAP_API_KEY: z.string().optional(),
 
   JOB_TOKEN: z.string().min(16).default('dev-job-token-change-me'),
+
+  /** "Continuer avec Google". Both or neither; the button shows only when set. */
+  GOOGLE_CLIENT_ID: z.string().optional(),
+  GOOGLE_CLIENT_SECRET: z.string().optional(),
 });
 
 const parsed = schema.safeParse(process.env);
@@ -53,6 +57,9 @@ export const isTest = env.NODE_ENV === 'test';
 /** Azure Blob requires a connection string; refuse to boot half-configured. */
 if (env.STORAGE_DRIVER === 'azure' && !env.AZURE_STORAGE_CONNECTION_STRING) {
   throw new Error('STORAGE_DRIVER=azure requires AZURE_STORAGE_CONNECTION_STRING');
+}
+if (Boolean(env.GOOGLE_CLIENT_ID) !== Boolean(env.GOOGLE_CLIENT_SECRET)) {
+  throw new Error('GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET must be set together');
 }
 if (env.EMAIL_DRIVER === 'resend' && !env.RESEND_API_KEY) {
   throw new Error('EMAIL_DRIVER=resend requires RESEND_API_KEY');
