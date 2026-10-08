@@ -17,6 +17,7 @@ export const adminAr: typeof adminFr = {
     subscriptions: 'الاشتراكات',
     audit: 'سجلّ التدقيق',
     settings: 'الإعدادات',
+    security: 'الأمان',
   },
   common: {
     headingCount: '{title} ({count})',

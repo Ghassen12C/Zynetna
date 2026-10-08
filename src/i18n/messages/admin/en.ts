@@ -17,6 +17,7 @@ export const adminEn: typeof adminFr = {
     subscriptions: 'Subscriptions',
     audit: 'Audit log',
     settings: 'Settings',
+    security: 'Security',
   },
   common: {
     headingCount: '{title} ({count})',

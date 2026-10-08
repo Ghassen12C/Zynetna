@@ -45,6 +45,8 @@ export const PRO_NAV: readonly ProNavItem[] = [
     labelKey: 'subscription',
     permission: 'business.subscription.read',
   },
+  // The person's own sign-in, not the business: every member has it.
+  { href: '/pro/dashboard/security', labelKey: 'security', permission: 'business.read' },
 ];
 
 /** The landing page for someone who cannot read the revenue overview. */

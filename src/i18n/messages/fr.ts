@@ -294,6 +294,8 @@ export const fr = {
     keepIt: 'Garder',
   },
   account: {
+    twoFactorWhyPro: 'Recommandé : votre compte donne accès aux rendez-vous, aux clients et aux réglages de l’établissement.',
+    twoFactorWhyAdmin: 'Fortement recommandé : un compte administrateur peut tout modifier sur Zynetna.',
     twoFactorTitle: 'Validation en deux étapes',
     twoFactorIntro: 'En plus du mot de passe, un code à 6 chiffres de votre téléphone est demandé à chaque connexion. Fonctionne avec Google Authenticator, Microsoft Authenticator et les applications similaires.',
     twoFactorIsOff: 'Désactivée.',

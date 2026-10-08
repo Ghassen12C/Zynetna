@@ -15,6 +15,7 @@ export const dashEn: typeof dashFr = {
     analytics: 'Analytics',
     profile: 'My business',
     subscription: 'Subscription',
+    security: 'Security',
   },
   shared: {
     guest: 'Customer',

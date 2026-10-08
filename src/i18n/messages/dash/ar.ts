@@ -15,6 +15,7 @@ export const dashAr: typeof dashFr = {
     analytics: 'الإحصائيات',
     profile: 'مؤسستي',
     subscription: 'الاشتراك',
+    security: 'الأمان',
   },
   shared: {
     guest: 'زبون',

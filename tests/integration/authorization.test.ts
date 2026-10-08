@@ -184,6 +184,8 @@ describe('professional navigation', () => {
     expect(hrefs).toContain('/pro/dashboard/calendar');
     expect(hrefs).toContain('/pro/dashboard/reservations');
     expect(hrefs).toContain('/pro/dashboard/customers');
+    // Everyone secures their own sign-in.
+    expect(hrefs).toContain('/pro/dashboard/security');
 
     // Revenue, billing and the shape of the business are the owner's.
     expect(hrefs).not.toContain('/pro/dashboard');

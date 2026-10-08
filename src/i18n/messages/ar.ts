@@ -316,6 +316,8 @@ export const ar: Messages = {
     keepIt: 'الإبقاء عليه',
   },
   account: {
+    twoFactorWhyPro: 'مستحسن: حسابك يفتح مواعيد المحل وزبائنه وإعداداته.',
+    twoFactorWhyAdmin: 'مستحسن بشدة: حساب المشرف يستطيع تغيير كل شيء في زينتنا.',
     twoFactorTitle: 'التحقق بخطوتين',
     twoFactorIntro: 'إضافة إلى كلمة المرور، يُطلب رمز من 6 أرقام من هاتفك عند كل تسجيل دخول. يعمل مع تطبيقات المصادقة مثل Google Authenticator أو Microsoft Authenticator.',
     twoFactorIsOff: 'غير مفعّل.',

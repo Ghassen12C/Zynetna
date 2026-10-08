@@ -19,6 +19,7 @@ export const adminFr = {
     subscriptions: 'Abonnements',
     audit: 'Journal d’audit',
     settings: 'Réglages',
+    security: 'Sécurité',
   },
   common: {
     headingCount: '{title} ({count})',

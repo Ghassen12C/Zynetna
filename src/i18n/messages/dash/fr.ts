@@ -16,6 +16,7 @@ export const dashFr = {
     analytics: 'Statistiques',
     profile: 'Mon établissement',
     subscription: 'Abonnement',
+    security: 'Sécurité',
   },
   /** Shared bits used across several dashboard screens. */
   shared: {

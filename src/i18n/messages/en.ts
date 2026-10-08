@@ -291,6 +291,8 @@ export const en: Messages = {
     keepIt: 'Keep it',
   },
   account: {
+    twoFactorWhyPro: 'Recommended: your account opens the business’s appointments, customers and settings.',
+    twoFactorWhyAdmin: 'Strongly recommended: an admin account can change anything on Zynetna.',
     twoFactorTitle: 'Two-step verification',
     twoFactorIntro: 'Besides your password, a 6-digit code from your phone is asked at every sign-in. Works with Google Authenticator, Microsoft Authenticator and similar apps.',
     twoFactorIsOff: 'Off.',
