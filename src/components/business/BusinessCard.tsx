@@ -88,7 +88,7 @@ export async function BusinessCard({ business }: { business: BusinessCardData })
       </div>
 
       <div className="z-bcard__body">
-        <h3 className="z-bcard__name">{business.name}</h3>
+        <h3 className="z-bcard__name" dir="auto">{business.name}</h3>
         <Rating value={business.ratingAverage} count={business.ratingCount} size={13} />
 
         <p className="z-bcard__meta">

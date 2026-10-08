@@ -9,11 +9,12 @@ import { Input, Select } from '@/components/ui/Field';
 import { Badge, Panel } from '@/components/ui/Primitives';
 import {
   addExceptionAction,
+  clearStaffHoursAction,
   deleteExceptionAction,
   saveHoursAction,
 } from '@/server/actions/business';
 import { idle } from '@/lib/formState';
-import { minutesToHHMM } from '@/domain/scheduling/time';
+import { hhmmToMinutes, minutesToHHMM } from '@/domain/scheduling/time';
 import { formatDate, weekdayNames } from '@/i18n/format';
 import { LOCALE_META, type Locale } from '@/i18n/config';
 import { interpolate } from '@/i18n/interpolate';
@@ -39,6 +40,49 @@ function formatDay(isoDate: string, locale: Locale): string {
 
 type Period = { startMin: number; endMin: number };
 
+/** Every quarter hour of the day, 00:00 to 24:00, in minutes. */
+const QUARTERS = Array.from({ length: 97 }, (_, i) => i * 15);
+
+/**
+ * A 24-hour time picker. The browser's own time input follows the browser's
+ * language (09:00 AM on an English Chrome, whatever the page's language);
+ * a select reads 09:00 everywhere and limits choices to quarter hours.
+ * `as` decides what the form receives: "HH:MM" or minutes since midnight.
+ */
+function TimeSelect({
+  name,
+  value,
+  onChange,
+  label,
+  as = 'hhmm',
+}: {
+  name: string;
+  value: number;
+  onChange?: (minutes: number) => void;
+  label: string;
+  as?: 'hhmm' | 'minutes';
+}) {
+  const options = QUARTERS.includes(value) ? QUARTERS : [...QUARTERS, value].sort((a, b) => a - b);
+  return (
+    <select
+      name={name}
+      className="z-select z-timeselect"
+      aria-label={label}
+      dir="ltr"
+      value={as === 'hhmm' ? minutesToHHMM(value) : String(value)}
+      onChange={(e) =>
+        onChange?.(as === 'hhmm' ? hhmmToMinutes(e.target.value) : Number(e.target.value))
+      }
+    >
+      {options.map((minutes) => (
+        <option key={minutes} value={as === 'hhmm' ? minutesToHHMM(minutes) : String(minutes)}>
+          {minutesToHHMM(minutes)}
+        </option>
+      ))}
+    </select>
+  );
+}
+
 function DaySubmit({ label }: { label: string }) {
   const { pending } = useFormStatus();
   return (
@@ -58,19 +102,23 @@ function DayRow({
   businessId,
   weekday,
   periods,
+  staffMemberId,
+  ownWeek = false,
 }: {
   m: M;
   dayName: string;
   businessId: string;
   weekday: number;
   periods: Period[];
+  /** Set when editing one professional's own week instead of the business's. */
+  staffMemberId?: string;
+  /** Whether that professional already has a week of their own. */
+  ownWeek?: boolean;
 }) {
   const router = useRouter();
   const [state, formAction] = useActionState(saveHoursAction, idle);
-  const [rows, setRows] = useState<{ start: string; end: string }[]>(
-    periods.length > 0
-      ? periods.map((p) => ({ start: minutesToHHMM(p.startMin), end: minutesToHHMM(p.endMin) }))
-      : [],
+  const [rows, setRows] = useState<{ start: number; end: number }[]>(
+    periods.map((p) => ({ start: p.startMin, end: p.endMin })),
   );
 
   if (state.status === 'success') router.refresh();
@@ -80,42 +128,38 @@ function DayRow({
     <form action={formAction} className="z-dayrow">
       <input type="hidden" name="businessId" value={businessId} />
       <input type="hidden" name="weekday" value={weekday} />
+      {staffMemberId ? <input type="hidden" name="staffMemberId" value={staffMemberId} /> : null}
 
       <div className="z-dayrow__name">
         <strong>{dayName}</strong>
-        {rows.length === 0 ? <span className="z-help">{t.closed}</span> : null}
+        {rows.length === 0 ? (
+          <span className="z-help">
+            {!staffMemberId ? t.closed : ownWeek ? t.dayOff : t.followsBusiness}
+          </span>
+        ) : null}
       </div>
 
       <div className="z-dayrow__periods">
         {rows.map((row, index) => (
           <div key={index} className="z-dayrow__period">
-            {/* A time range reads left to right in every language: 09:00 – 13:00. */}
-            <span className="z-dayrow__range" dir="ltr">
-              <input
-                type="time"
+            {/* The fields follow the page's reading order ("from" first: on the
+                right in Arabic); each time itself is written 09:00 in any language. */}
+            <span className="z-dayrow__range">
+              <TimeSelect
                 name="starts"
-                className="z-input"
                 value={row.start}
-                required
-                aria-label={interpolate(t.opening, { n: index + 1 })}
-                onChange={(e) =>
-                  setRows((prev) =>
-                    prev.map((r, i) => (i === index ? { ...r, start: e.target.value } : r)),
-                  )
+                label={interpolate(t.opening, { n: index + 1 })}
+                onChange={(start) =>
+                  setRows((prev) => prev.map((r, i) => (i === index ? { ...r, start } : r)))
                 }
               />
               <span aria-hidden="true">–</span>
-              <input
-                type="time"
+              <TimeSelect
                 name="ends"
-                className="z-input"
                 value={row.end}
-                required
-                aria-label={interpolate(t.closing, { n: index + 1 })}
-                onChange={(e) =>
-                  setRows((prev) =>
-                    prev.map((r, i) => (i === index ? { ...r, end: e.target.value } : r)),
-                  )
+                label={interpolate(t.closing, { n: index + 1 })}
+                onChange={(end) =>
+                  setRows((prev) => prev.map((r, i) => (i === index ? { ...r, end } : r)))
                 }
               />
             </span>
@@ -136,7 +180,7 @@ function DayRow({
           onClick={() =>
             setRows((prev) => [
               ...prev,
-              prev.length === 0 ? { start: '09:00', end: '13:00' } : { start: '14:00', end: '19:00' },
+              prev.length === 0 ? { start: 540, end: 780 } : { start: 840, end: 1140 },
             ])
           }
         >
@@ -167,6 +211,8 @@ function ExceptionForm({
   const router = useRouter();
   const [state, formAction] = useActionState(addExceptionAction, idle);
   const [kind, setKind] = useState('CLOSED');
+  const [breakFrom, setBreakFrom] = useState(720);
+  const [breakTo, setBreakTo] = useState(840);
   if (state.status === 'success') router.refresh();
 
   const needsTimes = kind === 'BREAK' || kind === 'SPECIAL_HOURS';
@@ -192,8 +238,14 @@ function ExceptionForm({
 
       {needsTimes ? (
         <div className="z-auth__row">
-          <Input label={t.timeFrom} name="startMin" type="time" required dir="ltr" />
-          <Input label={t.timeTo} name="endMin" type="time" required dir="ltr" />
+          <label className="z-field">
+            <span className="z-label">{t.timeFrom}</span>
+            <TimeSelect name="startMin" value={breakFrom} onChange={setBreakFrom} label={t.timeFrom} as="minutes" />
+          </label>
+          <label className="z-field">
+            <span className="z-label">{t.timeTo}</span>
+            <TimeSelect name="endMin" value={breakTo} onChange={setBreakTo} label={t.timeTo} as="minutes" />
+          </label>
         </div>
       ) : null}
 
@@ -237,6 +289,37 @@ function DeleteException({
   );
 }
 
+function ClearStaffHours({
+  label,
+  businessId,
+  staffMemberId,
+}: {
+  label: string;
+  businessId: string;
+  staffMemberId: string;
+}) {
+  const router = useRouter();
+  const [state, formAction] = useActionState(clearStaffHoursAction, idle);
+  if (state.status === 'success') router.refresh();
+  return (
+    <form action={formAction}>
+      <input type="hidden" name="businessId" value={businessId} />
+      <input type="hidden" name="staffMemberId" value={staffMemberId} />
+      <DaySubmitGhost label={label} />
+      {state.status === 'error' ? <p className="z-error">{state.message}</p> : null}
+    </form>
+  );
+}
+
+function DaySubmitGhost({ label }: { label: string }) {
+  const { pending } = useFormStatus();
+  return (
+    <Button type="submit" size="sm" variant="ghost" loading={pending}>
+      {label}
+    </Button>
+  );
+}
+
 export function HoursManager({
   m,
   locale,
@@ -244,6 +327,7 @@ export function HoursManager({
   hours,
   exceptions,
   staff,
+  staffHours,
 }: {
   m: M;
   locale: Locale;
@@ -260,9 +344,15 @@ export function HoursManager({
     staffName: string | null;
   }[];
   staff: { id: string; displayName: string }[];
+  staffHours: { staffMemberId: string; weekday: number; startMin: number; endMin: number }[];
 }) {
   const t = m.dashSetup.hours;
   const intl = LOCALE_META[locale].intl;
+  // Whose week is on screen: '' for the business, or a professional's id.
+  const [who, setWho] = useState('');
+  const member = staff.find((s) => s.id === who);
+  const memberHours = staffHours.filter((h) => h.staffMemberId === who);
+  const week = member ? memberHours : hours;
   // Intl writes French weekdays in lower case; a row heading wants a capital.
   const days = weekdayNames(locale).map(
     (name) => name.charAt(0).toLocaleUpperCase(intl) + name.slice(1),
@@ -276,7 +366,43 @@ export function HoursManager({
           <p className="z-policy">{t.intro}</p>
         </div>
 
-        <div className="z-days">
+        {staff.length > 0 ? (
+          <div className="z-whose" role="group" aria-label={t.whoseHours}>
+            <span className="z-label">{t.whoseHours}</span>
+            <div className="z-chips">
+              {[{ id: '', displayName: t.wholeBusiness }, ...staff].map((option) => (
+                <button
+                  key={option.id || 'business'}
+                  type="button"
+                  className="z-chip"
+                  aria-pressed={who === option.id}
+                  onClick={() => setWho(option.id)}
+                >
+                  <span dir="auto">{option.displayName}</span>
+                </button>
+              ))}
+            </div>
+            {member ? (
+              <div className="z-whose__note">
+                <p className="z-policy">
+                  {interpolate(memberHours.length > 0 ? t.staffOwnWeek : t.staffFollows, {
+                    name: member.displayName,
+                  })}
+                </p>
+                {memberHours.length > 0 ? (
+                  <ClearStaffHours
+                    label={t.useBusinessHours}
+                    businessId={businessId}
+                    staffMemberId={member.id}
+                  />
+                ) : null}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+
+        {/* Keyed on whose week it is, so each form starts from that week. */}
+        <div className="z-days" key={who || 'business'}>
           {/* Monday first, Sunday last — how a week is read here. */}
           {[1, 2, 3, 4, 5, 6, 0].map((weekday) => (
             <DayRow
@@ -285,7 +411,9 @@ export function HoursManager({
               dayName={days[weekday] ?? ''}
               businessId={businessId}
               weekday={weekday}
-              periods={hours.filter((h) => h.weekday === weekday)}
+              periods={week.filter((h) => h.weekday === weekday)}
+              staffMemberId={member?.id}
+              ownWeek={memberHours.length > 0}
             />
           ))}
         </div>

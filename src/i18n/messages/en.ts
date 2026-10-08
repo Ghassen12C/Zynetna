@@ -123,7 +123,7 @@ export const en: Messages = {
     priceRange: 'Budget',
     minRating: 'Minimum rating',
     openNow: 'Open now',
-    servedGender: 'For',
+    servedGender: 'Clientele',
     noResults: 'No businesses match',
     noResultsBody: 'Try widening your search or removing a filter.',
     allBusinesses: 'All places',

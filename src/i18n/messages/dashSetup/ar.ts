@@ -138,6 +138,14 @@ export const dashSetupAr: typeof dashSetupFr = {
     dateRange: 'من {start} إلى {end}',
     appliesToName: 'يخصّ {name}',
     deleteException: 'حذف هذا الإغلاق',
+    whoseHours: 'أوقات عمل',
+    staffFollows:
+      'يعمل {name} حسب أوقات المؤسسة. املأ أيامه ليصبح له أسبوع عمل خاص.',
+    staffOwnWeek:
+      'لدى {name} أسبوع عمل خاص: اليوم بلا فترة يوم راحة، وتبقى فتراته ضمن أوقات عمل المؤسسة.',
+    useBusinessHours: 'العودة إلى أوقات المؤسسة',
+    followsBusiness: 'مثل المؤسسة',
+    dayOff: 'راحة',
   },
   gallery: {
     heading: 'الصور ({count})',

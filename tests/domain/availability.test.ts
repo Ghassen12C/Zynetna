@@ -219,6 +219,24 @@ describe('availability engine — professional schedules', () => {
     expect(result.slots.map((s) => s.time)).toEqual(['10:00', '10:30', '11:00', '11:30']);
   });
 
+  it('treats a day missing from a professional’s own week as a day off', () => {
+    // Sarah set her own week: Tuesdays only. On a Monday the business is
+    // open, but she is not there, so nobody can book her.
+    const result = computeDayAvailability(
+      scenario({
+        staff: [
+          {
+            id: 'sarah',
+            displayName: 'Sarah',
+            hours: [{ weekday: 2, startMin: 540, endMin: 780 }], // Tue 09:00–13:00
+            isBookable: true,
+          },
+        ],
+      }),
+    );
+    expect(result.slots).toEqual([]);
+  });
+
   it('never lets a professional work outside the business’s opening hours', () => {
     const result = computeDayAvailability(
       scenario({

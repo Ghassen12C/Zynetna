@@ -144,7 +144,7 @@ export const ar: Messages = {
     priceRange: 'الميزانية',
     minRating: 'أدنى تقييم',
     openNow: 'مفتوح الآن',
-    servedGender: 'لـ',
+    servedGender: 'لِمَن؟',
     noResults: 'لا توجد نتائج',
     noResultsBody: 'جرّب توسيع البحث أو إزالة أحد الفلاتر.',
     allBusinesses: 'كل المؤسسات',

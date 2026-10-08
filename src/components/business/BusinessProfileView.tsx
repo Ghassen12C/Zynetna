@@ -98,7 +98,7 @@ export async function BusinessProfileView({
 
           <div className="z-profile__identity">
             <div className="z-profile__title-row">
-              <h1>{business.name}</h1>
+              <h1 dir="auto">{business.name}</h1>
               {business.verification === 'VERIFIED' ? (
                 <Badge tone="accent">✓ {m.business.verified}</Badge>
               ) : null}
@@ -107,14 +107,15 @@ export async function BusinessProfileView({
               </Badge>
             </div>
 
-            {business.tagline ? <p className="z-profile__tagline">{business.tagline}</p> : null}
+            {business.tagline ? <p className="z-profile__tagline" dir="auto">{business.tagline}</p> : null}
 
             <div className="z-profile__meta">
               <Rating value={business.ratingAverage} count={business.reviewCount} />
               {primaryCategory ? <span>· {localizedName(primaryCategory, locale)}</span> : null}
               {business.location?.city ? (
                 <span>
-                  · {business.location.addressLine1},{' '}
+                  · <bdi>{business.location.addressLine1}</bdi>
+                  {locale === 'ar' ? '،' : ','}{' '}
                   {localizedName(business.location.city, locale)}
                 </span>
               ) : null}
@@ -161,8 +162,8 @@ export async function BusinessProfileView({
               <section className="z-profile__section" id="about">
                 <h2 className="z-profile__h2">{m.business.about}</h2>
                 <div className="z-prose">
-                  <p>{business.description}</p>
-                  {business.story ? <p>{business.story}</p> : null}
+                  <p dir="auto">{business.description}</p>
+                  {business.story ? <p dir="auto">{business.story}</p> : null}
                 </div>
               </section>
             ) : null}
@@ -191,9 +192,9 @@ export async function BusinessProfileView({
                           ) : null}
 
                           <div className="z-svc__body">
-                            <h3 className="z-svc__name">{service.name}</h3>
+                            <h3 className="z-svc__name" dir="auto">{service.name}</h3>
                             {service.description ? (
-                              <p className="z-svc__desc">{service.description}</p>
+                              <p className="z-svc__desc" dir="auto">{service.description}</p>
                             ) : null}
                             <p className="z-svc__duration">
                               {formatDuration(service.durationMinutes, locale)}
@@ -245,8 +246,8 @@ export async function BusinessProfileView({
                           </span>
                         )}
                       </div>
-                      <h3 className="z-team__name">{member.displayName}</h3>
-                      {member.title ? <p className="z-team__title">{member.title}</p> : null}
+                      <h3 className="z-team__name" dir="auto">{member.displayName}</h3>
+                      {member.title ? <p className="z-team__title" dir="auto">{member.title}</p> : null}
                       {member.specialties.length > 0 ? (
                         <p className="z-team__specialties">{member.specialties.join(' · ')}</p>
                       ) : null}
@@ -323,11 +324,11 @@ export async function BusinessProfileView({
                         {review.serviceName ? (
                           <p className="z-review__service">{review.serviceName}</p>
                         ) : null}
-                        {review.comment ? <p>{review.comment}</p> : null}
+                        {review.comment ? <p dir="auto">{review.comment}</p> : null}
                         {review.response ? (
                           <div className="z-review__response">
                             <strong>{t(m.business.responseFrom, { name: business.name })}</strong>
-                            <p>{review.response.body}</p>
+                            <p dir="auto">{review.response.body}</p>
                           </div>
                         ) : null}
                       </li>
@@ -377,11 +378,11 @@ export async function BusinessProfileView({
               <div className="z-panel">
                 <h2 className="z-profile__h3">{m.business.location}</h2>
                 <address className="z-address">
-                  {business.location.addressLine1}
+                  <bdi>{business.location.addressLine1}</bdi>
                   {business.location.addressLine2 ? (
                     <>
                       <br />
-                      {business.location.addressLine2}
+                      <bdi>{business.location.addressLine2}</bdi>
                     </>
                   ) : null}
                   <br />
@@ -454,10 +455,10 @@ export async function BusinessProfileView({
               <div className="z-panel">
                 <h2 className="z-profile__h3">{m.business.policies}</h2>
                 {business.cancellationPolicy ? (
-                  <p className="z-policy">{business.cancellationPolicy}</p>
+                  <p className="z-policy" dir="auto">{business.cancellationPolicy}</p>
                 ) : null}
                 {business.noShowPolicy ? (
-                  <p className="z-policy">{business.noShowPolicy}</p>
+                  <p className="z-policy" dir="auto">{business.noShowPolicy}</p>
                 ) : null}
                 <p className="z-policy z-policy--muted">
                   {t(m.business.noticeAndCancellation, {

@@ -544,7 +544,7 @@ export function BookingFlow({
                 <p className="z-policy z-policy--muted">{enforcedPolicy}</p>
               )}
               {business.cancellationPolicy ? (
-                <p className="z-policy z-policy--quote">{business.cancellationPolicy}</p>
+                <p className="z-policy z-policy--quote" dir="auto">{business.cancellationPolicy}</p>
               ) : null}
             </div>
           </aside>

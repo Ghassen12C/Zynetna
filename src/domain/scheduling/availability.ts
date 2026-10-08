@@ -148,6 +148,8 @@ function windowsForStaff(
   );
   if (fullClosure) return [];
 
+  const ownWeek = staff.hours.length > 0;
+
   // Special hours replace the regular schedule for that day.
   const special = todays.filter(
     (e) => scoped(e) && e.kind === 'SPECIAL_HOURS' && e.startMin != null && e.endMin != null,
@@ -156,14 +158,16 @@ function windowsForStaff(
   let base: Interval[];
   if (special.length > 0) {
     base = normalise(special.map((e) => ({ start: e.startMin!, end: e.endMin! })));
-    // A professional with their own hours is still bound by them.
-    const own = periodsFor(staff.hours, weekday);
-    if (own.length > 0) base = intersect(base, own);
+    // A professional with their own week is still bound by it (a day
+    // outside it stays a day off, even when the business opens specially).
+    if (ownWeek) base = intersect(base, periodsFor(staff.hours, weekday));
   } else {
-    const own = periodsFor(staff.hours, weekday);
-    base = own.length > 0 ? own : periodsFor(business.hours, weekday);
+    // Without a week of their own, a professional works the business's hours.
+    // With one, a weekday they left empty is a day off — not a fallback to
+    // the business's hours, which would let customers book them when absent.
+    base = ownWeek ? periodsFor(staff.hours, weekday) : periodsFor(business.hours, weekday);
     // A professional never works outside the business's own opening hours.
-    if (own.length > 0) {
+    if (ownWeek && base.length > 0) {
       const businessWindows = periodsFor(business.hours, weekday);
       if (businessWindows.length > 0) base = intersect(base, businessWindows);
     }

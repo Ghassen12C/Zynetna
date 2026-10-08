@@ -124,7 +124,7 @@ export const fr = {
     priceRange: 'Budget',
     minRating: 'Note minimum',
     openNow: 'Ouvert maintenant',
-    servedGender: 'Pour',
+    servedGender: 'Clientèle',
     noResults: 'Aucun établissement ne correspond',
     noResultsBody: 'Essayez d’élargir votre recherche ou de retirer un filtre.',
     allBusinesses: 'Tous les établissements',

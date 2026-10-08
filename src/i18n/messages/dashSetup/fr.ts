@@ -113,6 +113,14 @@ export const dashSetupFr = {
     dateRange: 'du {start} au {end}',
     appliesToName: 'Concerne {name}',
     deleteException: 'Supprimer cette fermeture',
+    whoseHours: 'Horaires de',
+    staffFollows:
+      '{name} suit les horaires de l’établissement. Remplissez ses jours pour lui donner sa propre semaine.',
+    staffOwnWeek:
+      '{name} a sa propre semaine : un jour sans créneau est un jour de repos. Ses créneaux restent dans les horaires de l’établissement.',
+    useBusinessHours: 'Revenir aux horaires de l’établissement',
+    followsBusiness: 'Comme l’établissement',
+    dayOff: 'Repos',
   },
   gallery: {
     heading: 'Photos ({count})',

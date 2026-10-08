@@ -13,7 +13,7 @@ export default async function HoursPage() {
   const { m, locale } = await translate();
   const { businessId } = await proContext('business.read', '/pro/dashboard/hours');
 
-  const [hours, exceptions, staff] = await Promise.all([
+  const [hours, exceptions, staff, staffHours] = await Promise.all([
     db.businessHours.findMany({
       where: { businessId },
       orderBy: [{ weekday: 'asc' }, { startMin: 'asc' }],
@@ -27,6 +27,11 @@ export default async function HoursPage() {
       where: { businessId, isActive: true },
       orderBy: { position: 'asc' },
       select: { id: true, displayName: true },
+    }),
+    db.staffHours.findMany({
+      where: { staffMember: { businessId, isActive: true } },
+      orderBy: [{ weekday: 'asc' }, { startMin: 'asc' }],
+      select: { staffMemberId: true, weekday: true, startMin: true, endMin: true },
     }),
   ]);
 
@@ -47,6 +52,7 @@ export default async function HoursPage() {
         staffName: e.staffMember?.displayName ?? null,
       }))}
       staff={staff}
+      staffHours={staffHours}
     />
   );
 }

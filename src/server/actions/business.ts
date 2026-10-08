@@ -7,7 +7,7 @@ import { type FeedbackPartKey, invalid, localized, notFound } from '@/lib/errors
 import { requireBusinessAccess } from '@/server/auth/guard';
 import { recordAudit } from '@/server/audit';
 import { entitlementsFor } from '@/server/services/subscriptions';
-import { hhmmToMinutes } from '@/domain/scheduling/time';
+import { hhmmToMinutes, minutesToHHMM } from '@/domain/scheduling/time';
 import { cuidSchema } from '@/lib/validation/common';
 import {
   businessLocationSchema,
@@ -549,6 +549,15 @@ export async function addExceptionAction(
     if (data.endDate && data.endDate < data.date) {
       throw invalid('endDateBeforeStart');
     }
+    if (
+      data.startMin !== '' && data.endMin !== '' && data.startMin !== undefined &&
+      data.endMin !== undefined && Number(data.endMin) <= Number(data.startMin)
+    ) {
+      throw invalid('hoursEndBeforeStart', {
+        start: minutesToHHMM(Number(data.startMin)),
+        end: minutesToHHMM(Number(data.endMin)),
+      });
+    }
 
     await db.scheduleException.create({
       data: {
@@ -598,6 +607,44 @@ export async function deleteExceptionAction(
     return { status: 'success', message: await done('closureDeleted') };
   } catch (error) {
     return toFormState(error, 'deleteExceptionAction');
+  }
+}
+
+/**
+ * Drop a professional's own week, so they work the business's hours again.
+ * Owner/manager only (`business.hours.write`); the professional must belong
+ * to that business, so a foreign id deletes nothing.
+ */
+export async function clearStaffHoursAction(
+  _prev: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const parsed = await parseForm(
+    z.object({ businessId: cuidSchema, staffMemberId: cuidSchema }),
+    formData,
+  );
+  if (!parsed.ok) return parsed.state;
+
+  try {
+    const { actor, businessId } = await requireBusinessAccess(
+      parsed.data.businessId,
+      'business.hours.write',
+    );
+    const member = await db.staffMember.findFirst({
+      where: { id: parsed.data.staffMemberId, businessId },
+      select: { id: true },
+    });
+    if (!member) throw notFound('staffNotFound');
+
+    await db.staffHours.deleteMany({ where: { staffMemberId: member.id } });
+    await recordAudit({
+      actor, action: 'business.updated', targetType: 'StaffHours',
+      targetId: member.id, businessId, metadata: { cleared: true },
+    });
+    refresh();
+    return { status: 'success', message: await done('hoursSaved') };
+  } catch (error) {
+    return toFormState(error, 'clearStaffHoursAction');
   }
 }
 

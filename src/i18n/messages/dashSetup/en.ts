@@ -116,6 +116,14 @@ export const dashSetupEn: typeof dashSetupFr = {
     dateRange: '{start} to {end}',
     appliesToName: 'Applies to {name}',
     deleteException: 'Delete this closure',
+    whoseHours: 'Hours for',
+    staffFollows:
+      '{name} works the business hours. Fill in their days to give them a week of their own.',
+    staffOwnWeek:
+      '{name} has their own week: a day without a slot is a day off. Their slots stay within the business hours.',
+    useBusinessHours: 'Go back to the business hours',
+    followsBusiness: 'Same as the business',
+    dayOff: 'Day off',
   },
   gallery: {
     heading: 'Photos ({count})',

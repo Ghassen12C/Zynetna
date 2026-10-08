@@ -3538,3 +3538,45 @@ a.z-notif:hover { border-color: var(--z-accent); }
   transition: background-color var(--z-duration-fast) var(--z-ease), color var(--z-duration-fast) var(--z-ease);
 }
 .z-theme-toggle:hover { background: var(--z-bg-sunken); color: var(--z-fg); }
+
+/* Hours: whose week is being edited, and 24-hour time pickers. */
+.z-whose { display: grid; gap: var(--z-space-2); }
+.z-whose .z-chip[aria-pressed='true'] { background: var(--z-accent); border-color: var(--z-accent); color: var(--z-fg-on-accent); }
+.z-whose__note { display: flex; flex-wrap: wrap; align-items: center; gap: var(--z-space-2) var(--z-space-4); }
+.z-timeselect { inline-size: auto; min-inline-size: 6.5rem; font-variant-numeric: tabular-nums; }
+
+/* ══ Dashboard entrance ════════════════════════════════════════════════════
+   The pro and admin areas arrive the way the public pages do: each block
+   rises a few pixels and fades in, one after another. Vertical only, so it
+   reads the same left-to-right and right-to-left; `backwards` fill so hover
+   and focus transforms are never pinned; off for reduced motion. */
+@keyframes z-dash-in {
+  from { opacity: 0; translate: 0 10px; }
+  to   { opacity: 1; translate: 0 0; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .z-pro__body > *,
+  .z-admin__body > *,
+  .z-dash > *,
+  .z-dash__grid > *,
+  .z-stats > .z-stat,
+  .z-days > .z-dayrow {
+    animation: z-dash-in 460ms var(--z-ease-out) backwards;
+  }
+  .z-stats > .z-stat:nth-child(2), .z-dash > *:nth-child(2), .z-dash__grid > *:nth-child(2), .z-days > .z-dayrow:nth-child(2) { animation-delay: 60ms; }
+  .z-stats > .z-stat:nth-child(3), .z-dash > *:nth-child(3), .z-dash__grid > *:nth-child(3), .z-days > .z-dayrow:nth-child(3) { animation-delay: 120ms; }
+  .z-stats > .z-stat:nth-child(4), .z-dash > *:nth-child(4), .z-dash__grid > *:nth-child(4), .z-days > .z-dayrow:nth-child(4) { animation-delay: 180ms; }
+  .z-stats > .z-stat:nth-child(5), .z-dash > *:nth-child(5), .z-days > .z-dayrow:nth-child(5) { animation-delay: 240ms; }
+  .z-stats > .z-stat:nth-child(n+6), .z-dash > *:nth-child(n+6), .z-days > .z-dayrow:nth-child(n+6) { animation-delay: 300ms; }
+
+  /* Table rows settle in, so a long list does not appear as one slab. */
+  .z-pro__body tbody tr,
+  .z-admin__body tbody tr { animation: z-fade-in 360ms var(--z-ease-out) backwards; }
+  .z-pro__body tbody tr:nth-child(n+2), .z-admin__body tbody tr:nth-child(n+2) { animation-delay: 40ms; }
+  .z-pro__body tbody tr:nth-child(n+4), .z-admin__body tbody tr:nth-child(n+4) { animation-delay: 90ms; }
+  .z-pro__body tbody tr:nth-child(n+8), .z-admin__body tbody tr:nth-child(n+8) { animation-delay: 140ms; }
+
+  /* Interactive cards answer the pointer. */
+  .z-stat { transition: translate var(--z-duration-fast) var(--z-ease-out), box-shadow var(--z-duration-fast) var(--z-ease-out); }
+  .z-stat:hover { translate: 0 -2px; box-shadow: var(--z-shadow-md); }
+}

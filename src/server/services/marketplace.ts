@@ -107,13 +107,28 @@ export async function searchBusinesses(filters: SearchFilters) {
   const and: Prisma.BusinessWhereInput[] = [];
 
   if (filters.q) {
-    // Match the business name, or any of its service names.
+    // Match the business name, its services, its categories in any of the
+    // three languages (a visitor typing "حلاق" or "barber" must find the
+    // barbers, whose own texts are usually French), or its city.
+    const text = { contains: filters.q, mode: 'insensitive' as const };
+    const categoryText: Prisma.CategoryWhereInput[] = [
+      { name: text },
+      { nameAr: text },
+      { nameEn: text },
+    ];
     and.push({
       OR: [
-        { name: { contains: filters.q, mode: 'insensitive' } },
-        { tagline: { contains: filters.q, mode: 'insensitive' } },
-        { services: { some: { name: { contains: filters.q, mode: 'insensitive' }, isActive: true } } },
-        { categories: { some: { category: { name: { contains: filters.q, mode: 'insensitive' } } } } },
+        { name: text },
+        { tagline: text },
+        { services: { some: { name: text, isActive: true } } },
+        {
+          categories: {
+            some: {
+              category: { OR: [...categoryText, { parent: { OR: categoryText } }] },
+            },
+          },
+        },
+        { location: { is: { city: { is: { OR: [{ name: text }, { nameAr: text }] } } } } },
       ],
     });
   }
