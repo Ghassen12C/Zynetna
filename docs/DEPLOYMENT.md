@@ -15,9 +15,8 @@ actually runs, how to change it, and how to undo a change.
  ┌──────────── resource group kerkennah-rg (France Central) ───────────────┐
  │                                                                        │
  │  App Service plan kerkennah-plan (Linux B1)                            │
- │   └─ zynetna-web  ← container kerkennahacr.azurecr.io/zynetna:<sha>    │
- │        system identity ─┬─ AcrPull on kerkennahacr                     │
- │                         └─ Key Vault Secrets User on zynetna-kv        │
+ │   └─ zynetna-web  ← public image ghcr.io/ghassen12c/zynetna:<sha>      │
+ │        system identity ── Key Vault Secrets User on zynetna-kv         │
  │        HTTPS only · TLS ≥ 1.2 · FTP off · always on · /api/health      │
  │        managed certificates: zynetna.tn, www.zynetna.tn                │
  │                                                                        │
@@ -35,7 +34,6 @@ actually runs, how to change it, and how to undo a change.
  │                             access (payment screenshots, D17 QR);      │
  │                             the app creates it on first private upload │
  │  id-zynetna-github (managed identity, OIDC from GitHub)                │
- │   ├─ AcrPush on kerkennahacr                                           │
  │   └─ Website Contributor on zynetna-web only                           │
  └────────────────────────────────────────────────────────────────────────┘
    E-mail: Resend (domain zynetna.tn verified), sender noreply@zynetna.tn
@@ -80,7 +78,7 @@ those settings and the `admin-password` secret were removed afterwards.
 
 GitHub, environment **production**: secrets `AZURE_CLIENT_ID`,
 `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`, `JOB_TOKEN`; variables
-`AZURE_REGISTRY=kerkennahacr`, `AZURE_RESOURCE_GROUP=kerkennah-rg`,
+`AZURE_RESOURCE_GROUP=kerkennah-rg`,
 `AZURE_WEBAPP=zynetna-web`, `APP_URL=https://www.zynetna.tn`. The OIDC trust
 subject is `repo:Ghassen12C@114819201/Zynetna@1407400429:environment:production`
 (GitHub's ID-based format).
@@ -114,9 +112,19 @@ is not changed.
 Actions → **Deploy** → Run workflow (or push a `v*` tag). The workflow:
 
 1. signs in to Azure with OIDC (no stored Azure password);
-2. builds the image once and pushes `zynetna:<sha>` and `zynetna:latest`;
-3. points `zynetna-web` at `zynetna:<sha>` and restarts it;
-4. waits until `/api/health` reports `status: ok` **and** `version: <sha>`.
+2. builds the image once and pushes `ghcr.io/ghassen12c/zynetna:<sha>` and
+   `:latest` to GitHub's container registry (free for a public package);
+3. checks the image can be pulled **without credentials**, and stops before
+   touching production if it cannot;
+4. points `zynetna-web` at `ghcr.io/ghassen12c/zynetna:<sha>` and restarts it;
+5. waits until `/api/health` reports `status: ok` **and** `version: <sha>`.
+
+The package must stay **public**: App Service pulls it anonymously, and the
+image holds no secrets (they come from Key Vault at runtime). A new package is
+private; make it public once in GitHub → profile → *Packages → zynetna →
+Package settings → Change visibility*. Until 2026-10 the images lived in Azure
+Container Registry `kerkennahacr` (≈ 5 USD/month), pulled with the app's
+managed identity.
 
 On start the container (`scripts/start.sh`) runs `prisma migrate deploy`
 from inside Azure, so the database never accepts connections from GitHub. A

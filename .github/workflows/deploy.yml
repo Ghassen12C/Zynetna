@@ -6,6 +6,10 @@ name: Deploy
 # Rollback: run it by hand with `image_tag` set to an earlier commit SHA. That
 # skips the build and points the web app back at the image already in the
 # registry. Migrations only ever move forward, so roll back code, not schema.
+#
+# Images live in GitHub's container registry (ghcr.io/<owner>/zynetna), which
+# is free for a public package. The image holds no secrets (they come from Key
+# Vault at runtime), so App Service pulls it anonymously.
 on:
   workflow_dispatch:
     inputs:
@@ -32,11 +36,11 @@ jobs:
     permissions:
       id-token: write
       contents: read
+      packages: write
 
     env:
       # Non-secret names live in repository variables (Settings → Secrets and
       # variables → Actions → Variables).
-      REGISTRY: ${{ vars.AZURE_REGISTRY }}
       RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
       WEBAPP: ${{ vars.AZURE_WEBAPP }}
       APP_URL: ${{ vars.APP_URL }}
@@ -44,6 +48,12 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+
+      # ghcr.io wants a lowercase path: ghcr.io/ghassen12c/zynetna.
+      - name: Image name
+        run: |
+          echo "IMAGE_PATH=${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
+          echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
 
       - name: Sign in to Azure
         uses: azure/login@v2
@@ -53,7 +63,12 @@ jobs:
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Sign in to the container registry
-        run: az acr login --name "$REGISTRY"
+        if: github.event.inputs.image_tag == ''
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - uses: docker/setup-buildx-action@v3
         if: github.event.inputs.image_tag == ''
@@ -66,19 +81,44 @@ jobs:
           push: true
           build-args: APP_VERSION=${{ github.sha }}
           tags: |
-            ${{ vars.AZURE_REGISTRY }}.azurecr.io/zynetna:${{ github.sha }}
-            ${{ vars.AZURE_REGISTRY }}.azurecr.io/zynetna:latest
+            ${{ env.IMAGE }}:${{ github.sha }}
+            ${{ env.IMAGE }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      # App Service pulls without credentials, so the package must be public.
+      # A brand-new package is private: stop here, before production is
+      # touched, rather than point the site at an image it cannot download.
+      - name: Check the image can be pulled anonymously
+        run: |
+          token=$(curl -fsS "https://ghcr.io/token?scope=repository:$IMAGE_PATH:pull" | jq -r '.token // empty' || true)
+          if [ -n "$token" ] && curl -fsS -o /dev/null \
+              -H "Authorization: Bearer $token" \
+              -H "Accept: application/vnd.oci.image.index.v1+json, application/vnd.oci.image.manifest.v1+json, application/vnd.docker.distribution.manifest.list.v2+json, application/vnd.docker.distribution.manifest.v2+json" \
+              "https://ghcr.io/v2/$IMAGE_PATH/manifests/$TAG"; then
+            echo "$IMAGE:$TAG is public."
+          else
+            echo "::error::$IMAGE:$TAG cannot be pulled anonymously. Production was NOT changed."
+            echo "Make the package public (GitHub → profile → Packages → zynetna → Package settings → Change visibility → Public),"
+            echo "then run Deploy again with image_tag = $TAG (no rebuild)."
+            exit 1
+          fi
 
       # The container applies pending migrations itself before it starts
       # serving (scripts/start.sh), from inside Azure, so the database never
       # has to accept connections from GitHub's runners.
       - name: Release the image
         run: |
+          # A public image needs no registry identity (the app used to pull
+          # from Azure Container Registry with its managed identity).
+          az webapp config set \
+            --resource-group "$RESOURCE_GROUP" --name "$WEBAPP" \
+            --generic-configurations '{"acrUseManagedIdentityCreds": false}' \
+            --output none
           az webapp config container set \
             --resource-group "$RESOURCE_GROUP" --name "$WEBAPP" \
-            --container-image-name "$REGISTRY.azurecr.io/zynetna:$TAG" \
+            --container-image-name "$IMAGE:$TAG" \
+            --container-registry-url https://ghcr.io \
             --output none
           az webapp restart --resource-group "$RESOURCE_GROUP" --name "$WEBAPP"
 
@@ -103,7 +143,7 @@ jobs:
         run: |
           {
             if [ "$OUTCOME" = "success" ]; then
-              echo "### ✅ Deployed \`zynetna:$TAG\`"
+              echo "### ✅ Deployed \`$IMAGE:$TAG\`"
               echo "Rollback: run **Deploy** by hand with \`image_tag\` = the previous commit SHA."
             else
               echo "### ❌ Deploy of \`zynetna:$TAG\` did not complete ($OUTCOME)"
