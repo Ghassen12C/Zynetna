@@ -122,9 +122,10 @@ Actions → **Deploy** → Run workflow (or push a `v*` tag). The workflow:
 The package must stay **public**: App Service pulls it anonymously, and the
 image holds no secrets (they come from Key Vault at runtime). A new package is
 private; make it public once in GitHub → profile → *Packages → zynetna →
-Package settings → Change visibility*. Until 2026-10 the images lived in Azure
+Package settings → Change visibility*. Until 2026-10-13 the images lived in Azure
 Container Registry `kerkennahacr` (≈ 5 USD/month), pulled with the app's
-managed identity.
+managed identity; that registry has been deleted, so rollbacks go back at most
+to `a2a0bd0`, the first image built on GHCR.
 
 On start the container (`scripts/start.sh`) runs `prisma migrate deploy`
 from inside Azure, so the database never accepts connections from GitHub. A
