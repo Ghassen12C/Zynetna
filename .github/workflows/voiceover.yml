@@ -1,0 +1,48 @@
+name: Voice-over
+
+# Generates the promo video's voice-over with Azure Speech (Tunisian voices)
+# and publishes the WAV files on the `voiceover-audio` branch, kept apart from
+# the code. Needs the secret AZURE_SPEECH_KEY and the variable
+# AZURE_SPEECH_REGION (Settings → Secrets and variables → Actions).
+on:
+  workflow_dispatch:
+    inputs:
+      voices:
+        description: Azure voices, comma-separated
+        default: ar-TN-ReemNeural,ar-TN-HediNeural
+      rate:
+        description: Speaking rate (e.g. -3%, 0%, +5%)
+        default: '-3%'
+
+permissions:
+  contents: write
+
+jobs:
+  synthesise:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Synthesise
+        env:
+          AZURE_SPEECH_KEY: ${{ secrets.AZURE_SPEECH_KEY }}
+          AZURE_SPEECH_REGION: ${{ vars.AZURE_SPEECH_REGION }}
+          VOICES: ${{ github.event.inputs.voices }}
+          RATE: ${{ github.event.inputs.rate }}
+          OUT_DIR: ${{ runner.temp }}/voiceover
+        run: python3 marketing/voiceover/tts.py
+
+      - name: Publish on the voiceover-audio branch
+        env:
+          OUT_DIR: ${{ runner.temp }}/voiceover
+        run: |
+          cp marketing/voiceover/lines.json "$OUT_DIR/"
+          cd "$OUT_DIR"
+          git init -q -b voiceover-audio
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -q -m "Voice-over ${{ github.event.inputs.voices }} (${{ github.event.inputs.rate }}) from ${GITHUB_SHA::7}"
+          git push -q --force "https://x-access-token:${{ github.token }}@github.com/${GITHUB_REPOSITORY}.git" voiceover-audio
+          echo "### Voice-over published on branch \`voiceover-audio\`" >> "$GITHUB_STEP_SUMMARY"
