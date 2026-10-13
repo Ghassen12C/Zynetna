@@ -16,3 +16,14 @@ Sound effects and music are synthesised by `sfx.py` (no third-party audio, no li
 to worry about); they are generated into `sfx/` on the first build.
 
 Needs ffmpeg, Python 3 with numpy, and Chromium (`CHROMIUM=/path/to/chrome`).
+
+The pauses inside a line (after a comma or «…») can be as long as the ones between
+lines, so the automatic split can pick the wrong pause. Give the 9 cut points by hand
+then. For the current recording (`marketing/voiceover/speech-rima.mp3`, ElevenLabs):
+
+    CUTS="5.11,9.235,11.205,15.705,19.59,25.84,30.815,34.17,37.565" \
+      python3 marketing/video/build.py out.mp4 marketing/voiceover/speech-rima.mp3
+
+To find cut points for a new recording, list its pauses and match them to the script:
+
+    ffmpeg -i speech.mp3 -af silencedetect=noise=-36dB:d=0.07 -f null - 2>&1 | grep silence_

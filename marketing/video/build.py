@@ -20,6 +20,7 @@ LINES = ["التليفون يدقّ وانت تخدم… والكليون يمش
  "شهرين بلاش! ومبعد ثلاثين دينار برك في الشهر.",
  "سجّل صالونك توّا، على زينتنا پوان تي إن!"]
 LEAD, TAIL = 0.15, 0.30
+LEADS = {'miss': 0.9}  # let the phone ring before the voice comes in
 sh = lambda *a, **k: subprocess.check_call(list(a), **k)
 dur_of = lambda f: float(subprocess.check_output(['ffprobe','-v','error','-show_entries','format=duration','-of','csv=p=0',f]).decode())
 
@@ -29,8 +30,12 @@ def silences(f, db=-38, d=0.18):
     return list(zip(st, en))
 
 def split_one(f):
-    """Pick the 9 pauses that best separate the 10 lines: long pauses near where each line should end (by text length)."""
-    total = dur_of(f); gaps = [(a, b) for a, b in silences(f) if a > 0.3 and b < total - 0.3]
+    """Cut points can be given by hand (CUTS="5.1,9.2,…" — the 9 pauses between lines), otherwise pick the 9 pauses that best separate the 10 lines: long pauses near where each line should end (by text length)."""
+    total = dur_of(f)
+    if os.environ.get('CUTS'):
+        mids = [float(x) for x in os.environ['CUTS'].split(',')]; assert len(mids) == 9, 'CUTS needs 9 values'
+        return cut(f, [0.0] + mids + [total])
+    gaps = [(a, b) for a, b in silences(f) if a > 0.3 and b < total - 0.3]
     if len(gaps) < 9: sys.exit(f'only {len(gaps)} pauses found — leave a short pause between lines, or upload 10 files')
     w = [len(re.sub(r'\W', '', l)) + 6 for l in LINES]; cum = [sum(w[:i+1]) / sum(w) for i in range(9)]
     first, last = silences(f)[0], silences(f)[-1]
@@ -50,6 +55,9 @@ def split_one(f):
     for i in range(8, -1, -1): pick.append(j); j = bk[i][j]
     pick = [gaps[j] for j in reversed(pick)]
     cuts = [speech0] + [(a+b)/2 for a, b in pick] + [speech1]
+    return cut(f, cuts)
+
+def cut(f, cuts):
     print('cut points (s):', [round(c, 2) for c in cuts])
     for i in range(10):
         sh('ffmpeg','-hide_banner','-loglevel','error','-y','-i',f,'-ss',str(cuts[i]),'-to',str(cuts[i+1]),'-ac','1','-ar','48000',f'{W}/raw{i+1:02d}.wav')
@@ -68,7 +76,7 @@ if src:
     clips = []
     for i, r in enumerate(raw):
         d = f'{W}/clip{i+1:02d}.wav'; trim(r, d); clips.append(d)
-    DUR = {k: round(LEAD + dur_of(c) + (1.6 if k == 'cta' else TAIL), 3) for k, c in zip(KEYS, clips)}
+    DUR = {k: round(LEADS.get(k, LEAD) + dur_of(c) + (1.6 if k == 'cta' else TAIL), 3) for k, c in zip(KEYS, clips)}
     print('scene durations', DUR)
 
 env = dict(os.environ, FRAMES=f'{W}/frames')
@@ -90,7 +98,7 @@ fl.append(f'[{km}:a]atrim=0:{total-m0},afade=t=in:d=0.6,afade=t=out:st={max(0,to
 if clips:
     vo = []
     for c, k in zip(clips, KEYS):
-        i = add(c); ms = int((T[k][0] + LEAD) * 1000); fl.append(f'[{i}:a]adelay={ms},aformat=channel_layouts=mono[v{i}]'); vo.append(f'[v{i}]')
+        i = add(c); ms = int((T[k][0] + LEADS.get(k, LEAD)) * 1000); fl.append(f'[{i}:a]adelay={ms},aformat=channel_layouts=mono[v{i}]'); vo.append(f'[v{i}]')
     fl.append(''.join(vo) + f'amix=inputs={len(vo)}:normalize=0,loudnorm=I=-16:TP=-2,aformat=channel_layouts=stereo:sample_rates=48000,asplit=2[vox][key]')
     fl.append('[mus][key]sidechaincompress=threshold=0.03:ratio=6:attack=20:release=350[duck]')
     bed = '[duck][vox]'; nb = 2

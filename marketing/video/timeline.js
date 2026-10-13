@@ -14,19 +14,19 @@ const at = (k,f) => T[k][0] + f*(T[k][1]-T[k][0]);
 const SEQ = [
   ['c01-home','discover',0,.3],['c02-categories','discover',.3,.55],['c07-nails','discover',.55,1.001],
   ['c08-service','book',0,.25],['c09-slot','book',.25,.5],['c10-summary','book',.5,.72],['c11-confirmed','book',.72,1.001],
-  ['p02-calendar','control',0,.3],['p03-services','control',.3,.55],['p04-hours','control',.55,.78],['p05-team','control',.78,1.001],
+  ['p02-calendar','control',0,.42],['p03-services','control',.42,.62],['p04-hours','control',.62,.78],['p05-team','control',.78,1.001],
   ['p06-newres','extra',0,.36],['c07-nails','extra',.36,.62],['p08-analytics','extra',.62,1.001],
 ];
 const segs = SEQ.map(([id,k,a,b]) => [id, at(k,a), at(k,b)]);
 const TAPS = [[at('discover',.86),137,555],[at('book',.12),195,419],[at('book',.37),73,388],[at('book',.6),195,422]];
 const FEAT = {
-  control: [['الأجندة',0,.3],['الخدمات والأسوام',.3,.55],['أوقات الخدمة',.55,.78],['الفريق',.78,1.01]],
+  control: [['الأجندة',0,.42],['الخدمات والأسوام',.42,.62],['أوقات الخدمة',.62,.78],['الفريق',.78,1.01]],
   extra: [['ريزرفاسيونات التليفون',0,.36],['صفحة صالونك',.36,.62],['مداخيل الشهر',.62,1.01]],
 };
-const CHIP = i => at('cats',0) + .55 + (i-1)*Math.max(.3, (D.cats-1.3)/5);
+const CHIP = i => at('cats',0) + .27*D.cats + (i-1)*.125*D.cats;
 // sound effects, read by the audio builder: [time, file, gain dB]
 window.CUES = [
-  [T.miss[0]+.05,'ring',-6], [T.miss[1]-1.0,'missed',-8],
+  [T.miss[0]+.05,'ring',-11], [at('miss',.7),'missed',-9],
   ...[1,2,3,4,5].map(i => [CHIP(i),'pop',-14]),
   [T.brand[0]-.3,'whoosh',-10], [T.brand[0]+.05,'shimmer',-12],
   [T.discover[0]-.1,'whoosh',-14],
@@ -42,9 +42,9 @@ function render(t) {
   $('pat').style.transform = `translate(${-t*6}px,${-t*10}px)`;
   // 01 missed calls
   const [m0,m1] = T.miss; $('miss').style.opacity = win(t,m0,m1);
-  $('ring').style.transform = `rotate(${t<m1-1.0 ? Math.sin(t*40)*6 : 0}deg)`;
+  $('ring').style.transform = `rotate(${t<at('miss',.7) ? Math.sin(t*40)*6 : 0}deg)`;
   $('missed').textContent = String(clamp(1+Math.floor(Math.max(0,t-m0)/.45),1,7));
-  set($('m1'), prog(t,m0+.1,.4), (1-prog(t,m0+.1,.4))*40); const m2s = m0+.5*(m1-m0); set($('m2'), prog(t,m2s,.4), 0, .9+.1*prog(t,m2s,.4));
+  set($('m1'), prog(t,m0+.1,.4), (1-prog(t,m0+.1,.4))*40); const m2s = m0+.68*(m1-m0); set($('m2'), prog(t,m2s,.4), 0, .9+.1*prog(t,m2s,.4));
   // 02 salon question + categories
   $('hook').style.opacity = win(t, ...T.cats);
   set($('h1a'), prog(t, T.cats[0]+.05, .45), (1-prog(t,T.cats[0]+.05,.45))*40);
@@ -61,7 +61,7 @@ function render(t) {
   for (const [tt,x,y] of TAPS) { const d = t-tt; if (d>=0 && d<.55) { tap.style.left = x*K+'px'; tap.style.top = y*K+'px'; tap.style.opacity = 1-d/.55; tap.style.transform = `scale(${.5+d*1.5})`; } }
   const hl = $('hl'); hl.style.opacity = 0; const pulse = s => .55 + .45*Math.abs(Math.sin((t-s)*3.2));
   const box = (s,[x,y,w,h]) => Object.assign(hl.style, {left:x*K+'px', top:y*K+'px', width:w*K+'px', height:h*K+'px', opacity: pulse(s)});
-  if (t >= at('control',0)+.35 && t < at('control',.3)) box(at('control',0), [14,500,362,56]);
+  if (t >= at('control',0)+.35 && t < at('control',.42)) box(at('control',0), [14,500,362,56]);
   if (t >= at('extra',.62)+.3 && t < at('extra',1)) box(at('extra',.62), [199,305,179,104]);
   // captions
   const caps = {
