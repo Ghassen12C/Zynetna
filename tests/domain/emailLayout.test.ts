@@ -33,6 +33,13 @@ describe('renderEmail', () => {
     expect(text).not.toContain('<');
   });
 
+  it('ships its own dark colours instead of leaving them to the mail app', () => {
+    const { html } = renderEmail({ ...base, locale: 'fr' });
+    expect(html).toContain('<meta name="color-scheme" content="light dark">');
+    expect(html).toContain('@media (prefers-color-scheme: dark)');
+    expect(html).toContain('[data-ogsc] .z-title');
+  });
+
   it('links the notification settings only when asked', () => {
     expect(renderEmail({ ...base, locale: 'fr', manageNotifications: true }).html).toContain('/fr/account/notifications');
     expect(renderEmail({ ...base, locale: 'fr' }).html).not.toContain('/account/notifications');

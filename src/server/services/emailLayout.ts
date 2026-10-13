@@ -42,6 +42,39 @@ const C = {
 };
 const FONT = "'Segoe UI', Tahoma, Helvetica, Arial, sans-serif";
 
+/**
+ * Dark mode, in the brand's night colours rather than whatever greys a mail app
+ * would invent: Medina night ground, gold title and button. Apple Mail and iOS
+ * read the media query; Outlook's apps rewrite colours and mark the elements
+ * they touched with data-ogsc (text) and data-ogsb (backgrounds), so the same
+ * rules are repeated under those. Gmail ignores both and inverts on its own.
+ */
+const DARK = `
+@media (prefers-color-scheme: dark) {
+  .z-bg { background:#07213a !important; }
+  .z-head { background:#0e3b66 !important; }
+  .z-rule { background:#e0a94e !important; }
+  .z-card { background:#0a2d4f !important; border-color:#16507f !important; }
+  .z-title { color:#e0a94e !important; }
+  .z-sign { color:#e0a94e !important; }
+  .z-text { color:#f5f1e8 !important; }
+  .z-muted { color:#b9c6d3 !important; }
+  .z-link { color:#eecb92 !important; }
+  .z-btn { background:#e0a94e !important; }
+  .z-btn-a { color:#07213a !important; }
+}
+[data-ogsb] .z-bg { background-color:#07213a !important; }
+[data-ogsb] .z-head { background-color:#0e3b66 !important; }
+[data-ogsb] .z-rule { background-color:#e0a94e !important; }
+[data-ogsb] .z-card { background-color:#0a2d4f !important; }
+[data-ogsb] .z-btn { background-color:#e0a94e !important; }
+[data-ogsc] .z-title { color:#e0a94e !important; }
+[data-ogsc] .z-sign { color:#e0a94e !important; }
+[data-ogsc] .z-text { color:#f5f1e8 !important; }
+[data-ogsc] .z-muted { color:#b9c6d3 !important; }
+[data-ogsc] .z-link { color:#eecb92 !important; }
+[data-ogsc] .z-btn-a { color:#07213a !important; }`;
+
 export function escapeHtml(value: string): string {
   return value
     .replace(/&/g, '&amp;')
@@ -60,7 +93,7 @@ function paragraph(text: string, align: string, opts: { muted?: boolean } = {}):
   const html = escapeHtml(text).replace(/\n/g, '<br>');
   const color = opts.muted ? C.slate : C.encre;
   const size = opts.muted ? 14 : 16;
-  return `<p style="margin:0 0 16px;font-family:${FONT};font-size:${size}px;line-height:1.6;color:${color};text-align:${align};">${html}</p>`;
+  return `<p class="${opts.muted ? 'z-muted' : 'z-text'}" style="margin:0 0 16px;font-family:${FONT};font-size:${size}px;line-height:1.6;color:${color};text-align:${align};">${html}</p>`;
 }
 
 export function renderEmail(content: EmailContent): { html: string; text: string } {
@@ -73,15 +106,15 @@ export function renderEmail(content: EmailContent): { html: string; text: string
 
   const button = content.action
     ? `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:8px 0 24px;">
-        <tr><td align="center" bgcolor="${C.medina}" style="border-radius:10px;">
-          <a href="${safeUrl(content.action.url)}" target="_blank" style="display:inline-block;padding:14px 28px;font-family:${FONT};font-size:16px;font-weight:700;color:#ffffff;text-decoration:none;border-radius:10px;">${escapeHtml(content.action.label)}</a>
+        <tr><td class="z-btn" align="center" bgcolor="${C.medina}" style="border-radius:10px;">
+          <a class="z-btn-a" href="${safeUrl(content.action.url)}" target="_blank" style="display:inline-block;padding:14px 28px;font-family:${FONT};font-size:16px;font-weight:700;color:#ffffff;text-decoration:none;border-radius:10px;">${escapeHtml(content.action.label)}</a>
         </td></tr>
       </table>
-      <p style="margin:0 0 20px;font-family:${FONT};font-size:12px;line-height:1.5;color:${C.slate};text-align:${align};">${escapeHtml(email.layout.fallback)}<br><a href="${safeUrl(content.action.url)}" style="color:${C.medina};word-break:break-all;" dir="ltr">${escapeHtml(content.action.url)}</a></p>`
+      <p class="z-muted" style="margin:0 0 20px;font-family:${FONT};font-size:12px;line-height:1.5;color:${C.slate};text-align:${align};">${escapeHtml(email.layout.fallback)}<br><a class="z-link" href="${safeUrl(content.action.url)}" style="color:${C.medina};word-break:break-all;" dir="ltr">${escapeHtml(content.action.url)}</a></p>`
     : '';
 
   const footerLinks = content.manageNotifications
-    ? `<br><a href="${safeUrl(settings)}" style="color:${C.slate};text-decoration:underline;">${escapeHtml(email.layout.manage)}</a>`
+    ? `<br><a class="z-muted" href="${safeUrl(settings)}" style="color:${C.slate};text-decoration:underline;">${escapeHtml(email.layout.manage)}</a>`
     : '';
 
   const html = `<!doctype html>
@@ -89,28 +122,30 @@ export function renderEmail(content: EmailContent): { html: string; text: string
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="color-scheme" content="light">
+<meta name="color-scheme" content="light dark">
+<meta name="supported-color-schemes" content="light dark">
 <title>${escapeHtml(content.heading)}</title>
+<style>${DARK}</style>
 </head>
-<body style="margin:0;padding:0;background:${C.chaux};" dir="${dir}">
+<body class="z-bg" style="margin:0;padding:0;background:${C.chaux};" dir="${dir}">
 <div style="display:none;max-height:0;overflow:hidden;opacity:0;">${escapeHtml(content.paragraphs[0] ?? content.heading)}</div>
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="${C.chaux}" style="background:${C.chaux};">
+<table class="z-bg" role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="${C.chaux}" style="background:${C.chaux};">
   <tr><td align="center" style="padding:24px 12px;">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;" dir="${dir}">
-      <tr><td bgcolor="${C.medina}" style="background:${C.medina};border-radius:16px 16px 0 0;padding:22px 28px;" align="${align}">
+      <tr><td class="z-head" bgcolor="${C.medina}" style="background:${C.medina};border-radius:16px 16px 0 0;padding:22px 28px;" align="${align}">
         <a href="${safeUrl(env.APP_URL)}" target="_blank" style="text-decoration:none;"><img src="${safeUrl(logo)}" width="223" height="48" alt="Zynetna" style="display:block;border:0;outline:none;width:223px;height:48px;color:${C.chaux};font-family:${FONT};font-size:22px;font-weight:700;letter-spacing:3px;"></a>
       </td></tr>
-      <tr><td bgcolor="${C.jasmin}" style="background:${C.jasmin};height:4px;line-height:4px;font-size:0;">&nbsp;</td></tr>
-      <tr><td bgcolor="${C.card}" style="background:${C.card};border:1px solid ${C.border};border-top:0;border-radius:0 0 16px 16px;padding:32px 28px 12px;" align="${align}">
-        <h1 style="margin:0 0 20px;font-family:${FONT};font-size:22px;line-height:1.35;font-weight:700;color:${C.medina};text-align:${align};">${escapeHtml(content.heading)}</h1>
+      <tr><td class="z-rule" bgcolor="${C.jasmin}" style="background:${C.jasmin};height:4px;line-height:4px;font-size:0;">&nbsp;</td></tr>
+      <tr><td class="z-card" bgcolor="${C.card}" style="background:${C.card};border:1px solid ${C.border};border-top:0;border-radius:0 0 16px 16px;padding:32px 28px 12px;" align="${align}">
+        <h1 class="z-title" style="margin:0 0 20px;font-family:${FONT};font-size:22px;line-height:1.35;font-weight:700;color:${C.medina};text-align:${align};">${escapeHtml(content.heading)}</h1>
         ${content.paragraphs.map((p) => paragraph(p, align)).join('\n        ')}
         ${button}
         ${(content.after ?? []).map((p) => paragraph(p, align, { muted: true })).join('\n        ')}
-        <p style="margin:8px 0 20px;padding-top:16px;border-top:1px solid ${C.border};font-family:${FONT};font-size:14px;line-height:1.5;font-weight:700;color:${C.medina};text-align:${align};">${escapeHtml(email.signature)}</p>
+        <p class="z-sign" style="margin:8px 0 20px;padding-top:16px;border-top:1px solid ${C.border};font-family:${FONT};font-size:14px;line-height:1.5;font-weight:700;color:${C.medina};text-align:${align};">${escapeHtml(email.signature)}</p>
       </td></tr>
-      <tr><td style="padding:20px 28px;font-family:${FONT};font-size:12px;line-height:1.6;color:${C.slate};" align="center">
+      <tr><td class="z-muted" style="padding:20px 28px;font-family:${FONT};font-size:12px;line-height:1.6;color:${C.slate};" align="center">
         ${escapeHtml(content.footer ?? email.layout.footer)}${footerLinks}<br>
-        <a href="${safeUrl(env.APP_URL)}" style="color:${C.medina};text-decoration:none;font-weight:700;" dir="ltr">zynetna.tn</a>
+        <a class="z-link" href="${safeUrl(env.APP_URL)}" style="color:${C.medina};text-decoration:none;font-weight:700;" dir="ltr">zynetna.tn</a>
       </td></tr>
     </table>
   </td></tr>
