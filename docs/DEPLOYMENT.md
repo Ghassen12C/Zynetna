@@ -152,7 +152,7 @@ roll back code, never schema; write a new migration to undo a schema change.
 ## Scheduled jobs
 
 `.github/workflows/jobs.yml` calls `POST /api/v1/jobs/<name>` with the job
-token: `reminders` every 15 minutes, `subscriptions` daily 02:17 UTC,
+token: `reminders` every 30 minutes (:07 and :37), `subscriptions` daily 02:17 UTC,
 `cleanup` daily 03:41 UTC. Every job is idempotent. Run one by hand from the
 Actions tab.
 

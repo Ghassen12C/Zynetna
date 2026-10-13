@@ -3,7 +3,7 @@ import { logger } from '@/lib/logger';
 import { runDueReminders } from '@/server/services/notifications';
 
 /**
- * Appointment reminders. Runs frequently (every 10–15 minutes); each dispatch
+ * Appointment reminders. Runs every 30 minutes; each dispatch
  * flips the row to SENT, so a reminder is delivered exactly once.
  */
 async function main() {

@@ -2,14 +2,18 @@ name: Scheduled jobs
 
 # Drives the app's background work through its authenticated job endpoint
 # (POST /api/v1/jobs/<name>), so no extra Azure resource is needed:
-#   reminders      every 15 minutes  — appointment reminders due now
+#   reminders      every 30 minutes  — appointment reminders due now
 #   subscriptions  daily, 02:17 UTC  — trial endings, expiries, grace periods
 #   cleanup        daily, 03:41 UTC  — expired sessions and rate-limit buckets
 # GitHub may start a scheduled run a few minutes late; every job is idempotent
 # and catches up on whatever became due in the meantime.
 on:
   schedule:
-    - cron: '*/15 * * * *'
+    # :07 and :37 rather than :00/:30, when GitHub's scheduler is busiest. Every
+    # 30 minutes keeps the repo (private, GitHub Pro: 3,000 minutes a month) well
+    # inside its Actions budget; reminders go out 24 h and 2 h ahead, so a
+    # half-hour step is plenty.
+    - cron: '7,37 * * * *'
     - cron: '17 2 * * *'
     - cron: '41 3 * * *'
   workflow_dispatch:
