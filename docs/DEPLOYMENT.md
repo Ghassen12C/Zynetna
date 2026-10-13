@@ -25,8 +25,10 @@ actually runs, how to change it, and how to undo a change.
  │                                 job-token, storage-connection-string,  │
  │                                 resend-api-key                         │
  │  kerkennah-db (PostgreSQL 16, B1ms, 7-day backups)                     │
- │   └─ database zynetna, login zynetna_app (only that database),         │
- │      extensions btree_gist · citext · pg_trgm, TLS required            │
+ │   ├─ database zynetna, login zynetna_app (only that database),         │
+ │   │  extensions btree_gist · citext · pg_trgm, TLS required            │
+ │   └─ ghassen_prod / ghassen_staging, login ghassen_app: GhassenAcademy │
+ │      (another project, rg-ghassen), sharing the server since 10-13     │
  │  zynetnamedia (Storage) ├─ container zynetna-media, blob-level read,   │
  │                          │  14-day soft delete                         │
  │                          └─ container zynetna-media-private, no public │
@@ -147,6 +149,30 @@ server; then point `database-url` at it). Images: 14-day blob soft delete.
 The production seed (`npm run db:seed:prod`) is idempotent and never deletes.
 The development seed (`npm run db:seed`) wipes every table and refuses to run
 against anything but a local database.
+
+## Shared database server
+
+`kerkennah-db` also hosts GhassenAcademy (`ghassen_prod`, `ghassen_staging`,
+login `ghassen_app`, apps in `rg-ghassen`) since 2026-10-13. One B1ms server
+stays within the Azure free offer, which covers only one, and costs half of two.
+
+- **Isolation:** each database accepts only its own login. `zynetna` lists
+  `kerkennah` and `zynetna_app`, the two `ghassen_*` databases only
+  `ghassen_app`. Neither app can open the other's database.
+- **Connection budget:** the server allows about 50 connections in total.
+  Zynetna uses `connection_limit=5` in its `database-url`, GhassenAcademy
+  5 (prod) + 2 (staging) through `DATABASE_POOL_SIZE`. Raise any of them only
+  with the total in mind.
+- **Shared CPU:** the server is burstable, so a long, heavy peak on one site
+  can slow the other. Watch *kerkennah-db → Metrics → CPU credits remaining*.
+  The fix is a bigger SKU (B2s, a restart of a few minutes) or moving one
+  project to its own server with `pg_dump`/`pg_restore`.
+- **Restores:** a point-in-time restore creates a new server with every
+  database. To recover only one project, `pg_dump` its database from the
+  restored server, then delete the restored server.
+- **Admin password:** the old `kerkennah-app` settings hold the `kerkennah`
+  admin password in plain text. Rotate it once the old app is deleted (see
+  below).
 
 ## Old pilot resources
 
