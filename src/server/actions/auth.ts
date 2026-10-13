@@ -370,6 +370,9 @@ export async function requestPasswordResetAction(
       where: { email: parsed.data.email },
       select: { id: true, email: true, firstName: true, status: true, locale: true },
     });
+    // No address in the log: whether an account matched is enough to tell a
+    // typo from a delivery problem when someone says the email never came.
+    logger.info('password reset requested', { accountFound: Boolean(user), status: user?.status ?? null });
     if (!user || user.status !== 'ACTIVE') return generic;
 
     // Previous unused links stop working the moment a new one is issued.

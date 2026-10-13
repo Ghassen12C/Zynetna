@@ -492,5 +492,7 @@ export async function sendPasswordResetEmail(input: {
 
   if (!result.delivered) {
     logger.error('password reset email not delivered', { error: result.error });
+  } else {
+    logger.info('password reset email sent', { provider: result.provider, reference: result.reference ?? null });
   }
 }
