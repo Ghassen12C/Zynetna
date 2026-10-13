@@ -1,15 +1,24 @@
 'use client';
 
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { useState, useTransition } from 'react';
+import { usePathname, useSearchParams } from 'next/navigation';
+import { useState } from 'react';
 import { DEFAULT_LOCALE, LOCALES, LOCALE_META, type Locale } from '@/i18n/config';
 
 /**
  * Language switcher.
  *
  * Navigates to the same page under the chosen locale's URL, so the choice is
- * shareable and the middleware records it. French is the canonical unprefixed
- * locale, so switching to it strips the prefix rather than adding one.
+ * shareable. French is the canonical unprefixed locale, so switching to it
+ * strips the prefix rather than adding one.
+ *
+ * Two things make the switch take effect at once, without the visitor having
+ * to reload:
+ *  - the choice is written to the locale cookie first. An unprefixed URL
+ *    follows that cookie, so without this, switching from English or Arabic
+ *    to French landed on "/" and rendered the previous language again.
+ *  - it is a full page load, not a client-side transition. The client router
+ *    can reuse a page it already holds, rendered in the old language, and the
+ *    root layout (lang, dir) is only rebuilt on a real load.
  */
 export function LocaleSwitcher({
   current,
@@ -19,10 +28,9 @@ export function LocaleSwitcher({
   /** Accessible name for the trigger, already in the current language. */
   label: string;
 }) {
-  const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
-  const [pending, startTransition] = useTransition();
+  const [pending, setPending] = useState(false);
   const [open, setOpen] = useState(false);
 
   function switchTo(locale: Locale) {
@@ -35,10 +43,11 @@ export function LocaleSwitcher({
       (query ? `?${query}` : '');
 
     setOpen(false);
-    startTransition(() => {
-      router.push(target);
-      router.refresh();
-    });
+    if (locale === current) return;
+    setPending(true);
+    // Same name and lifetime as the cookie the middleware sets.
+    document.cookie = `zynetna_locale=${locale}; path=/; max-age=${60 * 60 * 24 * 365}; samesite=lax`;
+    window.location.assign(target);
   }
 
   return (
