@@ -41,10 +41,10 @@ actually runs, how to change it, and how to undo a change.
    E-mail: Resend (domain zynetna.tn verified), sender noreply@zynetna.tn
 ```
 
-The previous pilot app (`kerkennah-app`, its `kerkennah` database and the
-`kerkennahstorage` account) shares the resource group, plan and database
-server but is **stopped and isolated**: Zynetna never reads its database or
-its storage. See "Old pilot resources" below.
+The previous pilot (`kerkennah-app`, its `kerkennah` database, the
+`kerkennahstorage` account and its monitoring) was removed on 2026-10-13. Its
+data was test data only; an archive is kept in the private container
+`zynetnamedia/archives` (`kerkennah/kerkennah-2026-10-13.dump`).
 
 ## Canonical origin
 
@@ -170,22 +170,16 @@ stays within the Azure free offer, which covers only one, and costs half of two.
 - **Restores:** a point-in-time restore creates a new server with every
   database. To recover only one project, `pg_dump` its database from the
   restored server, then delete the restored server.
-- **Admin password:** the old `kerkennah-app` settings hold the `kerkennah`
-  admin password in plain text. Rotate it once the old app is deleted (see
-  below).
+- **Admin password:** the `kerkennah` admin login is used by no app (each
+  connects with its own role). Rotated on 2026-10-13; it lives only in the
+  owner's password manager. Reset it with
+  `az postgres flexible-server update -g kerkennah-rg -n kerkennah-db --admin-password …`.
 
-## Old pilot resources
+## Archives
 
-Kept, stopped, not used by Zynetna. Remove only once nothing in them is needed:
+The private container `archives` in `zynetnamedia` (no public access, separate
+from the media containers) keeps database exports that are no longer live:
 
-| Resource | Holds |
+| Blob | Holds |
 |---|---|
-| `kerkennah-app` (stopped) | the previous pilot app |
-| database `kerkennah` on `kerkennah-db` | the pilot's real businesses, customers and bookings |
-| `kerkennahstorage` / `business-images` | the pilot's business photos (public read) |
-| `kerkennahacr` repositories `barber-app`, `barber-migrator`, webhook `kerkennahwebhook` | old images and the old auto-redeploy hook |
-| `kerkennah-insights`, `kerkennah-alerte-erreurs`, `kerkennah-notifications` | monitoring of the old app |
-
-Do **not** delete `kerkennah-plan`, `kerkennah-db` or `kerkennahacr`
-themselves: Zynetna runs on them. Export the `kerkennah` database
-(`pg_dump`) before dropping it.
+| `kerkennah/kerkennah-2026-10-13.dump` | the old pilot's test database (`pg_restore` format) |
