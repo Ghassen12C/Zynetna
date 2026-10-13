@@ -29,7 +29,9 @@ const schema = z.object({
   EMAIL_DRIVER: z.enum(['console', 'smtp', 'resend']).default('console'),
   EMAIL_FROM: z.string().default('Zynetna <no-reply@zynetna.tn>'),
   SMTP_URL: z.string().optional(),
-  RESEND_API_KEY: z.string().optional(),
+  // Trimmed: a key pasted with a stray line break or space makes an invalid
+  // Authorization header, and every email then fails.
+  RESEND_API_KEY: z.string().trim().optional(),
   SMS_DRIVER: z.enum(['console']).default('console'),
 
   PAYMENT_DRIVER: z.enum(['manual']).default('manual'),

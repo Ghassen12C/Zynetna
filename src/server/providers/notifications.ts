@@ -1,5 +1,6 @@
 import { env, isProd } from '@/lib/env';
 import { logger } from '@/lib/logger';
+import { redactSecrets } from '@/lib/redact';
 
 /**
  * Notification transport abstraction.
@@ -117,13 +118,15 @@ class ResendEmailProvider implements EmailProvider {
       });
       const body = (await response.json().catch(() => ({}))) as { id?: string; message?: string };
       if (!response.ok) {
-        logger.error('resend rejected email', { status: response.status, error: body.message });
-        return { delivered: false, provider: this.name, error: body.message ?? `HTTP ${response.status}` };
+        const message = redactSecrets(body.message ?? `HTTP ${response.status}`, [env.RESEND_API_KEY]);
+        logger.error('resend rejected email', { status: response.status, error: message });
+        return { delivered: false, provider: this.name, error: message };
       }
       return { delivered: true, provider: this.name, reference: body.id };
     } catch (error) {
-      logger.error('resend request failed', { error: (error as Error).message });
-      return { delivered: false, provider: this.name, error: (error as Error).message };
+      const message = redactSecrets((error as Error).message, [env.RESEND_API_KEY]);
+      logger.error('resend request failed', { error: message });
+      return { delivered: false, provider: this.name, error: message };
     }
   }
 }

@@ -76,6 +76,19 @@ which the database server shares. The first start used `SEED_ON_START=true`
 with `ADMIN_*` values to create reference data and the first super admin;
 those settings and the `admin-password` secret were removed afterwards.
 
+To replace the Resend key (Resend → API Keys; delete the old key there), store
+it without a trailing line break or stray character, then restart so the Key
+Vault reference is read again. A key pasted with a `\r` once broke every email
+(invalid `Authorization` header); the app now trims the value and redacts keys
+from its logs, but the stored secret should still be clean:
+
+```bash
+read -rs KEY && az keyvault secret set --vault-name zynetna-kv --name resend-api-key \
+  --value "$(printf '%s' "$KEY" | tr -d '\r\n ')" -o none && unset KEY
+az keyvault secret show --vault-name zynetna-kv -n resend-api-key --query value -o tsv | cut -c1-3   # re_
+az webapp restart -g kerkennah-rg -n zynetna-web
+```
+
 GitHub, environment **production**: secrets `AZURE_CLIENT_ID`,
 `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`, `JOB_TOKEN`; variables
 `AZURE_RESOURCE_GROUP=kerkennah-rg`,
