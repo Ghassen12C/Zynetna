@@ -14,11 +14,12 @@ import urllib.request
 from xml.sax.saxutils import escape
 
 HERE = pathlib.Path(__file__).parent
-KEY = os.environ["AZURE_SPEECH_KEY"]
-REGION = os.environ.get("AZURE_SPEECH_REGION", "francecentral")
-VOICES = [v.strip() for v in os.environ.get("VOICES", "ar-TN-ReemNeural,ar-TN-HediNeural").split(",") if v.strip()]
-RATE = os.environ.get("RATE", "-3%")
-OUT = pathlib.Path(os.environ.get("OUT_DIR", "out"))
+# An unset GitHub variable arrives as an empty string, not as a missing one.
+KEY = os.environ.get("AZURE_SPEECH_KEY", "").strip()
+REGION = os.environ.get("AZURE_SPEECH_REGION", "").strip() or "francecentral"
+VOICES = [v.strip() for v in (os.environ.get("VOICES") or "ar-TN-ReemNeural,ar-TN-HediNeural").split(",") if v.strip()]
+RATE = os.environ.get("RATE", "").strip() or "-3%"
+OUT = pathlib.Path(os.environ.get("OUT_DIR") or "out")
 URL = f"https://{REGION}.tts.speech.microsoft.com/cognitiveservices/v1"
 
 
@@ -42,6 +43,10 @@ def synthesise(voice: str, text: str) -> bytes:
 
 
 def main() -> int:
+    if not KEY:
+        print("AZURE_SPEECH_KEY is empty: add it under Settings → Secrets and variables → Actions → Secrets.", file=sys.stderr)
+        return 1
+    print(f"Region {REGION}, voices {', '.join(VOICES)}, rate {RATE}")
     lines = json.loads((HERE / "lines.json").read_text(encoding="utf-8"))["lines"]
     for voice in VOICES:
         folder = OUT / voice
@@ -50,7 +55,8 @@ def main() -> int:
             try:
                 audio = synthesise(voice, line["text"])
             except urllib.error.HTTPError as err:
-                print(f"{voice} {line['id']}: HTTP {err.code} {err.reason}", file=sys.stderr)
+                hint = {401: "the key is wrong, or belongs to another region than " + REGION}.get(err.code, "")
+                print(f"{voice} {line['id']}: HTTP {err.code} {err.reason} {hint}".strip(), file=sys.stderr)
                 return 1
             (folder / f"{line['id']}.wav").write_bytes(audio)
             print(f"{voice} {line['id']}: {len(audio)} bytes")
