@@ -244,20 +244,28 @@ export const feedbackFr = {
   /** Transactional emails sent in the recipient's language. */
   email: {
     signature: 'Zynetna — Réserve ta chaise. Réserve ton éclat.',
+    layout: {
+      fallback: 'Si le bouton ne fonctionne pas, copiez ce lien dans votre navigateur :',
+      footer: 'Vous recevez cet e-mail parce que vous avez un compte sur Zynetna.',
+      footerInvite: 'Vous recevez cet e-mail parce qu’un établissement vous a invité à le rejoindre sur Zynetna.',
+      manage: 'Gérer mes notifications',
+      open: 'Voir sur Zynetna',
+    },
     passwordReset: {
       subject: 'Réinitialiser votre mot de passe Zynetna',
       greeting: 'Bonjour {name},',
       intro: 'Vous avez demandé à réinitialiser votre mot de passe Zynetna.',
-      validity: 'Ce lien est valable une heure et ne peut servir qu’une seule fois :',
+      validity: 'Ce lien est valable une heure et ne peut servir qu’une seule fois.',
       ignore:
         'Si vous n’êtes pas à l’origine de cette demande, ignorez ce message — votre mot de passe actuel reste valable.',
+      button: 'Choisir un nouveau mot de passe',
     },
     invitation: {
       subject: '{inviter} vous invite à rejoindre {business} sur Zynetna',
       greeting: 'Bonjour,',
       intro: '{inviter} vous invite à rejoindre l’équipe de {business} sur Zynetna.',
       access: 'Vous pourrez consulter l’agenda et gérer les rendez-vous de l’établissement.',
-      cta: 'Acceptez l’invitation ici :',
+      button: 'Accepter l’invitation',
       validity: 'Ce lien est valable jusqu’au {date} et ne peut servir qu’une fois.',
       ignore: 'Si vous ne connaissez pas cet établissement, ignorez simplement ce message.',
     },

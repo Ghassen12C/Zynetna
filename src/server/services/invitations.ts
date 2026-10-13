@@ -6,6 +6,7 @@ import { logger } from '@/lib/logger';
 import { conflict, forbidden, invalid, notFound } from '@/lib/errors';
 import { generateToken, hashToken } from '@/server/auth/hash';
 import { emailProvider } from '@/server/providers/notifications';
+import { renderEmail } from './emailLayout';
 import type { Actor } from '@/domain/identity/actor';
 import { DEFAULT_LOCALE, LOCALE_META, type Locale, isLocale, localePath } from '@/i18n/config';
 import { interpolate } from '@/i18n/interpolate';
@@ -303,25 +304,16 @@ async function sendInvitationEmail(input: {
   const names = { inviter: input.inviterName, business: input.businessName };
   const date = input.expiresAt.toLocaleDateString(LOCALE_META[input.locale].intl);
 
-  const result = await emailProvider.send({
-    to: input.email,
-    subject: interpolate(email.invitation.subject, names),
-    text: [
-      email.invitation.greeting,
-      '',
-      interpolate(email.invitation.intro, names),
-      email.invitation.access,
-      '',
-      email.invitation.cta,
-      '',
-      url,
-      '',
-      interpolate(email.invitation.validity, { date }),
-      email.invitation.ignore,
-      '',
-      email.signature,
-    ].join('\n'),
+  const subject = interpolate(email.invitation.subject, names);
+  const { html, text } = renderEmail({
+    locale: input.locale,
+    heading: subject,
+    paragraphs: [email.invitation.greeting, interpolate(email.invitation.intro, names), email.invitation.access],
+    action: { label: email.invitation.button, url },
+    after: [interpolate(email.invitation.validity, { date }), email.invitation.ignore],
+    footer: email.layout.footerInvite,
   });
+  const result = await emailProvider.send({ to: input.email, subject, text, html });
 
   if (!result.delivered) {
     logger.error('invitation email not delivered', { error: result.error });

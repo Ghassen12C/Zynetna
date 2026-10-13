@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { env } from '@/lib/env';
 import { logger } from '@/lib/logger';
 import { emailProvider, smsProvider } from '../providers/notifications';
+import { renderEmail } from './emailLayout';
 import { DEFAULT_LOCALE, LOCALE_META, type Locale, isLocale, localePath } from '@/i18n/config';
 import { interpolate } from '@/i18n/interpolate';
 import { type Messages, messagesFor } from '@/i18n';
@@ -86,11 +87,16 @@ export async function dispatch(opts: {
   }
 
   if (channels.email && opts.recipient.email) {
-    const result = await emailProvider.send({
-      to: opts.recipient.email,
-      subject: title,
-      text: `${body}${opts.link ? `\n\n${env.APP_URL}${opts.link}` : ''}`,
+    const { html, text } = renderEmail({
+      locale,
+      heading: title,
+      paragraphs: [body],
+      action: opts.link
+        ? { label: messagesFor(locale).feedback.email.layout.open, url: `${env.APP_URL}${opts.link}` }
+        : undefined,
+      manageNotifications: true,
     });
+    const result = await emailProvider.send({ to: opts.recipient.email, subject: title, text, html });
     if (!result.delivered) {
       logger.warn('email delivery failed', { type: opts.type, error: result.error });
     }
@@ -473,22 +479,14 @@ export async function sendPasswordResetEmail(input: {
   const url = `${env.APP_URL}${path}`;
   const { email } = messagesFor(locale).feedback;
 
-  const result = await emailProvider.send({
-    to: input.email,
-    subject: email.passwordReset.subject,
-    text: [
-      interpolate(email.passwordReset.greeting, { name: input.firstName }),
-      '',
-      email.passwordReset.intro,
-      email.passwordReset.validity,
-      '',
-      url,
-      '',
-      email.passwordReset.ignore,
-      '',
-      email.signature,
-    ].join('\n'),
+  const { html, text } = renderEmail({
+    locale,
+    heading: email.passwordReset.subject,
+    paragraphs: [interpolate(email.passwordReset.greeting, { name: input.firstName }), email.passwordReset.intro],
+    action: { label: email.passwordReset.button, url },
+    after: [email.passwordReset.validity, email.passwordReset.ignore],
   });
+  const result = await emailProvider.send({ to: input.email, subject: email.passwordReset.subject, text, html });
 
   if (!result.delivered) {
     logger.error('password reset email not delivered', { error: result.error });

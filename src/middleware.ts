@@ -23,6 +23,8 @@ function isExempt(pathname: string): boolean {
     pathname.startsWith('/api/') ||
     pathname.startsWith('/_next/') ||
     pathname.startsWith('/media/') ||
+    // Images that emails load from the site (the header logo).
+    pathname.startsWith('/email/') ||
     pathname === '/robots.txt' ||
     pathname === '/sitemap.xml' ||
     pathname === '/icon.svg' ||

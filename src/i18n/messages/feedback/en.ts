@@ -222,20 +222,28 @@ export const feedbackEn: typeof feedbackFr = {
 
   email: {
     signature: 'Zynetna — Book your chair. Book your glow.',
+    layout: {
+      fallback: 'If the button does not work, copy this link into your browser:',
+      footer: 'You are receiving this email because you have a Zynetna account.',
+      footerInvite: 'You are receiving this email because a business invited you to join it on Zynetna.',
+      manage: 'Manage my notifications',
+      open: 'View on Zynetna',
+    },
     passwordReset: {
       subject: 'Reset your Zynetna password',
       greeting: 'Hello {name},',
       intro: 'You asked to reset your Zynetna password.',
-      validity: 'This link is valid for one hour and can only be used once:',
+      validity: 'This link is valid for one hour and can only be used once.',
       ignore:
         'If you did not make this request, ignore this message — your current password still works.',
+      button: 'Choose a new password',
     },
     invitation: {
       subject: '{inviter} invites you to join {business} on Zynetna',
       greeting: 'Hello,',
       intro: '{inviter} invites you to join the {business} team on Zynetna.',
       access: 'You will be able to see the calendar and manage the business’s appointments.',
-      cta: 'Accept the invitation here:',
+      button: 'Accept the invitation',
       validity: 'This link is valid until {date} and can only be used once.',
       ignore: 'If you do not know this business, simply ignore this message.',
     },
