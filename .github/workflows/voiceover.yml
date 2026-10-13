@@ -3,7 +3,8 @@ name: Voice-over
 # Generates the promo video's voice-over with Azure Speech (Tunisian voices)
 # and publishes the WAV files on the `voiceover-audio` branch, kept apart from
 # the code. Needs the secret AZURE_SPEECH_KEY and the variable
-# AZURE_SPEECH_REGION (Settings → Secrets and variables → Actions).
+# AZURE_SPEECH_REGION, stored in the `production` environment like the
+# deploy settings (Settings → Environments → production).
 on:
   workflow_dispatch:
     inputs:
@@ -20,6 +21,7 @@ permissions:
 jobs:
   synthesise:
     runs-on: ubuntu-latest
+    environment: production
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
